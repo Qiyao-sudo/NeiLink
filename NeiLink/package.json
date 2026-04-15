@@ -1,0 +1,63 @@
+{
+  "name": "neilink",
+  "version": "1.0.0",
+  "description": "NeiLink Desktop Application",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "dev": "concurrently \"webpack serve --config webpack.renderer.config.js\" \"wait-on http://localhost:3000 && electron .\"",
+    "build": "webpack --config webpack.renderer.config.js --mode production && tsc -p tsconfig.json",
+    "package": "npm run build && electron-builder"
+  },
+  "build": {
+    "appId": "com.neilink.app",
+    "productName": "NeiLink",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Utility"
+    }
+  },
+  "dependencies": {
+    "@ant-design/icons": "^5.5.0",
+    "@types/archiver": "^7.0.0",
+    "@types/node-cron": "^3.0.11",
+    "antd": "^5.21.0",
+    "archiver": "^7.0.1",
+    "archiver-utils": "^5.0.2",
+    "axios": "^1.7.0",
+    "dayjs": "^1.11.20",
+    "node-cron": "^4.2.1",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "react-router-dom": "^6.26.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "concurrently": "^8.2.0",
+    "css-loader": "^7.1.0",
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0",
+    "html-webpack-plugin": "^5.6.0",
+    "style-loader": "^4.0.0",
+    "ts-loader": "^9.5.0",
+    "typescript": "^5.5.0",
+    "wait-on": "^7.2.0",
+    "webpack": "^5.94.0",
+    "webpack-cli": "^5.1.0",
+    "webpack-dev-server": "^5.1.0"
+  }
+}

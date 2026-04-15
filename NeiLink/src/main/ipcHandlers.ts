@@ -1,0 +1,334 @@
+/**
+ * IPC 处理器
+ * 注册所有 IPC 通信通道的处理函数
+ */
+
+import { ipcMain, dialog, BrowserWindow, shell } from 'electron';
+import { IPC_CHANNELS, ShareConfig, SystemSettings, LogEntry } from '../shared/types';
+import { getNetworkInfo, isPortAvailable, findAvailablePort, NetworkMonitor } from './services/network';
+import { Logger } from './services/logger';
+import { SettingsManager } from './services/settings';
+import { ShareManager, CreateShareParams } from './services/shareManager';
+import * as hotspot from './services/hotspot';
+
+/**
+ * 注册所有 IPC 处理器
+ *
+ * @param mainWindow 主窗口实例
+ * @param logger 日志记录器
+ * @param settingsManager 设置管理器
+ * @param shareManager 分享管理器
+ * @param networkMonitor 网络监控器
+ */
+export function registerIpcHandlers(
+  mainWindow: BrowserWindow,
+  logger: Logger,
+  settingsManager: SettingsManager,
+  shareManager: ShareManager,
+  networkMonitor: NetworkMonitor
+): void {
+
+  // ==================== 网络相关 ====================
+
+  // 获取网络信息
+  ipcMain.handle(IPC_CHANNELS.NETWORK_GET_INFO, async () => {
+    try {
+      return getNetworkInfo();
+    } catch (err) {
+      logger.log('error', '获取网络信息失败', err instanceof Error ? err.message : String(err));
+      throw err;
+    }
+  });
+
+  // ==================== 分享相关 ====================
+
+  // 创建分享任务
+  ipcMain.handle(IPC_CHANNELS.SHARE_CREATE, async (_event, params: CreateShareParams) => {
+    try {
+      const share = await shareManager.createShare(params);
+      return { success: true, data: share };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.log('error', '创建分享失败', message);
+      return { success: false, error: message };
+    }
+  });
+
+  // 取消分享任务
+  ipcMain.handle(IPC_CHANNELS.SHARE_CANCEL, async (_event, id: string) => {
+    try {
+      const result = await shareManager.cancelShare(id);
+      return { success: result };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.log('error', `取消分享失败: ${id}`, message);
+      return { success: false, error: message };
+    }
+  });
+
+  // 取消所有分享任务
+  ipcMain.handle(IPC_CHANNELS.SHARE_CANCEL_ALL, async () => {
+    try {
+      await shareManager.cancelAllShares();
+      return { success: true };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.log('error', '取消所有分享失败', message);
+      return { success: false, error: message };
+    }
+  });
+
+  // 获取所有分享任务
+  ipcMain.handle(IPC_CHANNELS.SHARE_GET_ALL, async () => {
+    try {
+      const shares = shareManager.getAllShares();
+      return { success: true, data: shares };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.log('error', '获取分享列表失败', message);
+      return { success: false, error: message };
+    }
+  });
+
+  // 更新分享配置
+  ipcMain.handle(IPC_CHANNELS.SHARE_UPDATE_CONFIG, async (_event, id: string, config: Partial<ShareConfig>) => {
+    try {
+      const share = await shareManager.updateShareConfig(id, config);
+      if (share) {
+        return { success: true, data: share };
+      }
+      return { success: false, error: '分享任务不存在' };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.log('error', `更新分享配置失败: ${id}`, message);
+      return { success: false, error: message };
+    }
+  });
+
+  // ==================== 文件相关 ====================
+
+  // 选择文件
+  ipcMain.handle(IPC_CHANNELS.FILE_SELECT, async () => {
+    try {
+      const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openFile', 'multiSelections'],
+        title: '选择要分享的文件',
+      });
+      if (result.canceled || result.filePaths.length === 0) {
+        return { success: false, canceled: true };
+      }
+      return { success: true, files: result.filePaths };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.log('error', '选择文件失败', message);
+      return { success: false, error: message };
+    }
+  });
+
+  // 选择文件夹
+  ipcMain.handle(IPC_CHANNELS.FILE_SELECT_FOLDER, async () => {
+    try {
+      const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openDirectory'],
+        title: '选择要分享的文件夹',
+      });
+      if (result.canceled || result.filePaths.length === 0) {
+        return { success: false, canceled: true };
+      }
+      return { success: true, folder: result.filePaths[0] };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.log('error', '选择文件夹失败', message);
+      return { success: false, error: message };
+    }
+  });
+
+  // ==================== 设置相关 ====================
+
+  // 获取设置
+  ipcMain.handle(IPC_CHANNELS.SETTINGS_GET, async () => {
+    try {
+      const settings = await settingsManager.getSettings();
+      return { success: true, data: settings };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.log('error', '获取设置失败', message);
+      return { success: false, error: message };
+    }
+  });
+
+  // 保存设置
+  ipcMain.handle(IPC_CHANNELS.SETTINGS_SAVE, async (_event, settings: Partial<SystemSettings>) => {
+    try {
+      await settingsManager.saveSettings(settings);
+
+      // 更新分享管理器的设置引用
+      const fullSettings = await settingsManager.getSettings();
+      shareManager.updateSettings(fullSettings);
+
+      logger.log('system', '设置已更新');
+      return { success: true };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.log('error', '保存设置失败', message);
+      return { success: false, error: message };
+    }
+  });
+
+  // 重置设置
+  ipcMain.handle(IPC_CHANNELS.SETTINGS_RESET, async () => {
+    try {
+      await settingsManager.resetSettings();
+
+      // 更新分享管理器的设置引用
+      const fullSettings = await settingsManager.getSettings();
+      shareManager.updateSettings(fullSettings);
+
+      logger.log('system', '设置已重置为默认值');
+      return { success: true };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.log('error', '重置设置失败', message);
+      return { success: false, error: message };
+    }
+  });
+
+  // ==================== 日志相关 ====================
+
+  // 获取所有日志
+  ipcMain.handle(IPC_CHANNELS.LOG_GET_ALL, async (_event, filter?: { type?: LogEntry['type']; startTime?: number; endTime?: number }) => {
+    try {
+      const logs = logger.getLogs(filter);
+      return { success: true, data: logs };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, error: message };
+    }
+  });
+
+  // 清空日志
+  ipcMain.handle(IPC_CHANNELS.LOG_CLEAR, async () => {
+    try {
+      logger.clearLogs();
+      logger.log('system', '日志已清空');
+      return { success: true };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, error: message };
+    }
+  });
+
+  // 导出日志
+  ipcMain.handle(IPC_CHANNELS.LOG_EXPORT, async () => {
+    try {
+      const exportPath = logger.exportLogs();
+      // 在文件管理器中显示导出的文件
+      await shell.showItemInFolder(exportPath);
+      return { success: true, path: exportPath };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.log('error', '导出日志失败', message);
+      return { success: false, error: message };
+    }
+  });
+
+  // ==================== 热点相关 ====================
+
+  // 启动热点
+  ipcMain.handle(IPC_CHANNELS.HOTSPOT_START, async (_event, config?: { ssid: string; password: string }) => {
+    try {
+      const status = await hotspot.startHotspot(config);
+      return { success: true, data: status };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, error: message };
+    }
+  });
+
+  // 停止热点
+  ipcMain.handle(IPC_CHANNELS.HOTSPOT_STOP, async () => {
+    try {
+      const status = await hotspot.stopHotspot();
+      return { success: true, data: status };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, error: message };
+    }
+  });
+
+  // 获取热点状态
+  ipcMain.handle(IPC_CHANNELS.HOTSPOT_STATUS, async () => {
+    try {
+      const status = await hotspot.getHotspotStatus();
+      return { success: true, data: status };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, error: message };
+    }
+  });
+
+  // 配置热点
+  ipcMain.handle(IPC_CHANNELS.HOTSPOT_CONFIG, async (_event, config: { ssid: string; password: string }) => {
+    try {
+      await hotspot.configureHotspot(config);
+      return { success: true };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.log('error', '配置热点失败', message);
+      return { success: false, error: message };
+    }
+  });
+
+  // ==================== 端口相关 ====================
+
+  // 检查端口是否可用
+  ipcMain.handle(IPC_CHANNELS.PORT_CHECK, async (_event, port: number) => {
+    try {
+      const available = await isPortAvailable(port);
+      return { success: true, available };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, error: message };
+    }
+  });
+
+  // 查找可用端口
+  ipcMain.handle(IPC_CHANNELS.PORT_FIND_AVAILABLE, async (_event, startPort?: number) => {
+    try {
+      const port = await findAvailablePort(startPort);
+      return { success: true, port };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, error: message };
+    }
+  });
+
+  // ==================== 事件推送（主进程 -> 渲染进程） ====================
+
+  // 注册分享更新事件推送
+  shareManager.onShareUpdate((shares) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(IPC_CHANNELS.SHARE_ON_UPDATE, shares);
+    }
+  });
+
+  // 注册下载事件推送
+  shareManager.onDownload((shareId, downloadCount) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(IPC_CHANNELS.SHARE_ON_DOWNLOAD, { shareId, downloadCount });
+    }
+  });
+
+  // 注册新日志推送
+  const originalLog = logger.log.bind(logger);
+  logger.log = (type: LogEntry['type'], message: string, detail?: string) => {
+    const entry = originalLog(type, message, detail);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(IPC_CHANNELS.LOG_ON_NEW, entry);
+    }
+    return entry;
+  };
+
+  // 注册网络变化事件推送
+  networkMonitor.start();
+}

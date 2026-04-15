@@ -1,0 +1,352 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Card, Button, Switch, Alert, Typography, Space, message } from 'antd';
+import {
+  WifiOutlined,
+  ApiOutlined,
+  DisconnectOutlined,
+  FolderAddOutlined,
+  FileAddOutlined,
+  CloudUploadOutlined,
+} from '@ant-design/icons';
+import ShareConfigModal, { ShareFormConfig, ShareResult } from '../components/ShareConfigModal';
+import HotspotConfigModal from '../components/HotspotConfigModal';
+import { NetworkInfo, ShareConfig } from '../../shared/types';
+
+const { Text, Title } = Typography;
+
+interface HotspotStatus {
+  enabled: boolean;
+  ssid?: string;
+  password?: string;
+  error?: string;
+}
+
+const HomePage: React.FC = () => {
+  const [networkStatus, setNetworkStatus] = useState<NetworkInfo>({
+    type: 'none',
+    ip: '0.0.0.0',
+    isOnline: false,
+  });
+  const [hotspotInfo, setHotspotInfo] = useState<HotspotStatus>({
+    enabled: false,
+    ssid: '',
+    password: '',
+  });
+  const [dragActive, setDragActive] = useState(false);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [hotspotModalVisible, setHotspotModalVisible] = useState(false);
+  const [selectedFilePath, setSelectedFilePath] = useState('');
+  const [selectedIsFolder, setSelectedIsFolder] = useState(false);
+  const [defaultNickname, setDefaultNickname] = useState('');
+  const dropRef = useRef<HTMLDivElement>(null);
+
+  const fetchNetworkStatus = useCallback(async () => {
+    try {
+      const result = await window.neilink.ipc.invoke('network:get-info') as any;
+      if (result?.success && result.data) {
+        setNetworkStatus(result.data as NetworkInfo);
+      }
+    } catch {
+      // 静默处理
+    }
+  }, []);
+
+  const fetchHotspotStatus = useCallback(async () => {
+    try {
+      const result = await window.neilink.ipc.invoke('hotspot:status') as any;
+      if (result?.success && result.data) {
+        setHotspotInfo(result.data as HotspotStatus);
+      }
+    } catch {
+      // 静默处理
+    }
+  }, []);
+
+  const fetchDefaultNickname = useCallback(async () => {
+    try {
+      const result = await window.neilink.ipc.invoke('settings:get') as any;
+      if (result?.success && result.data) {
+        const settings = result.data as Record<string, unknown>;
+        if (settings.defaultNickname) {
+          setDefaultNickname(settings.defaultNickname as string);
+        }
+      }
+    } catch {
+      // 静默处理
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNetworkStatus();
+    fetchHotspotStatus();
+    fetchDefaultNickname();
+    const interval = setInterval(() => {
+      fetchNetworkStatus();
+      fetchHotspotStatus();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [fetchNetworkStatus, fetchHotspotStatus, fetchDefaultNickname]);
+
+  // 拖拽处理
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      const path = (file as File & { path?: string }).path || file.name;
+      setSelectedFilePath(path);
+      setSelectedIsFolder(false);
+      setShareModalVisible(true);
+    }
+  };
+
+  const handleSelectFile = async () => {
+    try {
+      const result = await window.neilink.ipc.invoke('file:select') as any;
+      if (result?.success && result.files?.length > 0) {
+        setSelectedFilePath(result.files[0]);
+        setSelectedIsFolder(false);
+        setShareModalVisible(true);
+      }
+    } catch {
+      message.error('选择文件失败');
+    }
+  };
+
+  const handleSelectFolder = async () => {
+    try {
+      const result = await window.neilink.ipc.invoke('file:select-folder') as any;
+      if (result?.success && result.folder) {
+        setSelectedFilePath(result.folder);
+        setSelectedIsFolder(true);
+        setShareModalVisible(true);
+      }
+    } catch {
+      message.error('选择文件夹失败');
+    }
+  };
+
+  const handleShareConfirm = async (config: ShareFormConfig): Promise<ShareResult | null> => {
+    try {
+      const result = await window.neilink.ipc.invoke('share:create', config) as any;
+      if (result?.success && result.data) {
+        const shareConfig = result.data as ShareConfig;
+        message.success('分享创建成功');
+        return {
+          shareLink: `http://${networkStatus.ip}:${shareConfig.port}`,
+          extractionCode: shareConfig.extractCode || '',
+          hotspotName: hotspotInfo.ssid || '',
+          hotspotPassword: hotspotInfo.password || '',
+        };
+      }
+      return null;
+    } catch {
+      message.error('分享创建失败');
+      return null;
+    }
+  };
+
+  const handleHotspotToggle = async (checked: boolean) => {
+    try {
+      if (checked) {
+        await window.neilink.ipc.invoke('hotspot:start');
+        message.success('热点已开启');
+      } else {
+        await window.neilink.ipc.invoke('hotspot:stop');
+        message.info('热点已关闭');
+      }
+      fetchHotspotStatus();
+    } catch {
+      message.error('操作热点失败');
+    }
+  };
+
+  const handleHotspotConfigSave = async (name: string, password: string): Promise<boolean> => {
+    try {
+      await window.neilink.ipc.invoke('hotspot:config', { name, password });
+      setHotspotModalVisible(false);
+      fetchHotspotStatus();
+      return true;
+    } catch {
+      message.error('保存热点配置失败');
+      return false;
+    }
+  };
+
+  const renderNetworkIcon = () => {
+    switch (networkStatus.type) {
+      case 'wifi':
+        return <WifiOutlined style={{ fontSize: 24, color: '#1890ff' }} />;
+      case 'ethernet':
+        return <ApiOutlined style={{ fontSize: 24, color: '#1890ff' }} />;
+      default:
+        return <DisconnectOutlined style={{ fontSize: 24, color: '#ff4d4f' }} />;
+    }
+  };
+
+  const copyIP = () => {
+    navigator.clipboard.writeText(networkStatus.ip).then(() => {
+      message.success('IP 地址已复制');
+    }).catch(() => {
+      message.error('复制失败');
+    });
+  };
+
+  return (
+    <div>
+      {/* 网络状态区 */}
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {renderNetworkIcon()}
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#333' }}>
+                {networkStatus.isOnline ? '网络已连接' : '网络未连接'}
+              </div>
+              <div style={{ fontSize: 13, color: '#999', marginTop: 2 }}>
+                {networkStatus.type === 'wifi' ? 'Wi-Fi' :
+                 networkStatus.type === 'ethernet' ? '以太网' : '未检测到网络'}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>本地 IP</div>
+              <Text
+                copyable={{ tooltips: ['复制', '已复制'] }}
+                style={{ fontSize: 16, fontWeight: 600 }}
+                onClick={copyIP}
+              >
+                {networkStatus.ip}
+              </Text>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* 拖拽分享区 */}
+      <Card style={{ marginBottom: 16 }}>
+        <div
+          ref={dropRef}
+          className={`drop-zone ${dragActive ? 'active' : ''}`}
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+        >
+          <div className="drop-zone-icon">
+            <CloudUploadOutlined />
+          </div>
+          <div className="drop-zone-text">
+            拖拽文件/文件夹至此处发起分享
+          </div>
+          <div className="drop-zone-hint">
+            支持任意类型文件，拖拽后可配置分享参数
+          </div>
+          <Space style={{ marginTop: 20 }}>
+            <Button
+              type="primary"
+              icon={<FileAddOutlined />}
+              onClick={handleSelectFile}
+            >
+              选择文件
+            </Button>
+            <Button
+              icon={<FolderAddOutlined />}
+              onClick={handleSelectFolder}
+            >
+              选择文件夹
+            </Button>
+          </Space>
+        </div>
+      </Card>
+
+      {/* 热点操作区 */}
+      <div className="hotspot-section">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <Title level={5} style={{ margin: 0 }}>移动热点</Title>
+            <Switch
+              checked={hotspotInfo.enabled}
+              onChange={handleHotspotToggle}
+              checkedChildren="开"
+              unCheckedChildren="关"
+            />
+          </div>
+          <Button
+            type="link"
+            onClick={() => setHotspotModalVisible(true)}
+          >
+            修改热点配置
+          </Button>
+        </div>
+
+        {hotspotInfo.enabled && hotspotInfo.ssid && (
+          <div style={{ marginTop: 12, display: 'flex', gap: 24 }}>
+            <div>
+              <Text type="secondary">热点名称：</Text>
+              <Text strong>{hotspotInfo.ssid}</Text>
+            </div>
+            {hotspotInfo.password && (
+              <div>
+                <Text type="secondary">热点密码：</Text>
+                <Text strong>{hotspotInfo.password}</Text>
+              </div>
+            )}
+          </div>
+        )}
+
+        {hotspotInfo.enabled && (
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginTop: 12 }}
+            message="AP 隔离提示"
+            description="当前热点已启用 AP 隔离，连接同一热点的设备之间无法互相通信。如需局域网内设备互访，请在系统网络设置中关闭 AP 隔离。"
+          />
+        )}
+      </div>
+
+      {/* 分享配置弹窗 */}
+      <ShareConfigModal
+        visible={shareModalVisible}
+        filePath={selectedFilePath}
+        isFolder={selectedIsFolder}
+        defaultNickname={defaultNickname}
+        onConfirm={handleShareConfirm}
+        onCancel={() => setShareModalVisible(false)}
+      />
+
+      {/* 热点配置弹窗 */}
+      <HotspotConfigModal
+        visible={hotspotModalVisible}
+        currentName={hotspotInfo.ssid || ''}
+        currentPassword={hotspotInfo.password || ''}
+        onConfirm={handleHotspotConfigSave}
+        onCancel={() => setHotspotModalVisible(false)}
+      />
+    </div>
+  );
+};
+
+export default HomePage;

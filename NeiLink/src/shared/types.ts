@@ -1,0 +1,131 @@
+/**
+ * NeiLink 共享类型定义
+ * 主进程和渲染进程共用的类型和接口
+ */
+
+// 网络类型
+export type NetworkType = 'wifi' | 'ethernet' | 'none';
+
+// 网络状态信息
+export interface NetworkInfo {
+  type: NetworkType;
+  ip: string;
+  ssid?: string;
+  isOnline: boolean;
+}
+
+// 分享任务配置
+export interface ShareConfig {
+  id: string;
+  filePath: string;
+  fileName: string;
+  fileSize: number;
+  isFolder: boolean;
+  extractCode?: string;
+  expiryTime?: number; // 过期时间戳
+  maxDownloads: number; // -1表示不限
+  maxConcurrent: number; // -1表示不限
+  uploaderName: string;
+  createdAt: number;
+  port: number;
+  status: 'active' | 'cancelled' | 'expired';
+  downloadCount: number;
+  encryptedFilePath?: string;
+  encryptionKey?: string;
+}
+
+// 日志条目
+export interface LogEntry {
+  id: string;
+  timestamp: number;
+  type: 'share' | 'download' | 'error' | 'system';
+  message: string;
+  detail?: string;
+}
+
+// 系统设置
+export interface SystemSettings {
+  autoStart: boolean;
+  defaultNickname: string;
+  defaultExtractCode: boolean;
+  defaultExpiry: number; // 小时数, -1表示不限
+  defaultMaxDownloads: number;
+  defaultMaxConcurrent: number;
+  port: number;
+  hotspotPrefix: string;
+  hotspotPasswordLength: number;
+  encryptionBits: 128 | 256;
+  rateLimitEnabled: boolean;
+  rateLimitMaxAttempts: number;
+  rateLimitBanDuration: number; // 分钟
+  logRetentionDays: number;
+  logStoragePath: string;
+}
+
+// IPC 通道定义
+export const IPC_CHANNELS = {
+  // 网络相关
+  NETWORK_GET_INFO: 'network:get-info',
+  NETWORK_ON_CHANGE: 'network:on-change',
+
+  // 分享相关
+  SHARE_CREATE: 'share:create',
+  SHARE_CANCEL: 'share:cancel',
+  SHARE_CANCEL_ALL: 'share:cancel-all',
+  SHARE_GET_ALL: 'share:get-all',
+  SHARE_UPDATE_CONFIG: 'share:update-config',
+  SHARE_ON_UPDATE: 'share:on-update',
+  SHARE_ON_DOWNLOAD: 'share:on-download',
+
+  // 文件相关
+  FILE_SELECT: 'file:select',
+  FILE_SELECT_FOLDER: 'file:select-folder',
+
+  // 设置相关
+  SETTINGS_GET: 'settings:get',
+  SETTINGS_SAVE: 'settings:save',
+  SETTINGS_RESET: 'settings:reset',
+
+  // 日志相关
+  LOG_GET_ALL: 'log:get-all',
+  LOG_CLEAR: 'log:clear',
+  LOG_EXPORT: 'log:export',
+  LOG_ON_NEW: 'log:on-new',
+
+  // 热点相关
+  HOTSPOT_START: 'hotspot:start',
+  HOTSPOT_STOP: 'hotspot:stop',
+  HOTSPOT_STATUS: 'hotspot:status',
+  HOTSPOT_CONFIG: 'hotspot:config',
+
+  // 端口相关
+  PORT_CHECK: 'port:check',
+  PORT_FIND_AVAILABLE: 'port:find-available',
+
+  // 通知
+  NOTIFICATION: 'notification',
+} as const;
+
+// NeiLink API
+export interface NeiLinkAPI {
+  platform: string;
+  versions: {
+    node: string;
+    chrome: string;
+    electron: string;
+  };
+  ipc: {
+    send: (channel: string, ...args: unknown[]) => void;
+    on: (channel: string, callback: (...args: unknown[]) => void) => void;
+    removeAllListeners: (channel: string) => void;
+    invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
+  };
+}
+
+declare global {
+  interface Window {
+    neilink: NeiLinkAPI;
+  }
+}
+
+export {};
