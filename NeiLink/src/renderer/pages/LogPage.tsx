@@ -71,15 +71,15 @@ const LogPage: React.FC = () => {
           break;
       }
 
-      const result = await window.neilink.ipc.invoke('logs:get', {
+      const result = await window.neilink.ipc.invoke('log:get-all', {
         type: typeFilter === 'all' ? undefined : typeFilter,
-        startTime,
-        endTime,
-      }) as { logs: LogEntry[]; total: number };
+        startTime: startTime ? new Date(startTime).getTime() : undefined,
+        endTime: endTime ? new Date(endTime).getTime() : undefined,
+      }) as any;
 
-      if (result && Array.isArray(result.logs)) {
-        setLogs(result.logs);
-        setTotalCount(result.total);
+      if (result && result.success && Array.isArray(result.data)) {
+        setLogs(result.data);
+        setTotalCount(result.data.length);
       }
     } catch {
       message.error('获取日志失败');

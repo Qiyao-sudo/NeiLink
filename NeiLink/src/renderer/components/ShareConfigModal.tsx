@@ -117,7 +117,7 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
       onCancel={handleClose}
       footer={null}
       width={500}
-      destroyOnClose
+      destroyOnHidden
     >
       {shareResult ? (
         <div>

@@ -50,7 +50,7 @@ const HotspotConfigModal: React.FC<HotspotConfigModalProps> = ({
       onCancel={onCancel}
       footer={null}
       width={420}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form
         form={form}

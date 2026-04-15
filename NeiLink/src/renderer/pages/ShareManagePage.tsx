@@ -56,9 +56,9 @@ const ShareManagePage: React.FC = () => {
   const fetchTasks = useCallback(async () => {
     try {
       setLoading(true);
-      const result = await window.neilink.ipc.invoke('share:list') as ShareTask[];
-      if (Array.isArray(result)) {
-        setTasks(result);
+      const result = await window.neilink.ipc.invoke('share:get-all') as any;
+      if (result && result.success && Array.isArray(result.data)) {
+        setTasks(result.data);
       }
     } catch {
       message.error('获取分享列表失败');
@@ -359,7 +359,7 @@ const ShareManagePage: React.FC = () => {
         okText="保存"
         cancelText="取消"
         width={450}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form
           form={editForm}

@@ -4,7 +4,38 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
-import { IPC_CHANNELS } from '../shared/types';
+
+// 直接定义 IPC_CHANNELS，避免路径加载问题
+const IPC_CHANNELS = {
+  NETWORK_GET_INFO: 'network:get-info',
+  NETWORK_ON_CHANGE: 'network:on-change',
+  SHARE_CREATE: 'share:create',
+  SHARE_CANCEL: 'share:cancel',
+  SHARE_CANCEL_ALL: 'share:cancel-all',
+  SHARE_GET_ALL: 'share:get-all',
+  SHARE_UPDATE_CONFIG: 'share:update-config',
+  SHARE_ON_UPDATE: 'share:on-update',
+  SHARE_ON_DOWNLOAD: 'share:on-download',
+  FILE_SELECT: 'file:select',
+  FILE_SELECT_FOLDER: 'file:select-folder',
+  SETTINGS_GET: 'settings:get',
+  SETTINGS_SAVE: 'settings:save',
+  SETTINGS_RESET: 'settings:reset',
+  LOG_GET_ALL: 'log:get-all',
+  LOG_CLEAR: 'log:clear',
+  LOG_EXPORT: 'log:export',
+  LOG_ON_NEW: 'log:on-new',
+  HOTSPOT_START: 'hotspot:start',
+  HOTSPOT_STOP: 'hotspot:stop',
+  HOTSPOT_STATUS: 'hotspot:status',
+  HOTSPOT_CONFIG: 'hotspot:config',
+  PORT_CHECK: 'port:check',
+  PORT_FIND_AVAILABLE: 'port:find-available',
+  NOTIFICATION: 'notification',
+  WINDOW_MINIMIZE: 'window:minimize',
+  WINDOW_MAXIMIZE: 'window:maximize',
+  WINDOW_CLOSE: 'window:close',
+};
 
 /**
  * 获取所有有效的 IPC 通道名称
@@ -35,6 +66,9 @@ const invokeChannels: string[] = [
   IPC_CHANNELS.HOTSPOT_STATUS,
   IPC_CHANNELS.PORT_CHECK,
   IPC_CHANNELS.PORT_FIND_AVAILABLE,
+  IPC_CHANNELS.WINDOW_MINIMIZE,
+  IPC_CHANNELS.WINDOW_MAXIMIZE,
+  IPC_CHANNELS.WINDOW_CLOSE,
 ];
 
 /**

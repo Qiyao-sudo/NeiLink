@@ -104,6 +104,11 @@ export const IPC_CHANNELS = {
 
   // 通知
   NOTIFICATION: 'notification',
+
+  // 窗口控制
+  WINDOW_MINIMIZE: 'window:minimize',
+  WINDOW_MAXIMIZE: 'window:maximize',
+  WINDOW_CLOSE: 'window:close',
 } as const;
 
 // NeiLink API

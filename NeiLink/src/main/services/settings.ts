@@ -30,11 +30,13 @@ export class SettingsManager {
   private settingsFilePath: string;
   private settings: SystemSettings;
   private initialized: boolean = false;
+  private userDataPath: string;
 
   /**
    * @param userDataPath 应用数据目录路径
    */
   constructor(userDataPath: string) {
+    this.userDataPath = userDataPath;
     this.settingsFilePath = path.join(userDataPath, 'settings.json');
 
     // 深拷贝默认设置
@@ -57,6 +59,11 @@ export class SettingsManager {
 
         // 合并保存的设置到默认设置中
         this.settings = { ...this.settings, ...savedSettings };
+        
+        // 确保日志存储路径不为空
+        if (!this.settings.logStoragePath || this.settings.logStoragePath.trim() === '') {
+          this.settings.logStoragePath = path.join(this.userDataPath, 'logs');
+        }
       } else {
         // 首次运行，保存默认设置
         await this.saveSettings(this.settings);

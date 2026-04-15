@@ -303,6 +303,54 @@ export function registerIpcHandlers(
     }
   });
 
+  // ==================== 窗口控制 ====================
+
+  // 最小化窗口
+  ipcMain.handle(IPC_CHANNELS.WINDOW_MINIMIZE, async () => {
+    try {
+      if (mainWindow) {
+        mainWindow.minimize();
+        return { success: true };
+      }
+      return { success: false, error: '窗口不存在' };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, error: message };
+    }
+  });
+
+  // 最大化/还原窗口
+  ipcMain.handle(IPC_CHANNELS.WINDOW_MAXIMIZE, async () => {
+    try {
+      if (mainWindow) {
+        if (mainWindow.isMaximized()) {
+          mainWindow.unmaximize();
+        } else {
+          mainWindow.maximize();
+        }
+        return { success: true };
+      }
+      return { success: false, error: '窗口不存在' };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, error: message };
+    }
+  });
+
+  // 关闭窗口
+  ipcMain.handle(IPC_CHANNELS.WINDOW_CLOSE, async () => {
+    try {
+      if (mainWindow) {
+        mainWindow.close();
+        return { success: true };
+      }
+      return { success: false, error: '窗口不存在' };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, error: message };
+    }
+  });
+
   // ==================== 事件推送（主进程 -> 渲染进程） ====================
 
   // 注册分享更新事件推送
