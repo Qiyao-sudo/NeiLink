@@ -134,9 +134,13 @@ const ShareManagePage: React.FC = () => {
   };
 
   const handleCopyLink = (record: ShareTask) => {
+    const rawShare = rawSharesRef.current.find(s => s.id === record.id);
+    const currentLink = rawShare 
+      ? `http://${networkInfoRef.current.ip}:${rawShare.port}/${record.id}`
+      : record.shareLink;
     const text = record.extractCode
-      ? `分享链接: ${record.shareLink}\n提取码: ${record.extractCode}`
-      : `分享链接: ${record.shareLink}`;
+      ? `分享链接: ${currentLink}\n提取码: ${record.extractCode}`
+      : `分享链接: ${currentLink}`;
     navigator.clipboard.writeText(text).then(() => {
       message.success('分享信息已复制');
     }).catch(() => {
@@ -240,13 +244,19 @@ const ShareManagePage: React.FC = () => {
       key: 'shareLink',
       ellipsis: true,
       width: 200,
-      render: (text: string) => (
-        <Tooltip title={text}>
-          <Text copyable={{ text }} style={{ fontSize: 12 }}>
-            {text}
-          </Text>
-        </Tooltip>
-      ),
+      render: (text: string, record: ShareTask) => {
+        const rawShare = rawSharesRef.current.find(s => s.id === record.id);
+        const currentLink = rawShare 
+          ? `http://${networkInfoRef.current.ip}:${rawShare.port}/${record.id}`
+          : text;
+        return (
+          <Tooltip title={currentLink}>
+            <Text copyable={{ text: currentLink }} style={{ fontSize: 12 }}>
+              {currentLink}
+            </Text>
+          </Tooltip>
+        );
+      },
     },
     {
       title: '提取码',
