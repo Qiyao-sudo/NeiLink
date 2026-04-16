@@ -33,10 +33,12 @@ export function registerIpcHandlers(
   // 获取网络信息
   ipcMain.handle(IPC_CHANNELS.NETWORK_GET_INFO, async () => {
     try {
-      return getNetworkInfo();
+      const networkInfo = getNetworkInfo();
+      return { success: true, data: networkInfo };
     } catch (err) {
-      logger.log('error', '获取网络信息失败', err instanceof Error ? err.message : String(err));
-      throw err;
+      const message = err instanceof Error ? err.message : String(err);
+      logger.log('error', '获取网络信息失败', message);
+      return { success: false, error: message };
     }
   });
 
