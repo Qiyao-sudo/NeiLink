@@ -108,8 +108,8 @@ export class ShareManager {
       ? this.calculateFolderSize(filePath)
       : fs.statSync(filePath).size;
 
-    // 查找可用端口
-    const port = await findAvailablePort(this.settings.port);
+    // 使用系统设置中的端口，不再为每个分享任务查找新端口
+    const port = this.settings.port;
 
     // 计算过期时间
     let expiryTime: number | undefined;

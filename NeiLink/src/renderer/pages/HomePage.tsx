@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Card, Button, Switch, Alert, Typography, Space, message } from 'antd';
+import { Card, Button, Switch, Alert, Typography, Space, message, Select } from 'antd';
 import {
   WifiOutlined,
   ApiOutlined,
@@ -26,6 +26,8 @@ const HomePage: React.FC = () => {
     type: 'none',
     ip: '0.0.0.0',
     isOnline: false,
+    adapters: [],
+    selectedAdapter: undefined,
   });
   const [hotspotInfo, setHotspotInfo] = useState<HotspotStatus>({
     enabled: false,
@@ -209,13 +211,12 @@ const HomePage: React.FC = () => {
   };
 
   const renderNetworkIcon = () => {
-    switch (networkStatus.type) {
-      case 'wifi':
-        return <WifiOutlined style={{ fontSize: 24, color: '#1890ff' }} />;
-      case 'ethernet':
-        return <ApiOutlined style={{ fontSize: 24, color: '#1890ff' }} />;
-      default:
-        return <DisconnectOutlined style={{ fontSize: 24, color: '#ff4d4f' }} />;
+    if (networkStatus.isOnline) {
+      return networkStatus.type === 'wifi' ? 
+        <WifiOutlined style={{ fontSize: 24, color: '#1890ff' }} /> :
+        <ApiOutlined style={{ fontSize: 24, color: '#1890ff' }} />;
+    } else {
+      return <DisconnectOutlined style={{ fontSize: 24, color: '#ff4d4f' }} />;
     }
   };
 
@@ -227,11 +228,33 @@ const HomePage: React.FC = () => {
     });
   };
 
+  const handleAdapterChange = async (value: string) => {
+    try {
+      const result = await window.neilink.ipc.invoke('network:select-adapter', value) as any;
+      if (result?.success && result.data) {
+        // 更新网络状态
+        setNetworkStatus(prev => ({
+          ...prev,
+          ip: result.data.ip,
+          selectedAdapter: result.data.adapterName,
+          // 重新获取完整的网络状态
+        }));
+        // 重新获取网络状态以更新所有信息
+        fetchNetworkStatus();
+        message.success('适配器已切换');
+      } else {
+        message.error(result?.error || '切换适配器失败');
+      }
+    } catch (error) {
+      message.error('切换适配器失败');
+    }
+  };
+
   return (
     <div>
       {/* 网络状态区 */}
       <Card style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             {renderNetworkIcon()}
             <div>
@@ -239,12 +262,27 @@ const HomePage: React.FC = () => {
                 {networkStatus.isOnline ? '网络已连接' : '网络未连接'}
               </div>
               <div style={{ fontSize: 13, color: '#999', marginTop: 2 }}>
-                {networkStatus.type === 'wifi' ? 'Wi-Fi' :
-                 networkStatus.type === 'ethernet' ? '以太网' : '未检测到网络'}
+                {networkStatus.isOnline ? 
+                  (networkStatus.type === 'wifi' ? 'Wi-Fi' : '以太网') :
+                  '未检测到网络'}
               </div>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+            {networkStatus.adapters.length > 1 && (
+              <div style={{ minWidth: 200 }}>
+                <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>网络适配器</div>
+                <Select
+                  style={{ width: '100%' }}
+                  value={networkStatus.selectedAdapter}
+                  onChange={handleAdapterChange}
+                  options={networkStatus.adapters.map(adapter => ({
+                    label: `${adapter.name} (${adapter.ip})`,
+                    value: adapter.name,
+                  }))}
+                />
+              </div>
+            )}
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>本地 IP</div>
               <Text

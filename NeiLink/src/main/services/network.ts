@@ -5,12 +5,30 @@
 
 import * as os from 'os';
 import * as net from 'net';
-import { NetworkInfo, NetworkType } from '../../shared/types';
+import { NetworkInfo, NetworkType, NetworkAdapter } from '../../shared/types';
+
+// 存储用户选择的网络适配器名称
+let selectedAdapterName: string | undefined = undefined;
+
+/**
+ * 设置选中的网络适配器名称
+ */
+export function setSelectedAdapterName(adapterName: string | undefined): void {
+  selectedAdapterName = adapterName;
+}
 
 /**
  * 获取局域网IP地址（优先返回IPv4非回环地址）
  */
 export function getLocalIP(): string {
+  // 如果用户已选择适配器，优先使用该适配器的IP地址
+  if (selectedAdapterName) {
+    const ip = getIPByAdapterName(selectedAdapterName);
+    if (ip) {
+      return ip;
+    }
+  }
+
   const interfaces = os.networkInterfaces();
   const candidates: string[] = [];
 
@@ -36,18 +54,37 @@ export function getLocalIP(): string {
  * 推断网络类型
  */
 function detectNetworkType(): NetworkType {
+  // 如果用户已选择适配器，优先使用该适配器检测网络类型
+  if (selectedAdapterName) {
+    return detectAdapterType(selectedAdapterName);
+  }
+
+  // 获取当前的IP地址
+  const currentIP = getLocalIP();
+  
+  // 先查找与当前IP地址匹配的接口
   const interfaces = os.networkInterfaces();
   for (const name of Object.keys(interfaces)) {
     const nets = interfaces[name] || [];
     for (const netInfo of nets) {
+      if (netInfo.family === 'IPv4' && !netInfo.internal && netInfo.address === currentIP) {
+        return detectAdapterType(name);
+      }
+    }
+  }
+  
+  // 如果没有找到与当前IP地址匹配的接口，再按默认顺序查找
+  for (const name of Object.keys(interfaces)) {
+    const nets = interfaces[name] || [];
+    for (const netInfo of nets) {
       if (netInfo.family === 'IPv4' && !netInfo.internal) {
+        // 优先检查以太网接口
+        if (name.startsWith('en') || name.startsWith('eth')) {
+          return 'ethernet';
+        }
         // Wi-Fi 接口通常以 wlan、Wi-Fi 开头
         if (name.toLowerCase().startsWith('wlan') || name.toLowerCase().includes('wi-fi')) {
           return 'wifi';
-        }
-        // 以太网接口
-        if (name.startsWith('en') || name.startsWith('eth')) {
-          return 'ethernet';
         }
       }
     }
@@ -56,12 +93,79 @@ function detectNetworkType(): NetworkType {
 }
 
 /**
+ * 推断单个适配器的网络类型
+ */
+function detectAdapterType(adapterName: string): NetworkType {
+  const lowerName = adapterName.toLowerCase();
+  if (lowerName.startsWith('wlan') || lowerName.includes('wi-fi')) {
+    return 'wifi';
+  }
+  // 其他所有适配器都默认为以太网
+  return 'ethernet';
+}
+
+/**
+ * 获取所有网络适配器信息
+ */
+export function getAllAdapters(): NetworkAdapter[] {
+  const interfaces = os.networkInterfaces();
+  const adapters: NetworkAdapter[] = [];
+
+  for (const name of Object.keys(interfaces)) {
+    const nets = interfaces[name] || [];
+    for (const netInfo of nets) {
+      // 只处理IPv4非回环地址
+      if (netInfo.family === 'IPv4' && !netInfo.internal) {
+        adapters.push({
+          name,
+          ip: netInfo.address,
+          type: detectAdapterType(name),
+          isOnline: true
+        });
+      }
+    }
+  }
+
+  return adapters;
+}
+
+/**
+ * 根据适配器名称获取IP地址
+ */
+export function getIPByAdapterName(adapterName: string): string | null {
+  const interfaces = os.networkInterfaces();
+  const nets = interfaces[adapterName] || [];
+  
+  for (const netInfo of nets) {
+    if (netInfo.family === 'IPv4' && !netInfo.internal) {
+      return netInfo.address;
+    }
+  }
+  
+  return null;
+}
+
+/**
  * 获取完整的网络状态信息
  */
 export function getNetworkInfo(): NetworkInfo {
   const ip = getLocalIP();
   const type = detectNetworkType();
-  const isOnline = ip !== '127.0.0.1' && type !== 'none';
+  const adapters = getAllAdapters();
+  
+  // 网络状态判断：如果有有效的IP地址且不是回环地址，则认为网络是连接的
+  const isOnline = ip !== '127.0.0.1' && adapters.length > 0;
+  
+  // 使用用户选择的适配器名称，如果没有选择则根据IP地址查找
+  let currentSelectedAdapter = selectedAdapterName;
+  if (!currentSelectedAdapter) {
+    for (const adapter of adapters) {
+      if (adapter.ip === ip) {
+        currentSelectedAdapter = adapter.name;
+        break;
+      }
+    }
+  }
 
   return {
     type,
@@ -69,6 +173,8 @@ export function getNetworkInfo(): NetworkInfo {
     isOnline,
     // SSID 在桌面端难以直接获取，留空由上层处理
     ssid: undefined,
+    adapters,
+    selectedAdapter: currentSelectedAdapter
   };
 }
 

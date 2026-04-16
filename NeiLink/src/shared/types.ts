@@ -6,12 +6,22 @@
 // 网络类型
 export type NetworkType = 'wifi' | 'ethernet' | 'none';
 
+// 网络适配器信息
+export interface NetworkAdapter {
+  name: string; // 适配器名称
+  ip: string; // IPv4地址
+  type: NetworkType; // 网络类型
+  isOnline: boolean; // 是否在线
+}
+
 // 网络状态信息
 export interface NetworkInfo {
   type: NetworkType;
   ip: string;
   ssid?: string;
   isOnline: boolean;
+  adapters: NetworkAdapter[]; // 所有可用的网络适配器
+  selectedAdapter?: string; // 当前选中的适配器名称
 }
 
 // 分享任务配置

@@ -9,6 +9,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 const IPC_CHANNELS = {
   NETWORK_GET_INFO: 'network:get-info',
   NETWORK_ON_CHANGE: 'network:on-change',
+  NETWORK_SELECT_ADAPTER: 'network:select-adapter',
   SHARE_CREATE: 'share:create',
   SHARE_CANCEL: 'share:cancel',
   SHARE_CANCEL_ALL: 'share:cancel-all',
@@ -48,6 +49,7 @@ const validChannels: string[] = Object.values(IPC_CHANNELS);
  */
 const invokeChannels: string[] = [
   IPC_CHANNELS.NETWORK_GET_INFO,
+  IPC_CHANNELS.NETWORK_SELECT_ADAPTER,
   IPC_CHANNELS.SHARE_CREATE,
   IPC_CHANNELS.SHARE_CANCEL,
   IPC_CHANNELS.SHARE_CANCEL_ALL,

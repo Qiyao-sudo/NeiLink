@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import '../../shared/types';
 import {
   Table,
   Button,
@@ -28,7 +29,7 @@ interface ShareTask {
   id: string;
   fileName: string;
   shareLink: string;
-  extractionCode: string;
+  extractCode: string;
   expiry: string;
   remainingDownloads: number;
   maxConcurrentDownloads: number;
@@ -58,7 +59,19 @@ const ShareManagePage: React.FC = () => {
       setLoading(true);
       const result = await window.neilink.ipc.invoke('share:get-all') as any;
       if (result && result.success && Array.isArray(result.data)) {
-        setTasks(result.data);
+        // 转换后端返回的ShareConfig为前端的ShareTask
+        const convertedTasks = result.data.map((share: any) => ({
+          id: share.id,
+          fileName: share.fileName,
+          shareLink: `http://${window.location.hostname}:${share.port}/${share.id}`,
+          extractCode: share.extractCode || '',
+          expiry: '24h', // 暂时硬编码，实际应该根据expiryTime计算
+          remainingDownloads: share.maxDownloads === -1 ? -1 : share.maxDownloads - share.downloadCount,
+          maxConcurrentDownloads: share.maxConcurrent,
+          uploaderNickname: share.uploaderName,
+          createdAt: new Date(share.createdAt).toLocaleString(),
+        }));
+        setTasks(convertedTasks);
       }
     } catch {
       message.error('获取分享列表失败');
@@ -82,8 +95,8 @@ const ShareManagePage: React.FC = () => {
   };
 
   const handleCopyLink = (record: ShareTask) => {
-    const text = record.extractionCode
-      ? `分享链接: ${record.shareLink}\n提取码: ${record.extractionCode}`
+    const text = record.extractCode
+      ? `分享链接: ${record.shareLink}\n提取码: ${record.extractCode}`
       : `分享链接: ${record.shareLink}`;
     navigator.clipboard.writeText(text).then(() => {
       message.success('分享信息已复制');
@@ -95,7 +108,7 @@ const ShareManagePage: React.FC = () => {
   const handleEdit = (record: ShareTask) => {
     setEditingTask(record);
     editForm.setFieldsValue({
-      extractionCode: record.extractionCode,
+      extractionCode: record.extractCode,
       expiry: record.expiry,
       maxConcurrentDownloads: record.maxConcurrentDownloads,
       uploaderNickname: record.uploaderNickname,
@@ -198,8 +211,8 @@ const ShareManagePage: React.FC = () => {
     },
     {
       title: '提取码',
-      dataIndex: 'extractionCode',
-      key: 'extractionCode',
+      dataIndex: 'extractCode',
+      key: 'extractCode',
       width: 90,
       align: 'center' as const,
       render: (text: string) =>

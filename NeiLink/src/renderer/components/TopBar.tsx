@@ -14,6 +14,8 @@ const TopBar: React.FC = () => {
     type: 'none',
     ip: '0.0.0.0',
     isOnline: false,
+    adapters: [],
+    selectedAdapter: undefined,
   });
 
   const fetchNetworkStatus = async () => {
@@ -46,10 +48,10 @@ const TopBar: React.FC = () => {
   };
 
   const networkTypeText = () => {
-    switch (networkInfo.type) {
-      case 'wifi': return 'Wi-Fi';
-      case 'ethernet': return '以太网';
-      default: return '未连接';
+    if (networkInfo.isOnline) {
+      return networkInfo.type === 'wifi' ? 'Wi-Fi' : '以太网';
+    } else {
+      return '未连接';
     }
   };
 

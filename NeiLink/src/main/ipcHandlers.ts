@@ -5,7 +5,7 @@
 
 import { ipcMain, dialog, BrowserWindow, shell } from 'electron';
 import { IPC_CHANNELS, ShareConfig, SystemSettings, LogEntry } from '../shared/types';
-import { getNetworkInfo, isPortAvailable, findAvailablePort, NetworkMonitor } from './services/network';
+import { getNetworkInfo, isPortAvailable, findAvailablePort, NetworkMonitor, getIPByAdapterName, setSelectedAdapterName } from './services/network';
 import { Logger } from './services/logger';
 import { SettingsManager } from './services/settings';
 import { ShareManager, CreateShareParams } from './services/shareManager';
@@ -38,6 +38,25 @@ export function registerIpcHandlers(
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.log('error', '获取网络信息失败', message);
+      return { success: false, error: message };
+    }
+  });
+
+  // 切换网络适配器
+  ipcMain.handle('network:select-adapter', async (_event, adapterName: string) => {
+    try {
+      const ip = getIPByAdapterName(adapterName);
+      if (!ip) {
+        return { success: false, error: '适配器不存在或无可用IP地址' };
+      }
+      
+      // 存储用户选择的适配器名称
+      setSelectedAdapterName(adapterName);
+      
+      return { success: true, data: { ip, adapterName } };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.log('error', '切换网络适配器失败', message);
       return { success: false, error: message };
     }
   });
