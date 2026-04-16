@@ -1,6 +1,6 @@
 /**
  * HTTP 文件服务器模块
- * 在同一个端口上处理多个分享任务，支持断点续传和限流
+ * 所有分享任务使用同一个 HTTP 服务器，通过 URL 路径区分不同分享
  */
 
 import * as http from 'http';
@@ -17,11 +17,24 @@ interface RateLimitRecord {
   banExpiry: number;
 }
 
-/** 服务器实例存储 */
-const servers: Map<number, http.Server> = new Map();
+/** 全局 HTTP 服务器实例 */
+let globalServer: http.Server | null = null;
 
-/** 分享配置存储（端口 -> 分享配置列表） */
-const shareConfigs: Map<number, ShareConfig[]> = new Map();
+/** 全局服务器监听的端口 */
+let globalServerPort: number | null = null;
+
+/** 分享配置存储（文件码 -> 分享配置） */
+const shares: Map<string, ShareConfig> = new Map();
+
+/** 下载回调存储（文件码 -> 下载回调） */
+const downloadCallbacks: Map<string, (shareId: string) => void> = new Map();
+
+/** 限流设置 */
+let rateLimitSettings: {
+  rateLimitEnabled?: boolean;
+  rateLimitMaxAttempts?: number;
+  rateLimitBanDuration?: number;
+} = {};
 
 /** 限流记录存储（IP -> 记录） */
 const rateLimitRecords: Map<string, RateLimitRecord> = new Map();
@@ -137,14 +150,12 @@ function parseRange(rangeHeader: string | undefined, fileSize: number): { start:
 }
 
 /**
- * 为分享任务创建 HTTP 服务器
- * @param shareConfig 分享配置
- * @param onDownload 下载完成回调
+ * 启动全局 HTTP 服务器
+ * @param port 监听端口
  * @param settings 限流设置
  */
-export function createServer(
-  shareConfig: ShareConfig,
-  onDownload?: (shareId: string) => void,
+export function startGlobalServer(
+  port: number,
   settings?: {
     rateLimitEnabled?: boolean;
     rateLimitMaxAttempts?: number;
@@ -152,315 +163,312 @@ export function createServer(
   }
 ): Promise<number> {
   return new Promise((resolve, reject) => {
-    const port = shareConfig.port;
-    
-    // 检查端口是否已经有服务器运行
-    if (servers.has(port)) {
-      // 端口已存在，只需添加分享配置
-      const configs = shareConfigs.get(port) || [];
-      configs.push(shareConfig);
-      shareConfigs.set(port, configs);
-      resolve(port);
-    } else {
-      // 端口不存在，创建新服务器
-      const server = http.createServer((req, res) => {
-        const clientIP = getClientIP(req);
+    // 如果服务器已经在运行，直接返回
+    if (globalServer && globalServerPort) {
+      resolve(globalServerPort);
+      return;
+    }
 
-        // CORS 预检请求
-        if (req.method === 'OPTIONS') {
-          res.writeHead(204, {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Range',
-          });
-          res.end();
+    // 保存限流设置
+    if (settings) {
+      rateLimitSettings = settings;
+    }
+
+    // 创建全局服务器
+    globalServer = http.createServer((req, res) => {
+      const clientIP = getClientIP(req);
+
+      // CORS 预检请求
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204, {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Range',
+        });
+        res.end();
+        return;
+      }
+
+      // 限流检查（仅对 API 路由生效）
+      if (rateLimitSettings.rateLimitEnabled && req.url?.startsWith('/api/')) {
+        const isLimited = checkRateLimit(
+          clientIP,
+          rateLimitSettings.rateLimitMaxAttempts || 10,
+          rateLimitSettings.rateLimitBanDuration || 30
+        );
+        if (isLimited) {
+          sendJSON(res, 429, { error: '请求过于频繁，请稍后再试' });
           return;
         }
+      }
 
-        // 限流检查（仅对 API 路由生效）
-        if (settings?.rateLimitEnabled && req.url?.startsWith('/api/')) {
-          const isLimited = checkRateLimit(
-            clientIP,
-            settings.rateLimitMaxAttempts || 10,
-            settings.rateLimitBanDuration || 30
-          );
-          if (isLimited) {
-            sendJSON(res, 429, { error: '请求过于频繁，请稍后再试' });
-            return;
-          }
-        }
+      // 路由处理
+      if (req.method === 'GET' && req.url === '/') {
+        // 返回文件码输入页面
+        res.writeHead(200, {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Access-Control-Allow-Origin': '*',
+        });
+        res.end(generateFileCodeInputHTML());
+        return;
+      }
 
-        // 路由处理
-        if (req.method === 'GET' && req.url === '/') {
-          // 返回文件码输入页面
+      if (req.method === 'GET' && req.url && req.url.length > 1 && !req.url.startsWith('/api/')) {
+        // 处理文件码路径，如 /$文件码$
+        const fileCode = req.url.substring(1);
+        const shareConfig = shares.get(fileCode);
+        if (shareConfig) {
+          // 文件码匹配，返回接收端 Web 页面
           res.writeHead(200, {
             'Content-Type': 'text/html; charset=utf-8',
             'Access-Control-Allow-Origin': '*',
           });
-          res.end(generateFileCodeInputHTML());
+          res.end(generateReceiverHTML(toShareInfo(shareConfig)));
+          return;
+        } else {
+          // 文件码不匹配，返回错误页面
+          sendJSON(res, 404, { error: '文件码错误或不存在' });
           return;
         }
+      }
 
-        if (req.method === 'GET' && req.url && req.url.length > 1 && !req.url.startsWith('/api/')) {
-          // 处理文件码路径，如 /$文件码$
-          const fileCode = req.url.substring(1);
-          // 查找匹配的分享配置
-          const configs = shareConfigs.get(port) || [];
-          const matchingConfig = configs.find(config => config.id === fileCode);
-          
-          if (matchingConfig) {
-            // 文件码匹配，返回接收端 Web 页面
-            res.writeHead(200, {
-              'Content-Type': 'text/html; charset=utf-8',
-              'Access-Control-Allow-Origin': '*',
-            });
-            res.end(generateReceiverHTML(toShareInfo(matchingConfig)));
-            return;
-          } else {
-            // 文件码不匹配，返回错误页面
-            sendJSON(res, 404, { error: '文件码错误或不存在' });
-            return;
-          }
-        }
-
-        if (req.method === 'GET' && req.url === '/api/share-info') {
-          // 获取分享ID（从查询参数中获取）
-          const url = new URL(req.url, `http://localhost:${port}`);
-          const shareId = url.searchParams.get('shareId');
-          
-          if (!shareId) {
-            sendJSON(res, 400, { error: '缺少分享ID' });
-            return;
-          }
-          
-          // 查找匹配的分享配置
-          const configs = shareConfigs.get(port) || [];
-          const matchingConfig = configs.find(config => config.id === shareId);
-          
-          if (!matchingConfig) {
-            sendJSON(res, 404, { error: '分享不存在' });
-            return;
-          }
-          
-          // 返回分享信息（不含提取码和密钥）
-          if (matchingConfig.status !== 'active') {
-            sendJSON(res, 410, { error: '该分享已过期或被取消' });
-            return;
-          }
-          sendJSON(res, 200, {
-            fileName: matchingConfig.fileName,
-            fileSize: matchingConfig.fileSize,
-            isFolder: matchingConfig.isFolder,
-            uploaderName: matchingConfig.uploaderName,
-            hasExtractCode: !!matchingConfig.extractCode,
-            createdAt: matchingConfig.createdAt,
-          });
+      if (req.method === 'GET' && req.url?.startsWith('/api/share-info/')) {
+        // 返回分享信息（不含提取码和密钥）
+        const fileCode = req.url.substring('/api/share-info/'.length);
+        const shareConfig = shares.get(fileCode);
+        if (!shareConfig) {
+          sendJSON(res, 404, { error: '分享不存在' });
           return;
         }
+        if (shareConfig.status !== 'active') {
+          sendJSON(res, 410, { error: '该分享已过期或被取消' });
+          return;
+        }
+        sendJSON(res, 200, {
+          fileName: shareConfig.fileName,
+          fileSize: shareConfig.fileSize,
+          isFolder: shareConfig.isFolder,
+          uploaderName: shareConfig.uploaderName,
+          hasExtractCode: !!shareConfig.extractCode,
+          createdAt: shareConfig.createdAt,
+        });
+        return;
+      }
 
-        if (req.method === 'POST' && req.url === '/api/verify') {
-          // 验证提取码
-          let body = '';
-          req.on('data', (chunk) => { body += chunk; });
-          req.on('end', () => {
-            try {
-              const data = JSON.parse(body);
-              const shareId = data.shareId;
-              
-              if (!shareId) {
-                sendJSON(res, 400, { success: false, error: '缺少分享ID' });
-                return;
-              }
-              
-              // 查找匹配的分享配置
-              const configs = shareConfigs.get(port) || [];
-              const matchingConfig = configs.find(config => config.id === shareId);
-              
-              if (!matchingConfig) {
-                sendJSON(res, 404, { success: false, error: '分享不存在' });
-                return;
-              }
-              
-              if (!matchingConfig.extractCode) {
-                sendJSON(res, 200, { success: true });
-                return;
-              }
-              if (data.code === matchingConfig.extractCode) {
-                sendJSON(res, 200, { success: true });
-              } else {
-                sendJSON(res, 403, { success: false, error: '提取码错误' });
-              }
-            } catch {
-              sendJSON(res, 400, { success: false, error: '无效的请求' });
+      if (req.method === 'POST' && req.url?.startsWith('/api/verify/')) {
+        // 验证提取码
+        const fileCode = req.url.substring('/api/verify/'.length);
+        const shareConfig = shares.get(fileCode);
+        if (!shareConfig) {
+          sendJSON(res, 404, { error: '分享不存在' });
+          return;
+        }
+        let body = '';
+        req.on('data', (chunk) => { body += chunk; });
+        req.on('end', () => {
+          try {
+            const data = JSON.parse(body);
+            if (!shareConfig.extractCode) {
+              sendJSON(res, 200, { success: true });
+              return;
             }
-          });
+            if (data.code === shareConfig.extractCode) {
+              sendJSON(res, 200, { success: true });
+            } else {
+              sendJSON(res, 403, { success: false, error: '提取码错误' });
+            }
+          } catch {
+            sendJSON(res, 400, { success: false, error: '无效的请求' });
+          }
+        });
+        return;
+      }
+
+      if (req.method === 'GET' && req.url?.startsWith('/api/download/')) {
+        // 文件下载（支持断点续传和加密）
+        const fileCode = req.url.substring('/api/download/'.length);
+        const shareConfig = shares.get(fileCode);
+        if (!shareConfig) {
+          sendJSON(res, 404, { error: '分享不存在' });
+          return;
+        }
+        const filePath = shareConfig.encryptedFilePath || shareConfig.filePath;
+
+        if (!filePath || !fs.existsSync(filePath)) {
+          sendJSON(res, 404, { error: '文件不存在' });
           return;
         }
 
-        if (req.method === 'GET' && req.url === '/api/download') {
-          // 获取分享ID（从查询参数中获取）
-          const url = new URL(req.url, `http://localhost:${port}`);
-          const shareId = url.searchParams.get('shareId');
+        if (shareConfig.status !== 'active') {
+          sendJSON(res, 410, { error: '该分享已过期或被取消' });
+          return;
+        }
+
+        // 检查下载次数限制
+        if (shareConfig.maxDownloads !== -1 && shareConfig.downloadCount >= shareConfig.maxDownloads) {
+          sendJSON(res, 410, { error: '已达到最大下载次数' });
+          return;
+        }
+
+        const stat = fs.statSync(filePath);
+        let fileSize = stat.size;
+        const range = parseRange(req.headers.range, fileSize);
+
+        const headers: http.OutgoingHttpHeaders = {
+          'Access-Control-Allow-Origin': '*',
+          'Accept-Ranges': 'bytes',
+        };
+
+        // 处理加密文件
+        if (shareConfig.encryptedFilePath && shareConfig.encryptionKey) {
+          // 加密文件格式: [IV(16字节)][加密数据]
           
-          if (!shareId) {
-            sendJSON(res, 400, { error: '缺少分享ID' });
-            return;
-          }
+          // 读取IV（前16字节）
+          const ivBuffer = Buffer.alloc(16);
+          const fd = fs.openSync(filePath, 'r');
+          fs.readSync(fd, ivBuffer, 0, 16, 0);
+          fs.closeSync(fd);
           
-          // 查找匹配的分享配置
-          const configs = shareConfigs.get(port) || [];
-          const matchingConfig = configs.find(config => config.id === shareId);
+          // 从hex字符串创建密钥Buffer
+          const keyBuffer = Buffer.from(shareConfig.encryptionKey, 'hex');
           
-          if (!matchingConfig) {
-            sendJSON(res, 404, { error: '分享不存在' });
-            return;
-          }
+          // 对于加密文件，我们不支持断点续传，因为AES加密的特性使得断点续传变得复杂
+          // 直接返回完整文件
+          headers['Content-Type'] = 'application/octet-stream';
+          headers['Content-Disposition'] = `attachment; filename="${encodeURIComponent(shareConfig.fileName)}"`;
+
+          res.writeHead(200, headers);
+
+          // 创建读取流（跳过IV）
+          const inputStream = fs.createReadStream(filePath, { start: 16 });
           
-          // 文件下载（支持断点续传和加密）
-          const filePath = matchingConfig.encryptedFilePath || matchingConfig.filePath;
-
-          if (!filePath || !fs.existsSync(filePath)) {
-            sendJSON(res, 404, { error: '文件不存在' });
-            return;
-          }
-
-          if (matchingConfig.status !== 'active') {
-            sendJSON(res, 410, { error: '该分享已过期或被取消' });
-            return;
-          }
-
-          // 检查下载次数限制
-          if (matchingConfig.maxDownloads !== -1 && matchingConfig.downloadCount >= matchingConfig.maxDownloads) {
-            sendJSON(res, 410, { error: '已达到最大下载次数' });
-            return;
-          }
-
-          const stat = fs.statSync(filePath);
-          let fileSize = stat.size;
-          const range = parseRange(req.headers.range, fileSize);
-
-          const headers: http.OutgoingHttpHeaders = {
-            'Access-Control-Allow-Origin': '*',
-            'Accept-Ranges': 'bytes',
-          };
-
-          // 处理加密文件
-          if (matchingConfig.encryptedFilePath && matchingConfig.encryptionKey) {
-            // 加密文件格式: [IV(16字节)][加密数据]
-            
-            // 读取IV（前16字节）
-            const ivBuffer = Buffer.alloc(16);
-            const fd = fs.openSync(filePath, 'r');
-            fs.readSync(fd, ivBuffer, 0, 16, 0);
-            fs.closeSync(fd);
-            
-            // 从hex字符串创建密钥Buffer
-            const keyBuffer = Buffer.from(matchingConfig.encryptionKey, 'hex');
-            
-            // 对于加密文件，我们不支持断点续传，因为AES加密的特性使得断点续传变得复杂
-            // 直接返回完整文件
+          // 创建解密器
+          const decipher = crypto.createDecipheriv('aes-256-cbc', keyBuffer, ivBuffer);
+          
+          // 管道传输：读取流 -> 解密器 -> 响应流
+          inputStream.pipe(decipher).pipe(res);
+        } else {
+          // 非加密文件
+          if (range) {
+            // 断点续传 - 返回 206 Partial Content
+            headers['Content-Range'] = `bytes ${range.start}-${range.end}/${fileSize}`;
+            headers['Content-Length'] = range.end - range.start + 1;
             headers['Content-Type'] = 'application/octet-stream';
-            headers['Content-Disposition'] = `attachment; filename="${encodeURIComponent(matchingConfig.fileName)}"`;
+
+            res.writeHead(206, headers);
+
+            const stream = fs.createReadStream(filePath, { start: range.start, end: range.end });
+            stream.pipe(res);
+          } else {
+            // 完整下载 - 返回 200
+            headers['Content-Length'] = fileSize;
+            headers['Content-Type'] = 'application/octet-stream';
+            headers['Content-Disposition'] = `attachment; filename="${encodeURIComponent(shareConfig.fileName)}"`;
 
             res.writeHead(200, headers);
 
-            // 创建读取流（跳过IV）
-            const inputStream = fs.createReadStream(filePath, { start: 16 });
-            
-            // 创建解密器
-            const decipher = crypto.createDecipheriv('aes-256-cbc', keyBuffer, ivBuffer);
-            
-            // 管道传输：读取流 -> 解密器 -> 响应流
-            inputStream.pipe(decipher).pipe(res);
-          } else {
-            // 非加密文件
-            if (range) {
-              // 断点续传 - 返回 206 Partial Content
-              headers['Content-Range'] = `bytes ${range.start}-${range.end}/${fileSize}`;
-              headers['Content-Length'] = range.end - range.start + 1;
-              headers['Content-Type'] = 'application/octet-stream';
-
-              res.writeHead(206, headers);
-
-              const stream = fs.createReadStream(filePath, { start: range.start, end: range.end });
-              stream.pipe(res);
-            } else {
-              // 完整下载 - 返回 200
-              headers['Content-Length'] = fileSize;
-              headers['Content-Type'] = 'application/octet-stream';
-              headers['Content-Disposition'] = `attachment; filename="${encodeURIComponent(matchingConfig.fileName)}"`;
-
-              res.writeHead(200, headers);
-
-              const stream = fs.createReadStream(filePath);
-              stream.pipe(res);
-            }
+            const stream = fs.createReadStream(filePath);
+            stream.pipe(res);
           }
-
-          // 下载完成后更新计数
-          res.on('finish', () => {
-            matchingConfig.downloadCount++;
-            if (onDownload) {
-              onDownload(matchingConfig.id);
-            }
-          });
-          return;
         }
 
-        // 404
-        sendJSON(res, 404, { error: '未找到请求的资源' });
-      });
+        // 下载完成后更新计数
+        res.on('finish', () => {
+          shareConfig.downloadCount++;
+          const onDownload = downloadCallbacks.get(fileCode);
+          if (onDownload) {
+            onDownload(shareConfig.id);
+          }
+        });
+        return;
+      }
 
-      server.on('error', (err: NodeJS.ErrnoException) => {
-        if (err.code === 'EADDRINUSE') {
-          reject(new Error(`端口 ${port} 已被占用`));
-        } else {
-          reject(new Error(`服务器启动失败: ${err.message}`));
-        }
-      });
+      // 404
+      sendJSON(res, 404, { error: '未找到请求的资源' });
+    });
 
-      server.listen(port, '0.0.0.0', () => {
-        servers.set(port, server);
-        shareConfigs.set(port, [shareConfig]);
-        resolve(port);
-      });
-    }
+    globalServer.on('error', (err: NodeJS.ErrnoException) => {
+      if (err.code === 'EADDRINUSE') {
+        reject(new Error(`端口 ${port} 已被占用`));
+      } else {
+        reject(new Error(`服务器启动失败: ${err.message}`));
+      }
+    });
+
+    globalServer.listen(port, '0.0.0.0', () => {
+      globalServerPort = port;
+      resolve(port);
+    });
   });
 }
 
 /**
- * 停止指定端口的服务器
+ * 注册分享到全局服务器
+ * @param shareConfig 分享配置
+ * @param onDownload 下载完成回调
  */
-export function stopServer(port: number): Promise<void> {
+export function registerShare(
+  shareConfig: ShareConfig,
+  onDownload?: (shareId: string) => void
+): void {
+  const fileCode = shareConfig.id;
+  shares.set(fileCode, shareConfig);
+  if (onDownload) {
+    downloadCallbacks.set(fileCode, onDownload);
+  }
+}
+
+/**
+ * 从全局服务器移除分享
+ * @param fileCode 文件码
+ */
+export function unregisterShare(fileCode: string): void {
+  shares.delete(fileCode);
+  downloadCallbacks.delete(fileCode);
+}
+
+/**
+ * 获取全局服务器端口
+ */
+export function getGlobalServerPort(): number | null {
+  return globalServerPort;
+}
+
+/**
+ * 停止全局 HTTP 服务器
+ */
+export function stopGlobalServer(): Promise<void> {
   return new Promise((resolve) => {
-    const server = servers.get(port);
-    if (!server) {
+    if (!globalServer) {
       resolve();
       return;
     }
 
-    server.close(() => {
-      servers.delete(port);
-      shareConfigs.delete(port);
+    globalServer.close(() => {
+      globalServer = null;
+      globalServerPort = null;
+      shares.clear();
+      downloadCallbacks.clear();
       resolve();
     });
-
-    // 清理该服务器相关的限流记录
-    // （简单实现：保留所有限流记录，由超时机制自动清理）
   });
 }
 
 /**
- * 停止所有服务器
+ * 为了保持向后兼容性，保留这些函数但它们什么都不做
  */
-export async function stopAllServers(): Promise<void> {
-  const ports = Array.from(servers.keys());
-  await Promise.all(ports.map((port) => stopServer(port)));
+export function createServer(): Promise<number> {
+  return Promise.resolve(globalServerPort || 3000);
 }
 
-/**
- * 检查指定端口是否有服务器在运行
- */
-export function isServerRunning(port: number): boolean {
-  return servers.has(port);
+export function stopServer(): Promise<void> {
+  return Promise.resolve();
+}
+
+export function stopAllServers(): Promise<void> {
+  return stopGlobalServer();
+}
+
+export function isServerRunning(): boolean {
+  return globalServer !== null && globalServerPort !== null;
 }

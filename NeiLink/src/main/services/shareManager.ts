@@ -9,8 +9,7 @@ import * as crypto from 'crypto';
 import * as archiver from 'archiver';
 import { ShareConfig, SystemSettings } from '../../shared/types';
 import { generateKey, encryptFile } from './encryption';
-import { createServer, stopServer } from './httpServer';
-import { findAvailablePort } from './network';
+import { startGlobalServer, registerShare, unregisterShare, getGlobalServerPort } from './httpServer';
 import { Logger } from './logger';
 
 /** 创建分享任务的参数 */
@@ -108,8 +107,12 @@ export class ShareManager {
       ? this.calculateFolderSize(filePath)
       : fs.statSync(filePath).size;
 
-    // 使用系统设置中的端口，不再为每个分享任务查找新端口
-    const port = this.settings.port;
+    // 确保全局服务器已经启动
+    const port = await startGlobalServer(this.settings.port, {
+      rateLimitEnabled: this.settings.rateLimitEnabled,
+      rateLimitMaxAttempts: this.settings.rateLimitMaxAttempts,
+      rateLimitBanDuration: this.settings.rateLimitBanDuration,
+    });
 
     // 计算过期时间
     let expiryTime: number | undefined;
@@ -157,22 +160,14 @@ export class ShareManager {
       // 加密文件
       await encryptFile(fileToEncrypt, encryptedFilePath, encryptionKey);
 
-      // 启动 HTTP 服务器
-      await createServer(
-        shareConfig,
-        (shareId) => {
-          // 下载完成回调
-          const share = this.shares.get(shareId);
-          if (share) {
-            this.notifyDownload(shareId, share.downloadCount);
-          }
-        },
-        {
-          rateLimitEnabled: this.settings.rateLimitEnabled,
-          rateLimitMaxAttempts: this.settings.rateLimitMaxAttempts,
-          rateLimitBanDuration: this.settings.rateLimitBanDuration,
+      // 注册分享到全局服务器
+      registerShare(shareConfig, (shareId) => {
+        // 下载完成回调
+        const share = this.shares.get(shareId);
+        if (share) {
+          this.notifyDownload(shareId, share.downloadCount);
         }
-      );
+      });
 
       // 保存分享任务
       this.shares.set(id, shareConfig);
@@ -206,8 +201,8 @@ export class ShareManager {
       // 更新状态为已取消（保留在 Map 中，前端可能需要显示已取消的历史）
       share.status = 'cancelled';
 
-      // 关闭 HTTP 服务器
-      await stopServer(share.port);
+      // 从全局服务器移除分享
+      unregisterShare(id);
 
       // 删除加密临时文件
       this.cleanupTempFiles(id);
@@ -319,7 +314,7 @@ export class ShareManager {
       // 检查是否过期
       if (share.expiryTime && now >= share.expiryTime) {
         share.status = 'expired';
-        stopServer(share.port).catch(() => {});
+        unregisterShare(id);
         this.cleanupTempFiles(id);
         expiredCount++;
       }
@@ -327,7 +322,7 @@ export class ShareManager {
       // 检查是否达到最大下载次数
       if (share.maxDownloads !== -1 && share.downloadCount >= share.maxDownloads) {
         share.status = 'expired';
-        stopServer(share.port).catch(() => {});
+        unregisterShare(id);
         this.cleanupTempFiles(id);
         expiredCount++;
       }

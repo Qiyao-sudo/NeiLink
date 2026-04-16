@@ -131,7 +131,7 @@ export interface NeiLinkAPI {
   };
   ipc: {
     send: (channel: string, ...args: unknown[]) => void;
-    on: (channel: string, callback: (...args: unknown[]) => void) => void;
+    on: (channel: string, callback: (...args: unknown[]) => void) => () => void;
     removeAllListeners: (channel: string) => void;
     invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
   };

@@ -44,6 +44,12 @@ interface EditConfigForm {
   uploaderNickname: string;
 }
 
+interface NetworkInfo {
+  isOnline: boolean;
+  ip: string;
+  type: 'wifi' | 'ethernet' | 'none';
+}
+
 const ShareManagePage: React.FC = () => {
   const [tasks, setTasks] = useState<ShareTask[]>([]);
   const [loading, setLoading] = useState(false);
@@ -52,43 +58,76 @@ const ShareManagePage: React.FC = () => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingTask, setEditingTask] = useState<ShareTask | null>(null);
   const [editForm] = Form.useForm();
+  const networkInfoRef = useRef<NetworkInfo>({
+    isOnline: false,
+    ip: '127.0.0.1',
+    type: 'none',
+  });
   const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rawSharesRef = useRef<any[]>([]);
+
+  const updateShareLinks = useCallback((rawShares: any[], currentIp: string) => {
+    const convertedTasks = rawShares.map((share: any) => ({
+      id: share.id,
+      fileName: share.fileName,
+      shareLink: `http://${currentIp}:${share.port}/${share.id}`,
+      extractCode: share.extractCode || '',
+      expiry: '24h',
+      remainingDownloads: share.maxDownloads === -1 ? -1 : share.maxDownloads - share.downloadCount,
+      maxConcurrentDownloads: share.maxConcurrent,
+      uploaderNickname: share.uploaderName,
+      createdAt: new Date(share.createdAt).toLocaleString(),
+    }));
+    setTasks(convertedTasks);
+  }, []);
 
   const fetchTasks = useCallback(async () => {
     try {
       setLoading(true);
       const result = await window.neilink.ipc.invoke('share:get-all') as any;
       if (result && result.success && Array.isArray(result.data)) {
-        // 转换后端返回的ShareConfig为前端的ShareTask
-        const convertedTasks = result.data.map((share: any) => ({
-          id: share.id,
-          fileName: share.fileName,
-          shareLink: `http://${window.location.hostname}:${share.port}/${share.id}`,
-          extractCode: share.extractCode || '',
-          expiry: '24h', // 暂时硬编码，实际应该根据expiryTime计算
-          remainingDownloads: share.maxDownloads === -1 ? -1 : share.maxDownloads - share.downloadCount,
-          maxConcurrentDownloads: share.maxConcurrent,
-          uploaderNickname: share.uploaderName,
-          createdAt: new Date(share.createdAt).toLocaleString(),
-        }));
-        setTasks(convertedTasks);
+        rawSharesRef.current = result.data;
+        updateShareLinks(result.data, networkInfoRef.current.ip);
       }
     } catch {
       message.error('获取分享列表失败');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [updateShareLinks]);
+
+  const fetchNetworkInfo = useCallback(async () => {
+    try {
+      const result = await window.neilink.ipc.invoke('network:get-info') as any;
+      if (result?.success && result.data) {
+        const newIp = result.data.ip || '127.0.0.1';
+        const oldIp = networkInfoRef.current.ip;
+        networkInfoRef.current = result.data;
+        if (newIp !== oldIp && rawSharesRef.current.length > 0) {
+          updateShareLinks(rawSharesRef.current, newIp);
+        }
+      }
+    } catch (error) {
+      console.error('获取网络信息失败:', error);
+    }
+  }, [updateShareLinks]);
 
   useEffect(() => {
+    fetchNetworkInfo();
     fetchTasks();
     refreshTimer.current = setInterval(fetchTasks, 10000);
+    
+    const unsubscribe = window.neilink.ipc.on('network:on-change', () => {
+      fetchNetworkInfo();
+    });
+    
     return () => {
       if (refreshTimer.current) {
         clearInterval(refreshTimer.current);
       }
+      unsubscribe();
     };
-  }, [fetchTasks]);
+  }, [fetchTasks, fetchNetworkInfo]);
 
   const handleRefresh = () => {
     fetchTasks();

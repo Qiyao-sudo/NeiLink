@@ -818,7 +818,7 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
 
   // ===== 获取分享信息 =====
   function fetchShareInfo() {
-    fetch('/api/share-info')
+    fetch('/api/share-info/' + CONFIG.shareId)
       .then(function(res) {
         if (!res.ok) {
           throw new Error('HTTP ' + res.status);
@@ -904,7 +904,7 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
     verifyBtn.textContent = '验证中...';
     verifyError.textContent = '';
 
-    fetch('/api/verify', {
+    fetch('/api/verify/' + CONFIG.shareId, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code: code })
@@ -1007,7 +1007,7 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
     var xhr = new XMLHttpRequest();
     currentXhr = xhr;
 
-    xhr.open('GET', '/api/download');
+    xhr.open('GET', '/api/download/' + CONFIG.shareId);
     if (startByte > 0) {
       xhr.setRequestHeader('Range', 'bytes=' + startByte + '-');
     }
