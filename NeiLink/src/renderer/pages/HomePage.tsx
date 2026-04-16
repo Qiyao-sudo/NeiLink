@@ -148,12 +148,27 @@ const HomePage: React.FC = () => {
 
   const handleShareConfirm = async (config: ShareFormConfig): Promise<ShareResult | null> => {
     try {
-      const result = await window.neilink.ipc.invoke('share:create', config) as any;
+      // 转换前端参数为后端期望的格式
+      const shareParams = {
+        filePath: config.filePath,
+        isFolder: config.filePath.includes('\\') && config.filePath.endsWith('\\') ? true : false,
+        extractCode: config.useExtractionCode ? config.extractionCode : undefined,
+        expiryTime: config.expiry === '1h' ? Date.now() + 60 * 60 * 1000 :
+                    config.expiry === '6h' ? Date.now() + 6 * 60 * 60 * 1000 :
+                    config.expiry === '24h' ? Date.now() + 24 * 60 * 60 * 1000 :
+                    config.expiry === '7d' ? Date.now() + 7 * 24 * 60 * 60 * 1000 :
+                    undefined,
+        maxDownloads: config.maxDownloads,
+        maxConcurrent: config.maxConcurrentDownloads,
+        uploaderName: config.uploaderNickname || '匿名用户',
+      };
+      
+      const result = await window.neilink.ipc.invoke('share:create', shareParams) as any;
       if (result?.success && result.data) {
         const shareConfig = result.data as ShareConfig;
         message.success('分享创建成功');
         return {
-          shareLink: `http://${networkStatus.ip}:${shareConfig.port}`,
+          shareLink: `http://${networkStatus.ip}:${shareConfig.port}/${shareConfig.id}`,
           extractionCode: shareConfig.extractCode || '',
           hotspotName: hotspotInfo.ssid || '',
           hotspotPassword: hotspotInfo.password || '',

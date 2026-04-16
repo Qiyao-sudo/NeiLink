@@ -132,7 +132,7 @@ export class ShareManager {
       fileName,
       fileSize,
       isFolder,
-      extractCode: params.extractCode || (this.settings.defaultExtractCode ? this.generateExtractCode() : undefined),
+      extractCode: params.extractCode,
       expiryTime,
       maxDownloads: params.maxDownloads ?? this.settings.defaultMaxDownloads,
       maxConcurrent: params.maxConcurrent ?? this.settings.defaultMaxConcurrent,

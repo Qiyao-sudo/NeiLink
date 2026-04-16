@@ -1211,6 +1211,301 @@ function escapeHtml(str: string): string {
 }
 
 /**
+ * 生成文件码输入页面
+ */
+export function generateFileCodeInputHTML(): string {
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>NeiLink - 文件分享</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+      'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background: #F0F2F5;
+    color: #333;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px 16px;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 480px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+  }
+
+  .page-header {
+    background: linear-gradient(135deg, #E6F7FF 0%, #BAE7FF 100%);
+    padding: 40px 24px 32px;
+    text-align: center;
+  }
+
+  .logo-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 16px;
+  }
+
+  .page-header h1 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #1890FF;
+    margin-bottom: 8px;
+  }
+
+  .page-header .subtitle {
+    font-size: 14px;
+    color: #666;
+  }
+
+  .page-body {
+    padding: 32px 24px;
+  }
+
+  .input-section {
+    text-align: center;
+  }
+
+  .input-wrapper {
+    position: relative;
+    margin-bottom: 24px;
+  }
+
+  .file-code-input {
+    width: 100%;
+    height: 56px;
+    border: 2px solid #D9D9D9;
+    border-radius: 8px;
+    padding: 0 20px;
+    font-size: 18px;
+    text-align: center;
+    letter-spacing: 2px;
+    outline: none;
+    transition: border-color 0.3s;
+  }
+
+  .file-code-input:focus {
+    border-color: #1890FF;
+  }
+
+  .file-code-input.error {
+    border-color: #F5222D;
+  }
+
+  .file-code-input:disabled {
+    background: #F5F5F5;
+    color: #BFBFBF;
+    cursor: not-allowed;
+  }
+
+  .input-hint {
+    font-size: 13px;
+    color: #999;
+    margin-top: 8px;
+  }
+
+  .error-message {
+    color: #F5222D;
+    font-size: 14px;
+    margin-top: 12px;
+    min-height: 20px;
+    transition: opacity 0.3s;
+  }
+
+  .submit-btn {
+    width: 100%;
+    height: 52px;
+    background: linear-gradient(135deg, #1890FF 0%, #096DD9 100%);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.3s, opacity 0.3s;
+    box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+  }
+
+  .submit-btn:hover {
+    opacity: 0.9;
+  }
+
+  .submit-btn:active {
+    transform: scale(0.98);
+  }
+
+  .submit-btn:disabled {
+    background: #D9D9D9;
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+
+  .tips-section {
+    margin-top: 24px;
+    border-top: 1px solid #F0F0F0;
+    padding-top: 16px;
+  }
+
+  .tip-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 13px;
+    color: #999;
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+
+  .tip-icon {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    margin-top: 1px;
+  }
+
+  @media (max-width: 768px) {
+    body {
+      padding: 0;
+      align-items: stretch;
+    }
+
+    .container {
+      max-width: 100%;
+      border-radius: 0;
+      box-shadow: none;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .page-header {
+      padding: 32px 16px 24px;
+    }
+
+    .page-header h1 {
+      font-size: 20px;
+    }
+
+    .page-body {
+      padding: 24px 16px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .file-code-input {
+      height: 52px;
+      font-size: 16px;
+    }
+
+    .submit-btn {
+      height: 48px;
+      font-size: 16px;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="page-header">
+    <svg class="logo-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="32" cy="32" r="28" fill="#1890FF" opacity="0.1"/>
+      <path d="M32 16v32M16 32h32" stroke="#1890FF" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="32" cy="32" r="28" stroke="#1890FF" stroke-width="2" fill="none"/>
+    </svg>
+    <h1>NeiLink</h1>
+    <p class="subtitle">安全文件传输</p>
+  </div>
+
+  <div class="page-body">
+    <div class="input-section">
+      <div class="input-wrapper">
+        <input
+          type="text"
+          id="file-code-input"
+          class="file-code-input"
+          placeholder="请输入文件码"
+          maxlength="36"
+          autocomplete="off"
+        />
+      </div>
+      <p class="input-hint">文件码是分享链接中的唯一标识</p>
+      <div id="error-message" class="error-message"></div>
+      <button id="submit-btn" class="submit-btn" disabled>进入下载</button>
+    </div>
+
+    <div class="tips-section">
+      <div class="tip-item">
+        <svg class="tip-icon" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="7" stroke="#1890FF" stroke-width="1.5" fill="none"/>
+          <path d="M8 7v4M8 5v0" stroke="#1890FF" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <span>文件码由分享者提供，通常在分享链接中</span>
+      </div>
+      <div class="tip-item">
+        <svg class="tip-icon" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="7" stroke="#1890FF" stroke-width="1.5" fill="none"/>
+          <path d="M8 7v4M8 5v0" stroke="#1890FF" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <span>输入正确的文件码即可访问对应的文件</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  var fileCodeInput = document.getElementById('file-code-input');
+  var submitBtn = document.getElementById('submit-btn');
+  var errorMessage = document.getElementById('error-message');
+
+  fileCodeInput.addEventListener('input', function() {
+    var val = fileCodeInput.value.trim();
+    submitBtn.disabled = val.length < 1;
+    fileCodeInput.classList.remove('error');
+    errorMessage.textContent = '';
+  });
+
+  fileCodeInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !submitBtn.disabled) {
+      submitFileCode();
+    }
+  });
+
+  submitBtn.addEventListener('click', submitFileCode);
+
+  function submitFileCode() {
+    var fileCode = fileCodeInput.value.trim();
+    if (!fileCode) return;
+
+    // 跳转到文件码路径
+    window.location.href = '/' + fileCode;
+  }
+
+})();
+</script>
+</body>
+</html>`;
+}
+
+/**
  * 格式化过期时间
  */
 function formatExpiryTime(expiryTime: number): string {

@@ -6,7 +6,7 @@
 import * as http from 'http';
 import * as fs from 'fs';
 import { ShareConfig } from '../../shared/types';
-import { generateReceiverHTML, ShareInfo } from './receiverPage';
+import { generateReceiverHTML, generateFileCodeInputHTML, ShareInfo } from './receiverPage';
 
 /** 限流记录 */
 interface RateLimitRecord {
@@ -177,13 +177,31 @@ export function createServer(
 
       // 路由处理
       if (req.method === 'GET' && req.url === '/') {
-        // 返回接收端 Web 页面
+        // 返回文件码输入页面
         res.writeHead(200, {
           'Content-Type': 'text/html; charset=utf-8',
           'Access-Control-Allow-Origin': '*',
         });
-        res.end(generateReceiverHTML(toShareInfo(shareConfig)));
+        res.end(generateFileCodeInputHTML());
         return;
+      }
+
+      if (req.method === 'GET' && req.url && req.url.length > 1 && !req.url.startsWith('/api/')) {
+        // 处理文件码路径，如 /$文件码$
+        const fileCode = req.url.substring(1);
+        if (fileCode === shareConfig.id) {
+          // 文件码匹配，返回接收端 Web 页面
+          res.writeHead(200, {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Access-Control-Allow-Origin': '*',
+          });
+          res.end(generateReceiverHTML(toShareInfo(shareConfig)));
+          return;
+        } else {
+          // 文件码不匹配，返回错误页面
+          sendJSON(res, 404, { error: '文件码错误或不存在' });
+          return;
+        }
       }
 
       if (req.method === 'GET' && req.url === '/api/share-info') {
