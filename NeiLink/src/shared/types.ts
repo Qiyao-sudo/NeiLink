@@ -57,7 +57,7 @@ export interface LogEntry {
 export interface BannedIPInfo {
   ip: string;
   attempts: number;
-  firstAttempt: number;
+  windowStart: number;
   banExpiry: number;
   remainingTime: number;
 }

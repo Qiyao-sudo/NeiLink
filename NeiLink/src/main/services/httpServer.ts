@@ -20,7 +20,7 @@ export function setLogger(l: Logger): void {
 /** 限流记录 */
 interface RateLimitRecord {
   attempts: number;
-  firstAttempt: number;
+  windowStart: number;
   banned: boolean;
   banExpiry: number;
 }
@@ -83,10 +83,11 @@ function checkRateLimit(
   banDuration: number
 ): boolean {
   const now = Date.now();
+  const WINDOW_MS = 60 * 1000; // 1分钟时间窗口
   let record = rateLimitRecords.get(ip);
 
   if (!record) {
-    record = { attempts: 0, firstAttempt: now, banned: false, banExpiry: 0 };
+    record = { attempts: 0, windowStart: now, banned: false, banExpiry: 0 };
     rateLimitRecords.set(ip, record);
   }
 
@@ -98,7 +99,13 @@ function checkRateLimit(
     // 封禁期已过，重置记录
     record.banned = false;
     record.attempts = 0;
-    record.firstAttempt = now;
+    record.windowStart = now;
+  }
+
+  // 检查是否需要重置时间窗口
+  if (now - record.windowStart > WINDOW_MS) {
+    record.attempts = 0;
+    record.windowStart = now;
   }
 
   // 增加访问计数
@@ -109,7 +116,7 @@ function checkRateLimit(
     record.banned = true;
     record.banExpiry = now + banDuration * 60 * 1000;
     if (logger) {
-      logger.log('system', `封禁IP: ${ip}，尝试次数: ${record.attempts}，封禁时长: ${banDuration}分钟`);
+      logger.log('system', `封禁IP: ${ip}，每分钟尝试次数: ${record.attempts}，封禁时长: ${banDuration}分钟`);
     }
     return true;
   }
@@ -510,7 +517,7 @@ export function isServerRunning(): boolean {
 export interface BannedIPInfo {
   ip: string;
   attempts: number;
-  firstAttempt: number;
+  windowStart: number;
   banExpiry: number;
   remainingTime: number;
 }
@@ -524,7 +531,7 @@ export function getBannedIPs(): BannedIPInfo[] {
       result.push({
         ip,
         attempts: record.attempts,
-        firstAttempt: record.firstAttempt,
+        windowStart: record.windowStart,
         banExpiry: record.banExpiry,
         remainingTime: Math.ceil((record.banExpiry - now) / 1000),
       });
@@ -540,7 +547,7 @@ export function unbanIP(ip: string): boolean {
     record.banned = false;
     record.banExpiry = 0;
     record.attempts = 0;
-    record.firstAttempt = Date.now();
+    record.windowStart = Date.now();
     if (logger) {
       logger.log('system', `解封IP: ${ip}`);
     }

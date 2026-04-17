@@ -460,7 +460,7 @@ const SettingsPage: React.FC = () => {
             <div className="settings-item">
               <div>
                 <div className="settings-label">最大尝试次数</div>
-                <div className="settings-desc">超过此次数后自动封禁 IP</div>
+                <div className="settings-desc">每分钟超过此次数后自动封禁 IP</div>
               </div>
               <InputNumber
                 value={settings.rateLimitMaxAttempts}
@@ -518,10 +518,10 @@ const SettingsPage: React.FC = () => {
               render: (ip) => <Text strong>{ip}</Text>,
             },
             {
-              title: '尝试次数',
+              title: '每分钟尝试次数',
               dataIndex: 'attempts',
               key: 'attempts',
-              width: 100,
+              width: 140,
               render: (attempts) => (
                 <Tag color="red">{attempts} 次</Tag>
               ),
