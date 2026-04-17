@@ -349,6 +349,18 @@ export function startGlobalServer(
           'Accept-Ranges': 'bytes',
         };
 
+        // 先绑定事件监听器，再发送响应
+        res.on('finish', () => {
+          shareConfig.downloadCount++;
+          if (logger) {
+            logger.log('download', `文件下载成功: ${shareConfig.fileName} (下载码: ${fileCode})，下载IP: ${clientIP}`);
+          }
+          const onDownload = downloadCallbacks.get(fileCode);
+          if (onDownload) {
+            onDownload(shareConfig.id);
+          }
+        });
+
         // 处理加密文件
         if (shareConfig.encryptedFilePath && shareConfig.encryptionKey) {
           // 加密文件格式: [IV(16字节)][加密数据]
@@ -402,17 +414,6 @@ export function startGlobalServer(
           }
         }
 
-        // 下载完成后更新计数
-        res.on('finish', () => {
-          shareConfig.downloadCount++;
-          if (logger) {
-            logger.log('download', `文件下载成功: ${shareConfig.fileName} (下载码: ${fileCode})，下载IP: ${clientIP}`);
-          }
-          const onDownload = downloadCallbacks.get(fileCode);
-          if (onDownload) {
-            onDownload(shareConfig.id);
-          }
-        });
         return;
       }
 
