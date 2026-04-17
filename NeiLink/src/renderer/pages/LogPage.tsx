@@ -95,7 +95,7 @@ const LogPage: React.FC = () => {
 
   const handleClearLogs = async () => {
     try {
-      await window.neilink.ipc.invoke('logs:clear');
+      await window.neilink.ipc.invoke('log:clear');
       message.success('过期日志已清理');
       fetchLogs();
     } catch {
@@ -105,7 +105,7 @@ const LogPage: React.FC = () => {
 
   const handleExportLogs = async () => {
     try {
-      const result = await window.neilink.ipc.invoke('logs:export') as string;
+      const result = await window.neilink.ipc.invoke('log:export') as string;
       if (result) {
         message.success(`日志已导出至: ${result}`);
       }

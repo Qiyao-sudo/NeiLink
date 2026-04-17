@@ -280,7 +280,23 @@ const SettingsPage: React.FC = () => {
       {/* 网络设置 */}
       <div className="settings-section">
         <div className="settings-section-title">网络设置</div>
-
+        <div className="settings-item">
+          <div>
+            <div className="settings-label">网络适配器</div>
+            <div className="settings-desc">选择用于文件分享的网络适配器</div>
+          </div>
+          <Select
+            value={networkInfo.selectedAdapter}
+            onChange={handleAdapterChange}
+            style={{ width: 300 }}
+            options={networkInfo.adapters.map(adapter => ({
+              label: `${adapter.name} (${adapter.ip})`,
+              value: adapter.name,
+            }))}
+            placeholder="选择网络适配器"
+            disabled={networkInfo.adapters.length <= 1}
+          />
+        </div>
         <div className="settings-item">
           <div>
             <div className="settings-label">服务端口</div>
@@ -329,24 +345,6 @@ const SettingsPage: React.FC = () => {
             min={8}
             max={63}
             style={{ width: 120 }}
-          />
-        </div>
-
-        <div className="settings-item">
-          <div>
-            <div className="settings-label">网络适配器</div>
-            <div className="settings-desc">选择用于文件分享的网络适配器</div>
-          </div>
-          <Select
-            value={networkInfo.selectedAdapter}
-            onChange={handleAdapterChange}
-            style={{ width: 300 }}
-            options={networkInfo.adapters.map(adapter => ({
-              label: `${adapter.name} (${adapter.ip})`,
-              value: adapter.name,
-            }))}
-            placeholder="选择网络适配器"
-            disabled={networkInfo.adapters.length <= 1}
           />
         </div>
       </div>
