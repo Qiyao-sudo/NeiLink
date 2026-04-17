@@ -5,9 +5,17 @@
 
 import * as http from 'http';
 import * as fs from 'fs';
+import * as path from 'path';
 import * as crypto from 'crypto';
 import { ShareConfig } from '../../shared/types';
+import { Logger } from './logger';
 import { generateReceiverHTML, generateFileCodeInputHTML, ShareInfo } from './receiverPage';
+
+let logger: Logger | null = null;
+
+export function setLogger(l: Logger): void {
+  logger = l;
+}
 
 /** 限流记录 */
 interface RateLimitRecord {
@@ -100,6 +108,9 @@ function checkRateLimit(
   if (record.attempts > maxAttempts) {
     record.banned = true;
     record.banExpiry = now + banDuration * 60 * 1000;
+    if (logger) {
+      logger.log('system', `封禁IP: ${ip}，尝试次数: ${record.attempts}，封禁时长: ${banDuration}分钟`);
+    }
     return true;
   }
 
@@ -110,11 +121,30 @@ function checkRateLimit(
  * 获取客户端 IP 地址
  */
 function getClientIP(req: http.IncomingMessage): string {
+  let ip: string | undefined;
   const forwarded = req.headers['x-forwarded-for'];
   if (typeof forwarded === 'string') {
-    return forwarded.split(',')[0].trim();
+    ip = forwarded.split(',')[0].trim();
+  } else {
+    ip = req.socket.remoteAddress;
   }
-  return req.socket.remoteAddress || 'unknown';
+  
+  // 标准化 IPv6 地址，例如 ::ffff:127.0.0.1 -> 127.0.0.1
+  if (ip && ip.startsWith('::ffff:')) {
+    return ip.substring(7);
+  }
+  return ip || 'unknown';
+}
+
+/**
+ * 更新限流设置
+ */
+export function updateRateLimitSettings(settings: {
+  rateLimitEnabled?: boolean;
+  rateLimitMaxAttempts?: number;
+  rateLimitBanDuration?: number;
+}): void {
+  rateLimitSettings = { ...rateLimitSettings, ...settings };
 }
 
 /**
@@ -189,8 +219,8 @@ export function startGlobalServer(
         return;
       }
 
-      // 限流检查（仅对 API 路由生效）
-      if (rateLimitSettings.rateLimitEnabled && req.url?.startsWith('/api/')) {
+      // 限流检查
+      if (rateLimitSettings.rateLimitEnabled) {
         const isLimited = checkRateLimit(
           clientIP,
           rateLimitSettings.rateLimitMaxAttempts || 10,
@@ -375,6 +405,9 @@ export function startGlobalServer(
         // 下载完成后更新计数
         res.on('finish', () => {
           shareConfig.downloadCount++;
+          if (logger) {
+            logger.log('download', `文件下载成功: ${shareConfig.fileName} (下载码: ${fileCode})，下载IP: ${clientIP}`);
+          }
           const onDownload = downloadCallbacks.get(fileCode);
           if (onDownload) {
             onDownload(shareConfig.id);
@@ -471,4 +504,59 @@ export function stopAllServers(): Promise<void> {
 
 export function isServerRunning(): boolean {
   return globalServer !== null && globalServerPort !== null;
+}
+
+export interface BannedIPInfo {
+  ip: string;
+  attempts: number;
+  firstAttempt: number;
+  banExpiry: number;
+  remainingTime: number;
+}
+
+export function getBannedIPs(): BannedIPInfo[] {
+  const now = Date.now();
+  const result: BannedIPInfo[] = [];
+  
+  rateLimitRecords.forEach((record, ip) => {
+    if (record.banned && now < record.banExpiry) {
+      result.push({
+        ip,
+        attempts: record.attempts,
+        firstAttempt: record.firstAttempt,
+        banExpiry: record.banExpiry,
+        remainingTime: Math.ceil((record.banExpiry - now) / 1000),
+      });
+    }
+  });
+  
+  return result.sort((a, b) => a.banExpiry - b.banExpiry);
+}
+
+export function unbanIP(ip: string): boolean {
+  const record = rateLimitRecords.get(ip);
+  if (record && record.banned) {
+    record.banned = false;
+    record.banExpiry = 0;
+    record.attempts = 0;
+    record.firstAttempt = Date.now();
+    if (logger) {
+      logger.log('system', `解封IP: ${ip}`);
+    }
+    return true;
+  }
+  return false;
+}
+
+export function updateBanDuration(ip: string, durationMinutes: number): boolean {
+  const record = rateLimitRecords.get(ip);
+  if (record && record.banned) {
+    const now = Date.now();
+    record.banExpiry = now + durationMinutes * 60 * 1000;
+    if (logger) {
+      logger.log('system', `更新封禁时长: ${ip} -> ${durationMinutes}分钟`);
+    }
+    return true;
+  }
+  return false;
 }

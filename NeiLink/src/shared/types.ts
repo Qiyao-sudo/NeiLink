@@ -53,6 +53,15 @@ export interface LogEntry {
   detail?: string;
 }
 
+// 封禁IP信息
+export interface BannedIPInfo {
+  ip: string;
+  attempts: number;
+  firstAttempt: number;
+  banExpiry: number;
+  remainingTime: number;
+}
+
 // 系统设置
 export interface SystemSettings {
   autoStart: boolean;
@@ -119,6 +128,11 @@ export const IPC_CHANNELS = {
   WINDOW_MINIMIZE: 'window:minimize',
   WINDOW_MAXIMIZE: 'window:maximize',
   WINDOW_CLOSE: 'window:close',
+  
+  // 封禁IP管理
+  BANNED_IPS_GET: 'banned-ips:get',
+  BANNED_IPS_UNBAN: 'banned-ips:unban',
+  BANNED_IPS_UPDATE_DURATION: 'banned-ips:update-duration',
 } as const;
 
 // NeiLink API

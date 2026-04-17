@@ -12,6 +12,7 @@ import { Logger } from './services/logger';
 import { SettingsManager } from './services/settings';
 import { ShareManager } from './services/shareManager';
 import { registerIpcHandlers } from './ipcHandlers';
+import { setLogger } from './services/httpServer';
 
 let mainWindow: BrowserWindow | null = null;
 let shareManager: ShareManager | null = null;
@@ -68,6 +69,9 @@ async function initializeServices(): Promise<void> {
   // 2. 初始化日志系统
   const logger = new Logger(settings.logStoragePath);
   logger.log('system', 'NeiLink 应用启动', `版本: ${app.getVersion()}, 平台: ${process.platform}`);
+  
+  // 设置 httpServer 的 logger
+  setLogger(logger);
 
   // 3. 初始化网络监控
   networkMonitor = new NetworkMonitor((info) => {

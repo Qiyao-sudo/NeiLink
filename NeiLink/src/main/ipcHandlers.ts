@@ -10,6 +10,7 @@ import { Logger } from './services/logger';
 import { SettingsManager } from './services/settings';
 import { ShareManager, CreateShareParams } from './services/shareManager';
 import * as hotspot from './services/hotspot';
+import * as httpServer from './services/httpServer';
 
 /**
  * 注册所有 IPC 处理器
@@ -368,6 +369,49 @@ export function registerIpcHandlers(
       return { success: false, error: '窗口不存在' };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      return { success: false, error: message };
+    }
+  });
+
+  // ==================== 封禁IP管理 ====================
+
+  ipcMain.handle(IPC_CHANNELS.BANNED_IPS_GET, async () => {
+    try {
+      const bannedIPs = httpServer.getBannedIPs();
+      return { success: true, data: bannedIPs };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.log('error', '获取封禁IP列表失败', message);
+      return { success: false, error: message };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.BANNED_IPS_UNBAN, async (_event, ip: string) => {
+    try {
+      const success = httpServer.unbanIP(ip);
+      if (success) {
+        logger.log('system', `解封IP: ${ip}`);
+        return { success: true };
+      }
+      return { success: false, error: 'IP未被封禁或不存在' };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.log('error', '解封IP失败', message);
+      return { success: false, error: message };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.BANNED_IPS_UPDATE_DURATION, async (_event, ip: string, durationMinutes: number) => {
+    try {
+      const success = httpServer.updateBanDuration(ip, durationMinutes);
+      if (success) {
+        logger.log('system', `更新封禁时长: ${ip} -> ${durationMinutes}分钟`);
+        return { success: true };
+      }
+      return { success: false, error: 'IP未被封禁或不存在' };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.log('error', '更新封禁时长失败', message);
       return { success: false, error: message };
     }
   });

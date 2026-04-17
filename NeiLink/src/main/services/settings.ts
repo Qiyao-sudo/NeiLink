@@ -6,6 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { SystemSettings } from '../../shared/types';
+import { updateRateLimitSettings } from './httpServer';
 
 /** 默认系统设置 */
 const DEFAULT_SETTINGS: SystemSettings = {
@@ -68,6 +69,13 @@ export class SettingsManager {
         // 首次运行，保存默认设置
         await this.saveSettings(this.settings);
       }
+
+      // 初始化时更新 httpServer 的限流设置
+      updateRateLimitSettings({
+        rateLimitEnabled: this.settings.rateLimitEnabled,
+        rateLimitMaxAttempts: this.settings.rateLimitMaxAttempts,
+        rateLimitBanDuration: this.settings.rateLimitBanDuration,
+      });
     } catch (err) {
       console.error('加载设置失败，使用默认设置:', err);
       await this.saveSettings(this.settings);
@@ -94,6 +102,13 @@ export class SettingsManager {
     try {
       // 合并设置
       this.settings = { ...this.settings, ...settings };
+
+      // 更新 httpServer 的限流设置
+      updateRateLimitSettings({
+        rateLimitEnabled: this.settings.rateLimitEnabled,
+        rateLimitMaxAttempts: this.settings.rateLimitMaxAttempts,
+        rateLimitBanDuration: this.settings.rateLimitBanDuration,
+      });
 
       // 确保目录存在
       const dir = path.dirname(this.settingsFilePath);

@@ -36,6 +36,11 @@ const IPC_CHANNELS = {
   WINDOW_MINIMIZE: 'window:minimize',
   WINDOW_MAXIMIZE: 'window:maximize',
   WINDOW_CLOSE: 'window:close',
+  
+  // 封禁IP管理
+  BANNED_IPS_GET: 'banned-ips:get',
+  BANNED_IPS_UNBAN: 'banned-ips:unban',
+  BANNED_IPS_UPDATE_DURATION: 'banned-ips:update-duration',
 };
 
 /**
@@ -71,6 +76,9 @@ const invokeChannels: string[] = [
   IPC_CHANNELS.WINDOW_MINIMIZE,
   IPC_CHANNELS.WINDOW_MAXIMIZE,
   IPC_CHANNELS.WINDOW_CLOSE,
+  IPC_CHANNELS.BANNED_IPS_GET,
+  IPC_CHANNELS.BANNED_IPS_UNBAN,
+  IPC_CHANNELS.BANNED_IPS_UPDATE_DURATION,
 ];
 
 /**

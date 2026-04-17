@@ -10,14 +10,20 @@ import {
   Typography,
   message,
   Divider,
+  Table,
+  Popconfirm,
+  Tag,
 } from 'antd';
 import {
   SaveOutlined,
   UndoOutlined,
   FolderOpenOutlined,
   SearchOutlined,
+  ReloadOutlined,
+  UnlockOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons';
-import { NetworkInfo } from '../../shared/types';
+import { NetworkInfo, BannedIPInfo } from '../../shared/types';
 
 const { Text, Title } = Typography;
 
@@ -75,6 +81,9 @@ const SettingsPage: React.FC = () => {
     adapters: [],
     selectedAdapter: undefined,
   });
+  const [bannedIPs, setBannedIPs] = useState<BannedIPInfo[]>([]);
+  const [bannedIPsLoading, setBannedIPsLoading] = useState(false);
+  const [refreshTimer, setRefreshTimer] = useState<any>(null);
 
   const fetchSettings = useCallback(async () => {
     try {
@@ -101,11 +110,6 @@ const SettingsPage: React.FC = () => {
       // 忽略网络信息获取失败的情况
     }
   }, []);
-
-  useEffect(() => {
-    fetchSettings();
-    fetchNetworkInfo();
-  }, [fetchSettings, fetchNetworkInfo]);
 
   const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
@@ -177,6 +181,77 @@ const SettingsPage: React.FC = () => {
       message.error('切换适配器失败');
     }
   };
+
+  const fetchBannedIPs = useCallback(async () => {
+    try {
+      setBannedIPsLoading(true);
+      const result = await window.neilink.ipc.invoke('banned-ips:get') as any;
+      if (result?.success && Array.isArray(result.data)) {
+        setBannedIPs(result.data);
+      }
+    } catch {
+      // 静默失败，不显示错误
+    } finally {
+      setBannedIPsLoading(false);
+    }
+  }, []);
+
+  const handleUnbanIP = async (ip: string) => {
+    try {
+      const result = await window.neilink.ipc.invoke('banned-ips:unban', ip) as any;
+      if (result?.success) {
+        message.success(`已解封 IP: ${ip}`);
+        await fetchBannedIPs();
+      } else {
+        message.error(result?.error || '解封失败');
+      }
+    } catch {
+      message.error('解封失败');
+    }
+  };
+
+  const handleUpdateBanDuration = async (ip: string, durationMinutes: number) => {
+    try {
+      const result = await window.neilink.ipc.invoke('banned-ips:update-duration', ip, durationMinutes) as any;
+      if (result?.success) {
+        message.success(`已更新封禁时长为 ${durationMinutes} 分钟`);
+        await fetchBannedIPs();
+      } else {
+        message.error(result?.error || '更新封禁时长失败');
+      }
+    } catch {
+      message.error('更新封禁时长失败');
+    }
+  };
+
+  const formatRemainingTime = (seconds: number): string => {
+    if (seconds < 60) {
+      return `${seconds} 秒`;
+    } else if (seconds < 3600) {
+      return `${Math.floor(seconds / 60)} 分钟`;
+    } else {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      return minutes > 0 ? `${hours} 小时 ${minutes} 分钟` : `${hours} 小时`;
+    }
+  };
+
+  useEffect(() => {
+    fetchSettings();
+    fetchNetworkInfo();
+    fetchBannedIPs();
+
+    const timer = setInterval(() => {
+      fetchBannedIPs();
+    }, 5000);
+    setRefreshTimer(timer);
+
+    return () => {
+      if (timer) {
+        clearInterval(timer);
+      }
+    };
+  }, [fetchSettings, fetchNetworkInfo, fetchBannedIPs]);
 
   return (
     <div>
@@ -411,6 +486,97 @@ const SettingsPage: React.FC = () => {
             </div>
           </>
         )}
+      </div>
+
+      {/* 封禁IP管理 */}
+      <div className="settings-section">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div className="settings-section-title">封禁IP管理</div>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={fetchBannedIPs}
+            loading={bannedIPsLoading}
+            size="small"
+          >
+            刷新
+          </Button>
+        </div>
+
+        <Table
+          dataSource={bannedIPs}
+          loading={bannedIPsLoading}
+          rowKey="ip"
+          pagination={false}
+          size="small"
+          locale={{ emptyText: '当前没有被封禁的IP' }}
+          columns={[
+            {
+              title: 'IP地址',
+              dataIndex: 'ip',
+              key: 'ip',
+              width: 180,
+              render: (ip) => <Text strong>{ip}</Text>,
+            },
+            {
+              title: '尝试次数',
+              dataIndex: 'attempts',
+              key: 'attempts',
+              width: 100,
+              render: (attempts) => (
+                <Tag color="red">{attempts} 次</Tag>
+              ),
+            },
+            {
+              title: '剩余封禁时间',
+              dataIndex: 'remainingTime',
+              key: 'remainingTime',
+              width: 180,
+              render: (seconds) => (
+                <Tag color="orange" icon={<ClockCircleOutlined />}>
+                  {formatRemainingTime(seconds)}
+                </Tag>
+              ),
+            },
+            {
+              title: '操作',
+              key: 'action',
+              width: 280,
+              render: (_, record) => (
+                <Space>
+                  <Select
+                    style={{ width: 140 }}
+                    size="small"
+                    placeholder="修改时长"
+                    options={[
+                      { value: 5, label: '5 分钟' },
+                      { value: 10, label: '10 分钟' },
+                      { value: 30, label: '30 分钟' },
+                      { value: 60, label: '1 小时' },
+                      { value: 1440, label: '24 小时' },
+                    ]}
+                    onChange={(value) => handleUpdateBanDuration(record.ip, value)}
+                  />
+                  <Popconfirm
+                    title="确定要解封此IP吗？"
+                    description={`解封后，该IP将恢复正常访问权限。`}
+                    onConfirm={() => handleUnbanIP(record.ip)}
+                    okText="确定"
+                    cancelText="取消"
+                  >
+                    <Button
+                      type="primary"
+                      danger
+                      size="small"
+                      icon={<UnlockOutlined />}
+                    >
+                      解封
+                    </Button>
+                  </Popconfirm>
+                </Space>
+              ),
+            },
+          ]}
+        />
       </div>
 
       {/* 日志设置 */}
