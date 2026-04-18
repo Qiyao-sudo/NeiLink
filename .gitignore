@@ -46,3 +46,7 @@ webpack.config.js
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
+
+# Python
+__pycache__/
+*.__pycache__
