@@ -215,8 +215,11 @@ const ShareManagePage: React.FC = () => {
       const values = await editForm.validateFields();
       
       // 转换 expiry 为 expiryTime
-      let expiryTime: number | undefined;
-      if (values.expiry !== 'permanent') {
+      let expiryTime: number | null | undefined;
+      if (values.expiry === 'permanent') {
+        // 用户明确选择永久，用null表示要清除过期时间
+        expiryTime = null;
+      } else {
         const now = Date.now();
         switch (values.expiry) {
           case '1h':

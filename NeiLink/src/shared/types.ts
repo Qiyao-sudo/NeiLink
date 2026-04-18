@@ -67,7 +67,7 @@ export interface SystemSettings {
   autoStart: boolean;
   defaultNickname: string;
   defaultExtractCode: boolean;
-  defaultExpiry: number; // 小时数, -1表示不限
+  defaultExpiry: string; // '1h', '6h', '24h', '7d', '30d', 'permanent'
   defaultMaxDownloads: number;
   defaultMaxConcurrent: number;
   port: number;

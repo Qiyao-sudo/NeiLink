@@ -20,6 +20,10 @@ interface ShareConfigModalProps {
   filePath: string;
   isFolder?: boolean;
   defaultNickname?: string;
+  defaultExtractCode?: boolean;
+  defaultExpiry?: string;
+  defaultMaxDownloads?: number;
+  defaultMaxConcurrent?: number;
   onConfirm: (config: ShareFormConfig) => Promise<ShareResult | null>;
   onCancel: () => void;
 }
@@ -46,11 +50,15 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
   filePath,
   isFolder = false,
   defaultNickname = '',
+  defaultExtractCode = true,
+  defaultExpiry = '24h',
+  defaultMaxDownloads = -1,
+  defaultMaxConcurrent = -1,
   onConfirm,
   onCancel,
 }) => {
   const [form] = Form.useForm();
-  const [useExtractionCode, setUseExtractionCode] = useState(true);
+  const [useExtractionCode, setUseExtractionCode] = useState(defaultExtractCode);
   const [loading, setLoading] = useState(false);
   const [shareResult, setShareResult] = useState<ShareResult | null>(null);
 
@@ -60,12 +68,15 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
     if (visible) {
       form.resetFields();
       setShareResult(null);
-      setUseExtractionCode(true);
-      if (defaultNickname) {
-        form.setFieldsValue({ uploaderNickname: defaultNickname });
-      }
+      setUseExtractionCode(defaultExtractCode);
+      form.setFieldsValue({
+        uploaderNickname: defaultNickname,
+        expiry: defaultExpiry,
+        maxDownloads: defaultMaxDownloads,
+        maxConcurrentDownloads: defaultMaxConcurrent,
+      });
     }
-  }, [visible, form, defaultNickname]);
+  }, [visible, form, defaultNickname, defaultExtractCode, defaultExpiry, defaultMaxDownloads, defaultMaxConcurrent]);
 
   const handleConfirm = async () => {
     try {
@@ -182,11 +193,11 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
           form={form}
           layout="vertical"
           initialValues={{
-            useExtractionCode: true,
+            useExtractionCode: defaultExtractCode,
             extractionCode: '',
-            expiry: '24h',
-            maxDownloads: 10,
-            maxConcurrentDownloads: 5,
+            expiry: defaultExpiry,
+            maxDownloads: defaultMaxDownloads,
+            maxConcurrentDownloads: defaultMaxConcurrent,
             uploaderNickname: defaultNickname,
           }}
         >
@@ -239,7 +250,8 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
               <Select.Option value="6h">6 小时</Select.Option>
               <Select.Option value="24h">24 小时</Select.Option>
               <Select.Option value="7d">7 天</Select.Option>
-              <Select.Option value="custom">自定义</Select.Option>
+              <Select.Option value="30d">30 天</Select.Option>
+              <Select.Option value="permanent">永久</Select.Option>
             </Select>
           </Form.Item>
 

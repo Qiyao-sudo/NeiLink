@@ -32,7 +32,7 @@ interface AppSettings {
   autoStart: boolean;
   defaultNickname: string;
   defaultExtractCode: boolean;
-  defaultExpiry: number;
+  defaultExpiry: string;
   defaultMaxDownloads: number;
   defaultMaxConcurrent: number;
   clearSharesOnExit: boolean;
@@ -57,16 +57,16 @@ const defaultSettings: AppSettings = {
   autoStart: false,
   defaultNickname: '',
   defaultExtractCode: true,
-  defaultExpiry: 24,
-  defaultMaxDownloads: 10,
-  defaultMaxConcurrent: 5,
+  defaultExpiry: '24h',
+  defaultMaxDownloads: -1,
+  defaultMaxConcurrent: -1,
   clearSharesOnExit: false,
   port: 8080,
   hotspotPrefix: 'NeiLink',
-  hotspotPasswordLength: 12,
+  hotspotPasswordLength: 8,
   encryptionBits: 256,
   rateLimitEnabled: true,
-  rateLimitMaxAttempts: 5,
+  rateLimitMaxAttempts: 10,
   rateLimitBanDuration: 30,
   logRetentionDays: 30,
   logStoragePath: '',
@@ -92,7 +92,25 @@ const SettingsPage: React.FC = () => {
       setLoading(true);
       const result = await window.neilink.ipc.invoke('settings:get') as any;
       if (result?.success && result.data && typeof result.data === 'object') {
-        setSettings({ ...defaultSettings, ...result.data });
+        let convertedData = { ...result.data };
+        // 兼容旧版本，将数值类型的 defaultExpiry 转换为字符串
+        if (typeof convertedData.defaultExpiry === 'number') {
+          const numVal = convertedData.defaultExpiry as number;
+          if (numVal === -1) {
+            convertedData.defaultExpiry = 'permanent';
+          } else if (numVal <= 1) {
+            convertedData.defaultExpiry = '1h';
+          } else if (numVal <= 6) {
+            convertedData.defaultExpiry = '6h';
+          } else if (numVal <= 24) {
+            convertedData.defaultExpiry = '24h';
+          } else if (numVal <= 168) {
+            convertedData.defaultExpiry = '7d';
+          } else {
+            convertedData.defaultExpiry = '30d';
+          }
+        }
+        setSettings({ ...defaultSettings, ...convertedData });
       }
     } catch (error) {
       console.error('获取设置失败:', error);
@@ -307,11 +325,12 @@ const SettingsPage: React.FC = () => {
             onChange={(val) => updateSetting('defaultExpiry', val)}
             style={{ width: 140 }}
             options={[
-              { value: 1, label: '1 小时' },
-              { value: 6, label: '6 小时' },
-              { value: 24, label: '24 小时' },
-              { value: 168, label: '7 天' },
-              { value: 720, label: '30 天' },
+              { value: '1h', label: '1 小时' },
+              { value: '6h', label: '6 小时' },
+              { value: '24h', label: '24 小时' },
+              { value: '7d', label: '7 天' },
+              { value: '30d', label: '30 天' },
+              { value: 'permanent', label: '永久' },
             ]}
           />
         </div>

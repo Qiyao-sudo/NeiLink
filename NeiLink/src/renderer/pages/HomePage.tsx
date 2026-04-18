@@ -39,7 +39,13 @@ const HomePage: React.FC = () => {
   const [hotspotModalVisible, setHotspotModalVisible] = useState(false);
   const [selectedFilePath, setSelectedFilePath] = useState('');
   const [selectedIsFolder, setSelectedIsFolder] = useState(false);
-  const [defaultNickname, setDefaultNickname] = useState('');
+  const [defaultSettings, setDefaultSettings] = useState({
+    defaultNickname: '',
+    defaultExtractCode: true,
+    defaultExpiry: '24h',
+    defaultMaxDownloads: -1,
+    defaultMaxConcurrent: -1,
+  });
   const dropRef = useRef<HTMLDivElement>(null);
 
   const fetchNetworkStatus = useCallback(async () => {
@@ -64,14 +70,18 @@ const HomePage: React.FC = () => {
     }
   }, []);
 
-  const fetchDefaultNickname = useCallback(async () => {
+  const fetchDefaultSettings = useCallback(async () => {
     try {
       const result = await window.neilink.ipc.invoke('settings:get') as any;
       if (result?.success && result.data) {
         const settings = result.data as Record<string, unknown>;
-        if (settings.defaultNickname) {
-          setDefaultNickname(settings.defaultNickname as string);
-        }
+        setDefaultSettings({
+          defaultNickname: (settings.defaultNickname as string) || '',
+          defaultExtractCode: settings.defaultExtractCode as boolean ?? true,
+          defaultExpiry: (settings.defaultExpiry as string) || '24h',
+          defaultMaxDownloads: settings.defaultMaxDownloads as number ?? -1,
+          defaultMaxConcurrent: settings.defaultMaxConcurrent as number ?? -1,
+        });
       }
     } catch {
       // 静默处理
@@ -81,13 +91,13 @@ const HomePage: React.FC = () => {
   useEffect(() => {
     fetchNetworkStatus();
     fetchHotspotStatus();
-    fetchDefaultNickname();
+    fetchDefaultSettings();
     const interval = setInterval(() => {
       fetchNetworkStatus();
       fetchHotspotStatus();
     }, 5000);
     return () => clearInterval(interval);
-  }, [fetchNetworkStatus, fetchHotspotStatus, fetchDefaultNickname]);
+  }, [fetchNetworkStatus, fetchHotspotStatus, fetchDefaultSettings]);
 
   // 拖拽处理
   const handleDragEnter = (e: React.DragEvent) => {
@@ -151,15 +161,30 @@ const HomePage: React.FC = () => {
   const handleShareConfirm = async (config: ShareFormConfig): Promise<ShareResult | null> => {
     try {
       // 转换前端参数为后端期望的格式
+      let expiryTime: number | null | undefined;
+      if (config.expiry === 'permanent') {
+        // 用户明确选择了永久
+        expiryTime = null;
+      } else if (config.expiry === '1h') {
+        expiryTime = Date.now() + 60 * 60 * 1000;
+      } else if (config.expiry === '6h') {
+        expiryTime = Date.now() + 6 * 60 * 60 * 1000;
+      } else if (config.expiry === '24h') {
+        expiryTime = Date.now() + 24 * 60 * 60 * 1000;
+      } else if (config.expiry === '7d') {
+        expiryTime = Date.now() + 7 * 24 * 60 * 60 * 1000;
+      } else if (config.expiry === '30d') {
+        expiryTime = Date.now() + 30 * 24 * 60 * 60 * 1000;
+      } else {
+        // 未明确选择，使用默认设置
+        expiryTime = undefined;
+      }
+
       const shareParams = {
         filePath: config.filePath,
         isFolder: config.filePath.includes('\\') && config.filePath.endsWith('\\') ? true : false,
         extractCode: config.useExtractionCode ? config.extractionCode : undefined,
-        expiryTime: config.expiry === '1h' ? Date.now() + 60 * 60 * 1000 :
-                    config.expiry === '6h' ? Date.now() + 6 * 60 * 60 * 1000 :
-                    config.expiry === '24h' ? Date.now() + 24 * 60 * 60 * 1000 :
-                    config.expiry === '7d' ? Date.now() + 7 * 24 * 60 * 60 * 1000 :
-                    undefined,
+        expiryTime,
         maxDownloads: config.maxDownloads,
         maxConcurrent: config.maxConcurrentDownloads,
         uploaderName: config.uploaderNickname || '匿名用户',
@@ -385,7 +410,11 @@ const HomePage: React.FC = () => {
         visible={shareModalVisible}
         filePath={selectedFilePath}
         isFolder={selectedIsFolder}
-        defaultNickname={defaultNickname}
+        defaultNickname={defaultSettings.defaultNickname}
+        defaultExtractCode={defaultSettings.defaultExtractCode}
+        defaultExpiry={defaultSettings.defaultExpiry}
+        defaultMaxDownloads={defaultSettings.defaultMaxDownloads}
+        defaultMaxConcurrent={defaultSettings.defaultMaxConcurrent}
         onConfirm={handleShareConfirm}
         onCancel={() => setShareModalVisible(false)}
       />

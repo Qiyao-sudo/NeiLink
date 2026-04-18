@@ -18,7 +18,7 @@ export interface CreateShareParams {
   fileName?: string;
   isFolder?: boolean;
   extractCode?: string;
-  expiryTime?: number;
+  expiryTime?: number | null;
   maxDownloads?: number;
   maxConcurrent?: number;
   uploaderName?: string;
@@ -124,10 +124,32 @@ export class ShareManager {
 
     // 计算过期时间
     let expiryTime: number | undefined;
-    if (params.expiryTime !== undefined) {
+    if (params.expiryTime === null) {
+      // 用户明确选择了永久，不设置过期时间
+      expiryTime = undefined;
+    } else if (params.expiryTime !== undefined) {
       expiryTime = params.expiryTime;
-    } else if (this.settings.defaultExpiry > 0) {
-      expiryTime = Date.now() + this.settings.defaultExpiry * 60 * 60 * 1000;
+    } else if (this.settings.defaultExpiry && this.settings.defaultExpiry !== 'permanent') {
+      const expiryStr = this.settings.defaultExpiry;
+      const now = Date.now();
+      switch (expiryStr) {
+        case '1h':
+          expiryTime = now + 60 * 60 * 1000;
+          break;
+        case '6h':
+          expiryTime = now + 6 * 60 * 60 * 1000;
+          break;
+        case '24h':
+          expiryTime = now + 24 * 60 * 60 * 1000;
+          break;
+        case '7d':
+          expiryTime = now + 7 * 24 * 60 * 60 * 1000;
+          break;
+        case '30d':
+          expiryTime = now + 30 * 24 * 60 * 60 * 1000;
+          break;
+        // permanent 不设置 expiryTime
+      }
     }
 
     // 生成加密密钥
@@ -274,8 +296,14 @@ export class ShareManager {
     ];
 
     for (const field of updatableFields) {
-      if (config[field] !== undefined) {
-        (share as unknown as Record<string, unknown>)[field] = config[field];
+      if (field in config) {
+        let value = config[field];
+        // 特殊处理：如果expiryTime是null，表示永久，设置为undefined
+        if (field === 'expiryTime' && value === null) {
+          (share as unknown as Record<string, unknown>)[field] = undefined;
+        } else {
+          (share as unknown as Record<string, unknown>)[field] = value;
+        }
       }
     }
 

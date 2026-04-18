@@ -13,7 +13,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   autoStart: false,
   defaultNickname: 'NeiLink用户',
   defaultExtractCode: true,
-  defaultExpiry: 24, // 默认24小时过期
+  defaultExpiry: '24h', // 默认24小时过期
   defaultMaxDownloads: -1, // 不限
   defaultMaxConcurrent: -1, // 不限
   port: 8080,
@@ -61,6 +61,24 @@ export class SettingsManager {
 
         // 合并保存的设置到默认设置中
         this.settings = { ...this.settings, ...savedSettings };
+        
+        // 兼容旧版本，将数值类型的 defaultExpiry 转换为字符串
+        if (typeof this.settings.defaultExpiry === 'number') {
+          const numVal = this.settings.defaultExpiry as unknown as number;
+          if (numVal === -1) {
+            this.settings.defaultExpiry = 'permanent';
+          } else if (numVal <= 1) {
+            this.settings.defaultExpiry = '1h';
+          } else if (numVal <= 6) {
+            this.settings.defaultExpiry = '6h';
+          } else if (numVal <= 24) {
+            this.settings.defaultExpiry = '24h';
+          } else if (numVal <= 168) {
+            this.settings.defaultExpiry = '7d';
+          } else {
+            this.settings.defaultExpiry = '30d';
+          }
+        }
         
         // 确保日志存储路径不为空
         if (!this.settings.logStoragePath || this.settings.logStoragePath.trim() === '') {
