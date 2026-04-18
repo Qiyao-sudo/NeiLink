@@ -7,7 +7,7 @@ import { app, BrowserWindow } from 'electron';
 import * as path from 'path';
 import * as cron from 'node-cron';
 import { IPC_CHANNELS } from '../shared/types';
-import { NetworkMonitor } from './services/network';
+import { NetworkMonitor, initializeNetwork } from './services/network';
 import { Logger } from './services/logger';
 import { SettingsManager } from './services/settings';
 import { ShareManager } from './services/shareManager';
@@ -73,6 +73,9 @@ async function initializeServices(): Promise<void> {
   
   // 设置 httpServer 的 logger
   setLogger(logger);
+
+  // 2.5 初始化网络模块，加载用户选择的适配器
+  await initializeNetwork(settingsManager);
 
   // 3. 初始化网络监控
   networkMonitor = new NetworkMonitor((info) => {

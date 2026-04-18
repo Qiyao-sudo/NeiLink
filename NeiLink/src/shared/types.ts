@@ -80,6 +80,7 @@ export interface SystemSettings {
   logRetentionDays: number;
   logStoragePath: string;
   clearSharesOnExit: boolean; // 应用关闭时删除已分享的文件
+  selectedAdapter?: string; // 用户选择的网络适配器名称
 }
 
 // IPC 通道定义

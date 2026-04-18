@@ -6,15 +6,33 @@
 import * as os from 'os';
 import * as net from 'net';
 import { NetworkInfo, NetworkType, NetworkAdapter } from '../../shared/types';
+import { SettingsManager } from './settings';
 
 // 存储用户选择的网络适配器名称
 let selectedAdapterName: string | undefined = undefined;
+let settingsManagerRef: SettingsManager | undefined = undefined;
+
+/**
+ * 初始化网络模块，传入设置管理器引用
+ */
+export async function initializeNetwork(settingsManager: SettingsManager): Promise<void> {
+  settingsManagerRef = settingsManager;
+  // 从设置中加载用户选择的适配器
+  const settings = await settingsManager.getSettings();
+  if (settings.selectedAdapter) {
+    selectedAdapterName = settings.selectedAdapter;
+  }
+}
 
 /**
  * 设置选中的网络适配器名称
  */
 export function setSelectedAdapterName(adapterName: string | undefined): void {
   selectedAdapterName = adapterName;
+  // 保存到设置中
+  if (settingsManagerRef) {
+    settingsManagerRef.saveSettings({ selectedAdapter: adapterName });
+  }
 }
 
 /**

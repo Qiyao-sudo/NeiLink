@@ -26,6 +26,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   logRetentionDays: 30,
   logStoragePath: '', // 运行时由 app.getPath('userData') 填充
   clearSharesOnExit: false, // 默认不删除
+  selectedAdapter: undefined, // 用户选择的网络适配器名称
 };
 
 export class SettingsManager {
