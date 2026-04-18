@@ -17,17 +17,10 @@ import {
   CalendarOutlined,
 } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
-import '../../shared/types';
+import { LogEntry } from '../../shared/types';
 
 const { Text, Title } = Typography;
 const { RangePicker } = DatePicker;
-
-interface LogEntry {
-  id: string;
-  time: string;
-  type: 'share' | 'download' | 'error' | 'system';
-  message: string;
-}
 
 type LogTypeFilter = 'all' | 'share' | 'download' | 'error' | 'system';
 type TimeRange = 'today' | 'yesterday' | '7days' | '30days' | 'custom';
@@ -134,7 +127,7 @@ const LogPage: React.FC = () => {
 
     return (
       <div className={`log-item ${isError ? 'log-item-error' : ''}`}>
-        <span className="log-time">{item.time}</span>
+        <span className="log-time">{dayjs(item.timestamp).format('YYYY-MM-DD HH:mm:ss')}</span>
         <span className={`log-type ${item.type}`}>{tagInfo.label}</span>
         <span
           className="log-message"
