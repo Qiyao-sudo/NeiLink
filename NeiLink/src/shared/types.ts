@@ -79,6 +79,7 @@ export interface SystemSettings {
   rateLimitBanDuration: number; // 分钟
   logRetentionDays: number;
   logStoragePath: string;
+  clearSharesOnExit: boolean; // 应用关闭时删除已分享的文件
 }
 
 // IPC 通道定义

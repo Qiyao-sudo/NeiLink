@@ -25,6 +25,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   rateLimitBanDuration: 30, // 30分钟
   logRetentionDays: 30,
   logStoragePath: '', // 运行时由 app.getPath('userData') 填充
+  clearSharesOnExit: false, // 默认不删除
 };
 
 export class SettingsManager {

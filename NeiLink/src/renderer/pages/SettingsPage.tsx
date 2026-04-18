@@ -35,6 +35,7 @@ interface AppSettings {
   defaultExpiry: number;
   defaultMaxDownloads: number;
   defaultMaxConcurrent: number;
+  clearSharesOnExit: boolean;
 
   // 网络设置
   port: number;
@@ -59,6 +60,7 @@ const defaultSettings: AppSettings = {
   defaultExpiry: 24,
   defaultMaxDownloads: 10,
   defaultMaxConcurrent: 5,
+  clearSharesOnExit: false,
   port: 8080,
   hotspotPrefix: 'NeiLink',
   hotspotPasswordLength: 12,
@@ -348,6 +350,17 @@ const SettingsPage: React.FC = () => {
               { value: 10, label: '10 个' },
               { value: -1, label: '不限' },
             ]}
+          />
+        </div>
+
+        <div className="settings-item">
+          <div>
+            <div className="settings-label">关闭时删除分享</div>
+            <div className="settings-desc">应用关闭时删除所有已分享的文件</div>
+          </div>
+          <Switch
+            checked={settings.clearSharesOnExit}
+            onChange={(val) => updateSetting('clearSharesOnExit', val)}
           />
         </div>
       </div>

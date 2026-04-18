@@ -33,6 +33,7 @@ export class ShareManager {
   private shares: Map<string, ShareConfig> = new Map();
   private logger: Logger;
   private tempDir: string;
+  private dataDir: string;
   private settings: SystemSettings;
   private shareUpdateCallbacks: ShareUpdateCallback[] = [];
   private downloadCallbacks: DownloadCallback[] = [];
@@ -46,12 +47,19 @@ export class ShareManager {
   constructor(logger: Logger, tempDir: string, settings: SystemSettings) {
     this.logger = logger;
     this.tempDir = tempDir;
+    this.dataDir = path.join(path.dirname(tempDir), 'data');
     this.settings = settings;
 
-    // 确保临时目录存在
+    // 确保目录存在
     if (!fs.existsSync(this.tempDir)) {
       fs.mkdirSync(this.tempDir, { recursive: true });
     }
+    if (!fs.existsSync(this.dataDir)) {
+      fs.mkdirSync(this.dataDir, { recursive: true });
+    }
+
+    // 尝试恢复之前的分享任务
+    this.loadShares();
   }
 
   /**
@@ -172,6 +180,9 @@ export class ShareManager {
       // 保存分享任务
       this.shares.set(id, shareConfig);
 
+      // 保存到文件
+      this.saveShares();
+
       // 记录日志
       this.logger.log('share', `创建分享任务: ${fileName}`, `ID: ${id}, 端口: ${port}, 大小: ${fileSize}`);
 
@@ -206,6 +217,9 @@ export class ShareManager {
 
       // 删除加密临时文件
       this.cleanupTempFiles(id);
+
+      // 保存到文件
+      this.saveShares();
 
       // 记录日志
       this.logger.log('share', `取消分享任务: ${share.fileName}`, `ID: ${id}`);
@@ -264,6 +278,9 @@ export class ShareManager {
         (share as unknown as Record<string, unknown>)[field] = config[field];
       }
     }
+
+    // 保存到文件
+    this.saveShares();
 
     // 记录日志
     this.logger.log('share', `更新分享配置: ${share.fileName}`, `ID: ${id}`);
@@ -329,6 +346,8 @@ export class ShareManager {
     }
 
     if (expiredCount > 0) {
+      // 保存更新后的状态
+      this.saveShares();
       this.logger.log('system', `${expiredCount} 个分享任务已过期`);
       this.notifyShareUpdate();
     }
@@ -401,6 +420,67 @@ export class ShareManager {
   }
 
   /**
+   * 保存分享任务到文件
+   */
+  private saveShares(): void {
+    try {
+      const sharesData = Array.from(this.shares.values());
+      const sharesFilePath = path.join(this.dataDir, 'shares.json');
+      fs.writeFileSync(sharesFilePath, JSON.stringify(sharesData, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('保存分享任务失败:', err);
+    }
+  }
+
+  /**
+   * 从文件加载分享任务
+   */
+  private loadShares(): void {
+    try {
+      const sharesFilePath = path.join(this.dataDir, 'shares.json');
+      if (!fs.existsSync(sharesFilePath)) {
+        return;
+      }
+
+      const sharesData = JSON.parse(fs.readFileSync(sharesFilePath, 'utf-8')) as ShareConfig[];
+      for (const share of sharesData) {
+        // 检查临时文件是否存在
+        const encFileExists = share.encryptedFilePath ? fs.existsSync(share.encryptedFilePath) : false;
+        
+        // 检查原始文件是否存在
+        const originalFileExists = fs.existsSync(share.filePath);
+        
+        if (encFileExists && originalFileExists && share.status === 'active') {
+          // 确保服务器已启动
+          startGlobalServer(this.settings.port, {
+            rateLimitEnabled: this.settings.rateLimitEnabled,
+            rateLimitMaxAttempts: this.settings.rateLimitMaxAttempts,
+            rateLimitBanDuration: this.settings.rateLimitBanDuration,
+          }).then((port) => {
+            // 确保端口一致
+            share.port = port;
+            // 注册分享到服务器
+            registerShare(share, (shareId) => {
+              const shareData = this.shares.get(shareId);
+              if (shareData) {
+                this.notifyDownload(shareId, shareData.downloadCount);
+              }
+            });
+          });
+          
+          this.shares.set(share.id, share);
+        }
+      }
+
+      if (this.shares.size > 0) {
+        this.logger.log('system', `已恢复 ${this.shares.size} 个分享任务`);
+      }
+    } catch (err) {
+      console.error('加载分享任务失败:', err);
+    }
+  }
+
+  /**
    * 清理临时文件
    */
   private cleanupTempFiles(id: string): void {
@@ -419,9 +499,27 @@ export class ShareManager {
 
   /**
    * 销毁管理器，清理所有资源
+   * 根据设置决定是否删除分享文件
    */
   async destroy(): Promise<void> {
     this.stopExpiryCheck();
-    await this.cancelAllShares();
+    
+    if (this.settings.clearSharesOnExit) {
+      // 如果设置为关闭时删除，则删除所有分享
+      await this.cancelAllShares();
+      // 删除保存的分享数据文件
+      const sharesFilePath = path.join(this.dataDir, 'shares.json');
+      try {
+        if (fs.existsSync(sharesFilePath)) {
+          fs.unlinkSync(sharesFilePath);
+        }
+      } catch (err) {
+        console.error('删除分享数据文件失败:', err);
+      }
+      this.logger.log('system', '应用关闭，已删除所有分享任务');
+    } else {
+      // 否则保存当前分享状态，下次启动时恢复
+      this.saveShares();
+    }
   }
 }
