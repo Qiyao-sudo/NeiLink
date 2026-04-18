@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import '../../shared/types';
+import { ShareConfig } from '../../shared/types';
 import {
   Table,
   Button,
@@ -22,6 +22,7 @@ import {
   EditOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
+import dayjs from 'dayjs';
 
 const { Text } = Typography;
 
@@ -35,13 +36,14 @@ interface ShareTask {
   maxConcurrentDownloads: number;
   uploaderNickname: string;
   createdAt: string;
+  rawData: ShareConfig;
 }
 
 interface EditConfigForm {
-  extractionCode: string;
+  extractCode: string;
   expiry: string;
-  maxConcurrentDownloads: number;
-  uploaderNickname: string;
+  maxConcurrent: number;
+  maxDownloads: number;
 }
 
 interface NetworkInfo {
@@ -57,27 +59,53 @@ const ShareManagePage: React.FC = () => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingTask, setEditingTask] = useState<ShareTask | null>(null);
-  const [editForm] = Form.useForm();
+  const [editForm] = Form.useForm<EditConfigForm>();
   const networkInfoRef = useRef<NetworkInfo>({
     isOnline: false,
     ip: '127.0.0.1',
     type: 'none',
   });
   const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const rawSharesRef = useRef<any[]>([]);
+  const expiryTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rawSharesRef = useRef<ShareConfig[]>([]);
 
-  const updateShareLinks = useCallback((rawShares: any[], currentIp: string) => {
-    const convertedTasks = rawShares.map((share: any) => ({
-      id: share.id,
-      fileName: share.fileName,
-      shareLink: `http://${currentIp}:${share.port}/${share.id}`,
-      extractCode: share.extractCode || '',
-      expiry: '24h',
-      remainingDownloads: share.maxDownloads === -1 ? -1 : share.maxDownloads - share.downloadCount,
-      maxConcurrentDownloads: share.maxConcurrent,
-      uploaderNickname: share.uploaderName,
-      createdAt: new Date(share.createdAt).toLocaleString(),
-    }));
+  const updateShareLinks = useCallback((rawShares: ShareConfig[], currentIp: string) => {
+    const convertedTasks = rawShares.map((share) => {
+      let expiry: string;
+      if (share.expiryTime) {
+        const remaining = share.expiryTime - Date.now();
+        if (remaining <= 0) {
+          expiry = '已过期';
+        } else {
+          const seconds = Math.floor(remaining / 1000);
+          const minutes = Math.floor(seconds / 60);
+          const hours = Math.floor(minutes / 60);
+          
+          if (hours > 0) {
+            expiry = `${hours} 小时`;
+          } else if (minutes > 0) {
+            expiry = `${minutes} 分钟`;
+          } else {
+            expiry = `${seconds} 秒`;
+          }
+        }
+      } else {
+        expiry = '永久';
+      }
+      
+      return {
+        id: share.id,
+        fileName: share.fileName,
+        shareLink: `http://${currentIp}:${share.port}/${share.id}`,
+        extractCode: share.extractCode || '',
+        expiry,
+        remainingDownloads: share.maxDownloads === -1 ? -1 : share.maxDownloads - share.downloadCount,
+        maxConcurrentDownloads: share.maxConcurrent,
+        uploaderNickname: share.uploaderName,
+        createdAt: dayjs(share.createdAt).format('YYYY-MM-DD HH:mm:ss'),
+        rawData: share,
+      };
+    });
     setTasks(convertedTasks);
   }, []);
 
@@ -116,6 +144,11 @@ const ShareManagePage: React.FC = () => {
     fetchNetworkInfo();
     fetchTasks();
     refreshTimer.current = setInterval(fetchTasks, 10000);
+    expiryTimer.current = setInterval(() => {
+      if (rawSharesRef.current.length > 0) {
+        updateShareLinks(rawSharesRef.current, networkInfoRef.current.ip);
+      }
+    }, 1000);
     
     const unsubscribe = window.neilink.ipc.on('network:on-change', () => {
       fetchNetworkInfo();
@@ -125,9 +158,12 @@ const ShareManagePage: React.FC = () => {
       if (refreshTimer.current) {
         clearInterval(refreshTimer.current);
       }
+      if (expiryTimer.current) {
+        clearInterval(expiryTimer.current);
+      }
       unsubscribe();
     };
-  }, [fetchTasks, fetchNetworkInfo]);
+  }, [fetchTasks, fetchNetworkInfo, updateShareLinks]);
 
   const handleRefresh = () => {
     fetchTasks();
@@ -150,11 +186,25 @@ const ShareManagePage: React.FC = () => {
 
   const handleEdit = (record: ShareTask) => {
     setEditingTask(record);
+    
+    // 将 expiryTime 转换为 expiry 选项
+    let expiry: string = 'permanent';
+    if (record.rawData.expiryTime) {
+      const now = Date.now();
+      const hoursLeft = Math.ceil((record.rawData.expiryTime - now) / (1000 * 60 * 60));
+      
+      if (hoursLeft <= 1) expiry = '1h';
+      else if (hoursLeft <= 6) expiry = '6h';
+      else if (hoursLeft <= 24) expiry = '24h';
+      else if (hoursLeft <= 168) expiry = '7d';
+      else expiry = '30d';
+    }
+    
     editForm.setFieldsValue({
-      extractionCode: record.extractCode,
-      expiry: record.expiry,
-      maxConcurrentDownloads: record.maxConcurrentDownloads,
-      uploaderNickname: record.uploaderNickname,
+      extractCode: record.extractCode,
+      expiry,
+      maxConcurrent: record.maxConcurrentDownloads,
+      maxDownloads: record.rawData.maxDownloads,
     });
     setEditModalVisible(true);
   };
@@ -163,21 +213,50 @@ const ShareManagePage: React.FC = () => {
     if (!editingTask) return;
     try {
       const values = await editForm.validateFields();
-      await window.neilink.ipc.invoke('share:edit', {
-        id: editingTask.id,
-        ...values,
-      });
+      
+      // 转换 expiry 为 expiryTime
+      let expiryTime: number | undefined;
+      if (values.expiry !== 'permanent') {
+        const now = Date.now();
+        switch (values.expiry) {
+          case '1h':
+            expiryTime = now + 60 * 60 * 1000;
+            break;
+          case '6h':
+            expiryTime = now + 6 * 60 * 60 * 1000;
+            break;
+          case '24h':
+            expiryTime = now + 24 * 60 * 60 * 1000;
+            break;
+          case '7d':
+            expiryTime = now + 7 * 24 * 60 * 60 * 1000;
+            break;
+          case '30d':
+            expiryTime = now + 30 * 24 * 60 * 60 * 1000;
+            break;
+        }
+      }
+      
+      // 构建更新配置
+      const config = {
+        extractCode: values.extractCode || undefined,
+        expiryTime,
+        maxConcurrent: values.maxConcurrent,
+        maxDownloads: values.maxDownloads,
+      };
+      
+      await window.neilink.ipc.invoke('share:update-config', editingTask.id, config);
       message.success('分享配置已更新');
       setEditModalVisible(false);
       fetchTasks();
-    } catch {
-      // 表单验证失败或请求失败
+    } catch (err) {
+      console.error('更新分享配置失败:', err);
     }
   };
 
   const handleCancelShare = async (id: string) => {
     try {
-      await window.neilink.ipc.invoke('share:cancel', { id });
+      await window.neilink.ipc.invoke('share:cancel', id);
       message.success('分享已取消');
       fetchTasks();
     } catch {
@@ -193,7 +272,7 @@ const ShareManagePage: React.FC = () => {
     try {
       await Promise.all(
         selectedRowKeys.map((key) =>
-          window.neilink.ipc.invoke('share:cancel', { id: key })
+          window.neilink.ipc.invoke('share:cancel', key)
         )
       );
       message.success(`已取消 ${selectedRowKeys.length} 个分享`);
@@ -213,17 +292,7 @@ const ShareManagePage: React.FC = () => {
     );
   });
 
-  const formatExpiry = (expiry: string) => {
-    const map: Record<string, string> = {
-      '1h': '1 小时',
-      '6h': '6 小时',
-      '24h': '24 小时',
-      '7d': '7 天',
-      '30d': '30 天',
-      'permanent': '永久',
-    };
-    return map[expiry] || expiry;
-  };
+
 
   const columns = [
     {
@@ -273,16 +342,14 @@ const ShareManagePage: React.FC = () => {
       key: 'expiry',
       width: 90,
       align: 'center' as const,
-      render: (text: string) => formatExpiry(text),
     },
     {
       title: '剩余下载',
-      dataIndex: 'remainingDownloads',
       key: 'remainingDownloads',
       width: 100,
       align: 'center' as const,
-      render: (text: number) =>
-        text === -1 ? <Tag color="green">不限</Tag> : <Text>{text}</Text>,
+      render: (_: unknown, record: ShareTask) =>
+        record.rawData.maxDownloads === -1 ? <Tag color="green">不限</Tag> : <Text>{record.rawData.maxDownloads - record.rawData.downloadCount}</Text>,
     },
     {
       title: '最大同时下载',
@@ -421,7 +488,6 @@ const ShareManagePage: React.FC = () => {
         okText="保存"
         cancelText="取消"
         width={450}
-        destroyOnHidden
       >
         <Form
           form={editForm}
@@ -432,7 +498,7 @@ const ShareManagePage: React.FC = () => {
           </Form.Item>
 
           <Form.Item
-            name="extractionCode"
+            name="extractCode"
             label="提取码"
             rules={[
               { min: 6, max: 12, message: '提取码长度为6-12位' },
@@ -457,7 +523,7 @@ const ShareManagePage: React.FC = () => {
           </Form.Item>
 
           <Form.Item
-            name="maxConcurrentDownloads"
+            name="maxConcurrent"
             label="最大同时下载数"
           >
             <Select>
@@ -469,10 +535,16 @@ const ShareManagePage: React.FC = () => {
           </Form.Item>
 
           <Form.Item
-            name="uploaderNickname"
-            label="上传者昵称"
+            name="maxDownloads"
+            label="最大下载次数"
           >
-            <Input placeholder="请输入昵称" maxLength={20} />
+            <Select>
+              <Select.Option value={1}>1 次</Select.Option>
+              <Select.Option value={3}>3 次</Select.Option>
+              <Select.Option value={5}>5 次</Select.Option>
+              <Select.Option value={10}>10 次</Select.Option>
+              <Select.Option value={-1}>不限</Select.Option>
+            </Select>
           </Form.Item>
         </Form>
       </Modal>
