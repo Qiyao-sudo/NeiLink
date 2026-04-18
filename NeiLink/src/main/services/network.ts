@@ -126,6 +126,9 @@ export function getAllAdapters(): NetworkAdapter[] {
     }
   }
 
+  // 按名称排序，确保顺序稳定
+  adapters.sort((a, b) => a.name.localeCompare(b.name));
+
   return adapters;
 }
 
@@ -259,12 +262,13 @@ export class NetworkMonitor {
     this.intervalId = setInterval(() => {
       const currentInfo = getNetworkInfo();
 
-      // 检测网络状态是否发生变化
+      // 检测网络状态是否发生变化 - 只比较关键字段
       if (
         !this.lastNetworkInfo ||
         currentInfo.ip !== this.lastNetworkInfo.ip ||
         currentInfo.type !== this.lastNetworkInfo.type ||
-        currentInfo.isOnline !== this.lastNetworkInfo.isOnline
+        currentInfo.isOnline !== this.lastNetworkInfo.isOnline ||
+        currentInfo.selectedAdapter !== this.lastNetworkInfo.selectedAdapter
       ) {
         this.lastNetworkInfo = currentInfo;
         this.callback(currentInfo);
