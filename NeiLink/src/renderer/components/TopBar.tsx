@@ -7,7 +7,14 @@ import {
   CopyOutlined,
 } from '@ant-design/icons';
 import { message } from 'antd';
-import { NetworkInfo } from '../../shared/types';
+import { NetworkInfo, IPC_CHANNELS } from '../../shared/types';
+
+// 自定义堆叠方块图标
+const CustomRestoreIcon = () => (
+  <svg viewBox="0 0 1024 1024" width="1em" height="1em" fill="currentColor">
+    <path d="M172.8 1017.6c-89.6 0-166.4-70.4-166.4-166.4V441.6c0-89.6 70.4-166.4 166.4-166.4h416c89.6 0 166.4 70.4 166.4 166.4v416c0 89.6-70.4 166.4-166.4 166.4l-416-6.4z m0-659.2c-51.2 0-89.6 38.4-89.6 89.6v416c0 51.2 38.4 89.6 89.6 89.6h416c51.2 0 89.6-38.4 89.6-89.6V441.6c0-51.2-38.4-89.6-89.6-89.6H172.8zM851.2 19.2H435.2C339.2 19.2 268.8 96 268.8 185.6v25.6h70.4v-25.6c0-51.2 38.4-89.6 89.6-89.6h409.6c51.2 0 89.6 38.4 89.6 89.6v409.6c0 51.2-38.4 89.6-89.6 89.6h-38.4V768h51.2c96 0 166.4-76.8 166.4-166.4V185.6c0-96-76.8-166.4-166.4-166.4z" />
+  </svg>
+);
 
 const TopBar: React.FC = () => {
   const [networkInfo, setNetworkInfo] = useState<NetworkInfo>({
@@ -17,6 +24,8 @@ const TopBar: React.FC = () => {
     adapters: [],
     selectedAdapter: undefined,
   });
+
+  const [isMaximized, setIsMaximized] = useState(false);
 
   const fetchNetworkStatus = async () => {
     try {
@@ -29,10 +38,33 @@ const TopBar: React.FC = () => {
     }
   };
 
+  const fetchWindowState = async () => {
+    try {
+      const result = await window.neilink.ipc.invoke(IPC_CHANNELS.WINDOW_IS_MAXIMIZED) as any;
+      if (result?.success) {
+        setIsMaximized(result.isMaximized);
+      }
+    } catch {
+      // 静默处理
+    }
+  };
+
   useEffect(() => {
     fetchNetworkStatus();
+    fetchWindowState();
     const interval = setInterval(fetchNetworkStatus, 5000);
-    return () => clearInterval(interval);
+
+    // 监听窗口状态变化
+    const unsubscribe = window.neilink.ipc.on(IPC_CHANNELS.WINDOW_ON_STATE_CHANGE, (data: any) => {
+      if (data?.isMaximized !== undefined) {
+        setIsMaximized(data.isMaximized);
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      unsubscribe();
+    };
   }, []);
 
   const copyIP = () => {
@@ -73,6 +105,7 @@ const TopBar: React.FC = () => {
           <Tag
             icon={<CopyOutlined />}
             color="blue"
+            className="no-drag"
             style={{ cursor: 'pointer' }}
             onClick={copyIP}
           >
@@ -91,7 +124,7 @@ const TopBar: React.FC = () => {
         <Button
           type="text"
           size="small"
-          icon={<BorderOutlined />}
+          icon={isMaximized ? <CustomRestoreIcon /> : <BorderOutlined />}
           onClick={() => handleWindowAction('maximize')}
           style={{ width: 32, height: 32 }}
         />

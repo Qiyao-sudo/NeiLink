@@ -373,6 +373,19 @@ export function registerIpcHandlers(
     }
   });
 
+  // 获取窗口是否最大化
+  ipcMain.handle(IPC_CHANNELS.WINDOW_IS_MAXIMIZED, async () => {
+    try {
+      if (mainWindow) {
+        return { success: true, isMaximized: mainWindow.isMaximized() };
+      }
+      return { success: false, error: '窗口不存在' };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, error: message };
+    }
+  });
+
   // ==================== 封禁IP管理 ====================
 
   ipcMain.handle(IPC_CHANNELS.BANNED_IPS_GET, async () => {
@@ -444,4 +457,16 @@ export function registerIpcHandlers(
 
   // 注册网络变化事件推送
   networkMonitor.start();
+
+  // 注册窗口状态变化事件推送
+  mainWindow.on('maximize', () => {
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(IPC_CHANNELS.WINDOW_ON_STATE_CHANGE, { isMaximized: true });
+    }
+  });
+  mainWindow.on('unmaximize', () => {
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(IPC_CHANNELS.WINDOW_ON_STATE_CHANGE, { isMaximized: false });
+    }
+  });
 }

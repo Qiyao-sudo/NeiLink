@@ -36,6 +36,8 @@ const IPC_CHANNELS = {
   WINDOW_MINIMIZE: 'window:minimize',
   WINDOW_MAXIMIZE: 'window:maximize',
   WINDOW_CLOSE: 'window:close',
+  WINDOW_IS_MAXIMIZED: 'window:is-maximized',
+  WINDOW_ON_STATE_CHANGE: 'window:on-state-change',
   
   // 封禁IP管理
   BANNED_IPS_GET: 'banned-ips:get',
@@ -76,6 +78,7 @@ const invokeChannels: string[] = [
   IPC_CHANNELS.WINDOW_MINIMIZE,
   IPC_CHANNELS.WINDOW_MAXIMIZE,
   IPC_CHANNELS.WINDOW_CLOSE,
+  IPC_CHANNELS.WINDOW_IS_MAXIMIZED,
   IPC_CHANNELS.BANNED_IPS_GET,
   IPC_CHANNELS.BANNED_IPS_UNBAN,
   IPC_CHANNELS.BANNED_IPS_UPDATE_DURATION,
@@ -90,6 +93,7 @@ const onChannels: string[] = [
   IPC_CHANNELS.SHARE_ON_DOWNLOAD,
   IPC_CHANNELS.LOG_ON_NEW,
   IPC_CHANNELS.NOTIFICATION,
+  IPC_CHANNELS.WINDOW_ON_STATE_CHANGE,
 ];
 
 contextBridge.exposeInMainWorld('neilink', {

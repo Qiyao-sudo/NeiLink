@@ -34,6 +34,7 @@ function createWindow(): void {
     },
     title: 'NeiLink',
     show: false,
+    frame: false, // 取消标题栏
   });
 
   mainWindow.once('ready-to-show', () => {

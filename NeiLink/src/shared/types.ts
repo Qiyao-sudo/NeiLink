@@ -129,6 +129,8 @@ export const IPC_CHANNELS = {
   WINDOW_MINIMIZE: 'window:minimize',
   WINDOW_MAXIMIZE: 'window:maximize',
   WINDOW_CLOSE: 'window:close',
+  WINDOW_IS_MAXIMIZED: 'window:is-maximized',
+  WINDOW_ON_STATE_CHANGE: 'window:on-state-change',
   
   // 封禁IP管理
   BANNED_IPS_GET: 'banned-ips:get',
