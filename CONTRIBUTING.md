@@ -101,7 +101,7 @@
 
 ## 报告问题
 
-如果您发现 bug 或有功能建议，请在 [Issues](https://github.com/yourusername/neilink/issues) 页面创建新的 issue。
+如果您发现 bug 或有功能建议，请在 [Issues](https://github.com/Qiyao-sudo/NeiLink/issues) 页面创建新的 issue。
 
 ### Bug 报告格式
 
@@ -132,6 +132,6 @@
 
 如果您有任何问题，可以通过以下方式联系我们：
 
-- **GitHub Issues**：[https://github.com/yourusername/neilink/issues](https://github.com/yourusername/neilink/issues)
+- **GitHub Issues**：[https://github.com/Qiyao-sudo/NeiLink/issues](https://github.com/Qiyao-sudo/NeiLink/issues)
 
 感谢您的贡献！
