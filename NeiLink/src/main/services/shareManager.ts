@@ -59,7 +59,9 @@ export class ShareManager {
     }
 
     // 尝试恢复之前的分享任务
-    this.loadShares();
+    this.loadShares().catch(err => {
+      console.error('加载分享任务失败:', err);
+    });
   }
 
   /**
@@ -463,7 +465,7 @@ export class ShareManager {
   /**
    * 从文件加载分享任务
    */
-  private loadShares(): void {
+  private async loadShares(): Promise<void> {
     try {
       const sharesFilePath = path.join(this.dataDir, 'shares.json');
       if (!fs.existsSync(sharesFilePath)) {
@@ -471,6 +473,15 @@ export class ShareManager {
       }
 
       const sharesData = JSON.parse(fs.readFileSync(sharesFilePath, 'utf-8')) as ShareConfig[];
+      
+      // 先确保服务器已启动
+      const port = await startGlobalServer(this.settings.port, {
+        rateLimitEnabled: this.settings.rateLimitEnabled,
+        rateLimitMaxAttempts: this.settings.rateLimitMaxAttempts,
+        rateLimitBanDuration: this.settings.rateLimitBanDuration,
+      });
+      
+      let restoredCount = 0;
       for (const share of sharesData) {
         // 检查临时文件是否存在
         const encFileExists = share.encryptedFilePath ? fs.existsSync(share.encryptedFilePath) : false;
@@ -479,29 +490,26 @@ export class ShareManager {
         const originalFileExists = fs.existsSync(share.filePath);
         
         if (encFileExists && originalFileExists && share.status === 'active') {
-          // 确保服务器已启动
-          startGlobalServer(this.settings.port, {
-            rateLimitEnabled: this.settings.rateLimitEnabled,
-            rateLimitMaxAttempts: this.settings.rateLimitMaxAttempts,
-            rateLimitBanDuration: this.settings.rateLimitBanDuration,
-          }).then((port) => {
-            // 确保端口一致
-            share.port = port;
-            // 注册分享到服务器
-            registerShare(share, (shareId) => {
-              const shareData = this.shares.get(shareId);
-              if (shareData) {
-                this.notifyDownload(shareId, shareData.downloadCount);
-              }
-            });
+          // 确保端口一致
+          share.port = port;
+          
+          // 注册分享到服务器
+          registerShare(share, (shareId) => {
+            const shareData = this.shares.get(shareId);
+            if (shareData) {
+              this.notifyDownload(shareId, shareData.downloadCount);
+            }
           });
           
           this.shares.set(share.id, share);
+          restoredCount++;
         }
       }
 
-      if (this.shares.size > 0) {
-        this.logger.log('system', `已恢复 ${this.shares.size} 个分享任务`);
+      if (restoredCount > 0) {
+        this.logger.log('system', `已恢复 ${restoredCount} 个分享任务`);
+        // 通知前端更新分享列表
+        this.notifyShareUpdate();
       }
     } catch (err) {
       console.error('加载分享任务失败:', err);
