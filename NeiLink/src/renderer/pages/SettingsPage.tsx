@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Card,
   Switch,
@@ -86,6 +86,8 @@ const SettingsPage: React.FC = () => {
   const [bannedIPs, setBannedIPs] = useState<BannedIPInfo[]>([]);
   const [bannedIPsLoading, setBannedIPsLoading] = useState(false);
   const [refreshTimer, setRefreshTimer] = useState<any>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const initialSettingsRef = useRef<AppSettings>(defaultSettings);
 
   const fetchSettings = useCallback(async () => {
     try {
@@ -110,7 +112,10 @@ const SettingsPage: React.FC = () => {
             convertedData.defaultExpiry = '30d';
           }
         }
-        setSettings({ ...defaultSettings, ...convertedData });
+        const finalSettings = { ...defaultSettings, ...convertedData };
+        setSettings(finalSettings);
+        initialSettingsRef.current = { ...finalSettings };
+        setHasUnsavedChanges(false);
       }
     } catch (error) {
       console.error('获取设置失败:', error);
@@ -132,15 +137,24 @@ const SettingsPage: React.FC = () => {
   }, []);
 
   const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
-    setSettings((prev) => ({ ...prev, [key]: value }));
+    setSettings((prev) => {
+      const newSettings = { ...prev, [key]: value };
+      // 检查是否有更改
+      const hasChanges = JSON.stringify(newSettings) !== JSON.stringify(initialSettingsRef.current);
+      setHasUnsavedChanges(hasChanges);
+      return newSettings;
+    });
   };
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     try {
       setSaving(true);
       const result = await window.neilink.ipc.invoke('settings:save', settings) as any;
       if (result?.success) {
         message.success('配置已保存');
+        // 保存成功后更新初始设置引用
+        initialSettingsRef.current = { ...settings };
+        setHasUnsavedChanges(false);
       } else {
         message.error(result?.error || '保存配置失败');
       }
@@ -150,12 +164,14 @@ const SettingsPage: React.FC = () => {
     } finally {
       setSaving(false);
     }
-  };
+  }, [settings]);
 
   const handleReset = async () => {
     try {
       await window.neilink.ipc.invoke('settings:reset');
       setSettings(defaultSettings);
+      initialSettingsRef.current = { ...defaultSettings };
+      setHasUnsavedChanges(false);
       message.success('已恢复默认设置');
     } catch {
       message.error('恢复默认设置失败');
@@ -270,6 +286,23 @@ const SettingsPage: React.FC = () => {
       }
     };
   }, [fetchSettings, fetchNetworkInfo, fetchBannedIPs]);
+
+  // 离开页面时自动保存
+  useEffect(() => {
+    return () => {
+      if (hasUnsavedChanges) {
+        // 使用同步方式保存，因为组件即将卸载
+        (async () => {
+          try {
+            await window.neilink.ipc.invoke('settings:save', settings);
+            console.log('设置已自动保存');
+          } catch (error) {
+            console.error('自动保存设置失败:', error);
+          }
+        })();
+      }
+    };
+  }, [hasUnsavedChanges, settings]);
 
   return (
     <div>
