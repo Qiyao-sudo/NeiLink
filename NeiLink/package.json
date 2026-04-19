@@ -1,11 +1,11 @@
 {
   "name": "neilink",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "NeiLink Desktop Application",
   "main": "dist/main/main.js",
   "scripts": {
     "dev": "concurrently \"webpack serve --config webpack.renderer.config.js\" \"wait-on http://localhost:3000 && electron .\"",
-    "build": "webpack --config webpack.renderer.config.js --mode production && tsc -p tsconfig.json",
+    "build": "webpack --config webpack.renderer.config.js --mode production && tsc -p tsconfig.main.json",
     "package": "npm run build && electron-builder"
   },
   "build": {

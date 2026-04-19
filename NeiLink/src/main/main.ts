@@ -42,13 +42,18 @@ function createWindow(): void {
   });
 
   // 开发环境加载 webpack-dev-server，生产环境加载打包后的文件
-  const isDev = process.env.NODE_ENV !== 'production';
+  const isDev = !app.isPackaged;
 
   if (isDev) {
     mainWindow.loadURL('http://localhost:3000');
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+    // 修正路径，直接指向 dist/renderer/index.html
+    const indexPath = path.join(__dirname, '..', 'renderer', 'index.html');
+    console.log('Loading index.html from:', indexPath);
+    console.log('__dirname:', __dirname);
+    console.log('Full path:', indexPath);
+    mainWindow.loadFile(indexPath);
   }
 
   mainWindow.on('closed', () => {
