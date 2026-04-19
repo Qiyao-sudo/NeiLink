@@ -164,12 +164,10 @@ const SettingsPage: React.FC = () => {
 
   const handleDetectPort = async () => {
     try {
-      const result = await window.neilink.ipc.invoke('network:detect-port', {
-        startPort: settings.port,
-      }) as number;
-      if (result) {
-        updateSetting('port', result);
-        message.success(`检测到可用端口: ${result}`);
+      const result = await window.neilink.ipc.invoke('port:find-available', settings.port) as any;
+      if (result?.success && result.port) {
+        updateSetting('port', result.port);
+        message.success(`检测到可用端口: ${result.port}`);
       }
     } catch {
       message.error('端口检测失败');
