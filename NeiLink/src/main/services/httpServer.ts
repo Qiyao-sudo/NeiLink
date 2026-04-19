@@ -226,6 +226,19 @@ export function startGlobalServer(
         return;
       }
 
+      // Favicon 路由
+      if (req.method === 'GET' && (req.url === '/favicon.ico' || req.url === '/NeiLink.ico')) {
+        const faviconPath = path.join(__dirname, '../assets/NeiLink.ico');
+        if (fs.existsSync(faviconPath)) {
+          res.writeHead(200, {
+            'Content-Type': 'image/x-icon',
+            'Access-Control-Allow-Origin': '*',
+          });
+          fs.createReadStream(faviconPath).pipe(res);
+          return;
+        }
+      }
+
       // 限流检查
       if (rateLimitSettings.rateLimitEnabled) {
         const isLimited = checkRateLimit(

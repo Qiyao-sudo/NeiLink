@@ -101,6 +101,8 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link rel="icon" type="image/x-icon" href="/NeiLink.ico">
+<link rel="shortcut icon" type="image/x-icon" href="/NeiLink.ico">
 <title>文件分享 - ${escapeHtml(fileName)}</title>
 <style>
   * {
@@ -1219,6 +1221,8 @@ export function generateFileCodeInputHTML(): string {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link rel="icon" type="image/x-icon" href="/NeiLink.ico">
+<link rel="shortcut icon" type="image/x-icon" href="/NeiLink.ico">
 <title>NeiLink - 文件分享</title>
 <style>
   * {
