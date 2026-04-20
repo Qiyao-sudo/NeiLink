@@ -310,6 +310,9 @@ export class ShareManager {
       }
     }
 
+    // 重置下载次数
+    share.downloadCount = 0;
+    
     // 重新激活分享：如果是已过期或已取消，并且有有效的过期时间（或永久），重新激活
     if (share.status !== 'active') {
       // 检查是否可以重新激活
