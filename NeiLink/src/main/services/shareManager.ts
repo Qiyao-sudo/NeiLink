@@ -6,7 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import * as archiver from 'archiver';
+import archiver from 'archiver';
 import { ShareConfig, SystemSettings } from '../../shared/types';
 import { generateKey, encryptFile } from './encryption';
 import { startGlobalServer, registerShare, unregisterShare, getGlobalServerPort } from './httpServer';
@@ -160,11 +160,12 @@ export class ShareManager {
     // 确定加密文件路径
     const encryptedFilePath = path.join(this.tempDir, `${id}.enc`);
 
-    // 创建分享配置
+    // 创建分享配置 - 如果是文件夹，文件名加上 .zip 后缀
+    const finalFileName = isFolder ? `${fileName}.zip` : fileName;
     const shareConfig: ShareConfig = {
       id,
       filePath,
-      fileName,
+      fileName: finalFileName,
       fileSize,
       isFolder,
       extractCode: params.extractCode,
@@ -208,7 +209,7 @@ export class ShareManager {
       this.saveShares();
 
       // 记录日志
-      this.logger.log('share', `创建分享任务: ${fileName}`, `ID: ${id}, 端口: ${port}, 大小: ${fileSize}`);
+      this.logger.log('share', `创建分享任务: ${finalFileName}`, `ID: ${id}, 端口: ${port}, 大小: ${fileSize}`);
 
       // 通知更新
       this.notifyShareUpdate();
@@ -218,7 +219,7 @@ export class ShareManager {
       // 清理临时文件
       this.cleanupTempFiles(id);
 
-      this.logger.log('error', `创建分享任务失败: ${fileName}`, err instanceof Error ? err.message : String(err));
+      this.logger.log('error', `创建分享任务失败: ${finalFileName}`, err instanceof Error ? err.message : String(err));
       throw new Error(`创建分享失败: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
@@ -415,7 +416,7 @@ export class ShareManager {
   private zipFolder(sourcePath: string, outputPath: string): Promise<void> {
     return new Promise((resolve, reject) => {
       const output = fs.createWriteStream(outputPath);
-      const archive = (archiver as unknown as (format: string, options?: Record<string, unknown>) => archiver.Archiver)('zip', {
+      const archive = archiver('zip', {
         zlib: { level: 5 }, // 中等压缩级别
       });
 
@@ -423,7 +424,7 @@ export class ShareManager {
         resolve();
       });
 
-      archive.on('error', (err) => {
+      archive.on('error', (err: Error) => {
         reject(new Error(`打包失败: ${err.message}`));
       });
 
