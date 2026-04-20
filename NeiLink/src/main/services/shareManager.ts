@@ -268,10 +268,10 @@ export class ShareManager {
   }
 
   /**
-   * 获取所有活跃的分享任务
+   * 获取所有分享任务（包括已过期和已取消的）
    */
   getAllShares(): ShareConfig[] {
-    return Array.from(this.shares.values()).filter(share => share.status === 'active');
+    return Array.from(this.shares.values());
   }
 
   /**
@@ -307,6 +307,23 @@ export class ShareManager {
         } else {
           (share as unknown as Record<string, unknown>)[field] = value;
         }
+      }
+    }
+
+    // 重新激活分享：如果是已过期或已取消，并且有有效的过期时间（或永久），重新激活
+    if (share.status !== 'active') {
+      // 检查是否可以重新激活
+      const now = Date.now();
+      const canReactivate = !share.expiryTime || (share.expiryTime > now);
+      if (canReactivate) {
+        share.status = 'active';
+        // 重新注册到服务器
+        registerShare(share, (shareId) => {
+          const shareData = this.shares.get(shareId);
+          if (shareData) {
+            this.notifyDownload(shareId, shareData.downloadCount);
+          }
+        });
       }
     }
 
@@ -363,7 +380,6 @@ export class ShareManager {
       if (share.expiryTime && now >= share.expiryTime) {
         share.status = 'expired';
         unregisterShare(id);
-        this.cleanupTempFiles(id);
         expiredCount++;
       }
 
@@ -371,7 +387,6 @@ export class ShareManager {
       if (share.maxDownloads !== -1 && share.downloadCount >= share.maxDownloads) {
         share.status = 'expired';
         unregisterShare(id);
-        this.cleanupTempFiles(id);
         expiredCount++;
       }
     }

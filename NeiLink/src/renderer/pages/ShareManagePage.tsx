@@ -72,7 +72,11 @@ const ShareManagePage: React.FC = () => {
   const updateShareLinks = useCallback((rawShares: ShareConfig[], currentIp: string) => {
     const convertedTasks = rawShares.map((share) => {
       let expiry: string;
-      if (share.expiryTime) {
+      if (share.status === 'expired') {
+        expiry = '已过期';
+      } else if (share.status === 'cancelled') {
+        expiry = '已取消';
+      } else if (share.expiryTime) {
         const remaining = share.expiryTime - Date.now();
         if (remaining <= 0) {
           expiry = '已过期';
@@ -103,6 +107,7 @@ const ShareManagePage: React.FC = () => {
         maxConcurrentDownloads: share.maxConcurrent,
         uploaderNickname: share.uploaderName,
         createdAt: dayjs(share.createdAt).format('YYYY-MM-DD HH:mm:ss'),
+        status: share.status,
         rawData: share,
       };
     });
@@ -306,6 +311,22 @@ const ShareManagePage: React.FC = () => {
 
   const columns = [
     {
+      title: '状态',
+      key: 'status',
+      width: 80,
+      align: 'center' as const,
+      render: (_: unknown, record: any) => {
+        if (record.status === 'active') {
+          return <Tag color="green">活跃</Tag>;
+        } else if (record.status === 'expired') {
+          return <Tag color="red">已过期</Tag>;
+        } else if (record.status === 'cancelled') {
+          return <Tag color="default">已取消</Tag>;
+        }
+        return <Tag>未知</Tag>;
+      },
+    },
+    {
       title: '文件名',
       dataIndex: 'fileName',
       key: 'fileName',
@@ -323,7 +344,7 @@ const ShareManagePage: React.FC = () => {
       key: 'shareLink',
       ellipsis: true,
       width: 200,
-      render: (text: string, record: ShareTask) => {
+      render: (text: string, record: any) => {
         const rawShare = rawSharesRef.current.find(s => s.id === record.id);
         const currentLink = rawShare 
           ? `http://${networkInfoRef.current.ip}:${rawShare.port}/${record.id}`
@@ -358,7 +379,7 @@ const ShareManagePage: React.FC = () => {
       key: 'remainingDownloads',
       width: 100,
       align: 'center' as const,
-      render: (_: unknown, record: ShareTask) =>
+      render: (_: unknown, record: any) =>
         record.rawData.maxDownloads === -1 ? <Tag color="green">不限</Tag> : <Text>{record.rawData.maxDownloads - record.rawData.downloadCount}</Text>,
     },
     {
@@ -387,7 +408,7 @@ const ShareManagePage: React.FC = () => {
       key: 'action',
       width: 150,
       fixed: 'right' as const,
-      render: (_: unknown, record: ShareTask) => (
+      render: (_: unknown, record: any) => (
         <Space size="small">
           <Tooltip title="复制链接">
             <Button
@@ -477,7 +498,7 @@ const ShareManagePage: React.FC = () => {
         rowKey="id"
         loading={loading}
         size="middle"
-        scroll={{ x: 1020 }}
+        scroll={{ x: 1100 }}
         rowSelection={{
           selectedRowKeys,
           onChange: (keys) => setSelectedRowKeys(keys),
