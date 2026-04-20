@@ -265,26 +265,21 @@ export function startGlobalServer(
 
       if (req.method === 'GET' && req.url && req.url.length > 1 && !req.url.startsWith('/api/')) {
         // 处理文件码路径，如 /$文件码$
-      const fileCode = req.url.substring(1);
-      const shareConfig = shares.get(fileCode);
-      if (shareConfig) {
-        // 检查分享状态
-        if (shareConfig.status !== 'active') {
-          sendJSON(res, 410, { error: '该分享已过期或被取消' });
+        const fileCode = req.url.substring(1);
+        const shareConfig = shares.get(fileCode);
+        if (shareConfig) {
+          // 文件码匹配，返回接收端 Web 页面
+          res.writeHead(200, {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Access-Control-Allow-Origin': '*',
+          });
+          res.end(generateReceiverHTML(toShareInfo(shareConfig)));
+          return;
+        } else {
+          // 文件码不匹配，返回错误页面
+          sendJSON(res, 404, { error: '文件码错误或不存在' });
           return;
         }
-        // 文件码匹配，返回接收端 Web 页面
-        res.writeHead(200, {
-          'Content-Type': 'text/html; charset=utf-8',
-          'Access-Control-Allow-Origin': '*',
-        });
-        res.end(generateReceiverHTML(toShareInfo(shareConfig)));
-        return;
-      } else {
-        // 文件码不匹配，返回错误页面
-        sendJSON(res, 404, { error: '文件码错误或不存在' });
-        return;
-      }
       }
 
       if (req.method === 'GET' && req.url?.startsWith('/api/share-info/')) {

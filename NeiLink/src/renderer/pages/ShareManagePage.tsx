@@ -150,8 +150,14 @@ const ShareManagePage: React.FC = () => {
       }
     }, 1000);
     
-    const unsubscribe = window.neilink.ipc.on('network:on-change', () => {
+    const unsubscribeNetwork = window.neilink.ipc.on('network:on-change', () => {
       fetchNetworkInfo();
+    });
+    
+    const unsubscribeShareUpdate = window.neilink.ipc.on('share:on-update', (...args: unknown[]) => {
+      const shares = args[0] as ShareConfig[];
+      rawSharesRef.current = shares;
+      updateShareLinks(shares, networkInfoRef.current.ip);
     });
     
     return () => {
@@ -161,7 +167,8 @@ const ShareManagePage: React.FC = () => {
       if (expiryTimer.current) {
         clearInterval(expiryTimer.current);
       }
-      unsubscribe();
+      unsubscribeNetwork();
+      unsubscribeShareUpdate();
     };
   }, [fetchTasks, fetchNetworkInfo, updateShareLinks]);
 

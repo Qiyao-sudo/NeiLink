@@ -233,8 +233,8 @@ export class ShareManager {
     }
 
     try {
-      // 更新状态为已取消（保留在 Map 中，前端可能需要显示已取消的历史）
-      share.status = 'cancelled';
+      // 从 Map 中删除分享
+      this.shares.delete(id);
 
       // 从全局服务器移除分享
       unregisterShare(id);
@@ -267,10 +267,10 @@ export class ShareManager {
   }
 
   /**
-   * 获取所有分享任务（包括过期和取消的）
+   * 获取所有活跃的分享任务
    */
   getAllShares(): ShareConfig[] {
-    return Array.from(this.shares.values());
+    return Array.from(this.shares.values()).filter(share => share.status === 'active');
   }
 
   /**
@@ -361,12 +361,16 @@ export class ShareManager {
       // 检查是否过期
       if (share.expiryTime && now >= share.expiryTime) {
         share.status = 'expired';
+        unregisterShare(id);
+        this.cleanupTempFiles(id);
         expiredCount++;
       }
 
       // 检查是否达到最大下载次数
       if (share.maxDownloads !== -1 && share.downloadCount >= share.maxDownloads) {
         share.status = 'expired';
+        unregisterShare(id);
+        this.cleanupTempFiles(id);
         expiredCount++;
       }
     }
@@ -485,11 +489,7 @@ export class ShareManager {
         // 检查原始文件是否存在
         const originalFileExists = fs.existsSync(share.filePath);
         
-        if (encFileExists && originalFileExists) {
-          // 保存到内存中
-          this.shares.set(share.id, share);
-          
-          // 所有分享都注册到服务器，这样访问过期分享时能正确返回过期状态
+        if (encFileExists && originalFileExists && share.status === 'active') {
           // 确保端口一致
           share.port = port;
           
@@ -501,9 +501,8 @@ export class ShareManager {
             }
           });
           
-          if (share.status === 'active') {
-            restoredCount++;
-          }
+          this.shares.set(share.id, share);
+          restoredCount++;
         }
       }
 
