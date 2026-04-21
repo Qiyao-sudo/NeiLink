@@ -508,17 +508,20 @@ export class ShareManager {
         // 检查原始文件是否存在
         const originalFileExists = fs.existsSync(share.filePath);
         
-        if (encFileExists && originalFileExists && share.status === 'active') {
+        // 无论状态如何，只要文件存在就恢复
+        if (encFileExists && originalFileExists) {
           // 确保端口一致
           share.port = port;
           
-          // 注册分享到服务器
-          registerShare(share, (shareId) => {
-            const shareData = this.shares.get(shareId);
-            if (shareData) {
-              this.notifyDownload(shareId, shareData.downloadCount);
-            }
-          });
+          // 只有活跃的分享才注册到服务器
+          if (share.status === 'active') {
+            registerShare(share, (shareId) => {
+              const shareData = this.shares.get(shareId);
+              if (shareData) {
+                this.notifyDownload(shareId, shareData.downloadCount);
+              }
+            });
+          }
           
           this.shares.set(share.id, share);
           restoredCount++;
