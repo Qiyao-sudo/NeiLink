@@ -398,6 +398,8 @@ export function startGlobalServer(
           // 直接返回完整文件
           headers['Content-Type'] = 'application/octet-stream';
           headers['Content-Disposition'] = `attachment; filename="${encodeURIComponent(shareConfig.fileName)}"`;
+          // 加密文件的实际大小是 shareConfig.fileSize（解密后的原始大小）
+          headers['Content-Length'] = shareConfig.fileSize;
 
           res.writeHead(200, headers);
 
