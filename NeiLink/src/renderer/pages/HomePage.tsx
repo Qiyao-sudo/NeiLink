@@ -40,6 +40,7 @@ const HomePage: React.FC = () => {
   const [selectedFilePath, setSelectedFilePath] = useState('');
   const [selectedIsFolder, setSelectedIsFolder] = useState(false);
   const [defaultSettings, setDefaultSettings] = useState({
+    userName: '',
     defaultNickname: '',
     defaultExtractCode: true,
     defaultExpiry: '24h',
@@ -76,6 +77,7 @@ const HomePage: React.FC = () => {
       if (result?.success && result.data) {
         const settings = result.data as Record<string, unknown>;
         setDefaultSettings({
+          userName: (settings.userName as string) || '',
           defaultNickname: (settings.defaultNickname as string) || '',
           defaultExtractCode: settings.defaultExtractCode as boolean ?? true,
           defaultExpiry: (settings.defaultExpiry as string) || '24h',
@@ -410,7 +412,7 @@ const HomePage: React.FC = () => {
         visible={shareModalVisible}
         filePath={selectedFilePath}
         isFolder={selectedIsFolder}
-        defaultNickname={defaultSettings.defaultNickname}
+        defaultNickname={defaultSettings.userName || defaultSettings.defaultNickname}
         defaultExtractCode={defaultSettings.defaultExtractCode}
         defaultExpiry={defaultSettings.defaultExpiry}
         defaultMaxDownloads={defaultSettings.defaultMaxDownloads}

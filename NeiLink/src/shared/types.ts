@@ -62,10 +62,16 @@ export interface BannedIPInfo {
   remainingTime: number;
 }
 
+// 用户设置
+export interface UserSettings {
+  userName: string; // 用户名称
+  userAvatar?: string; // 用户头像（base64 编码或文件路径）
+}
+
 // 系统设置
-export interface SystemSettings {
+export interface SystemSettings extends UserSettings {
   autoStart: boolean;
-  defaultNickname: string;
+  defaultNickname: string; // 保留此字段用于兼容性，实际使用 userName
   defaultExtractCode: boolean;
   defaultExpiry: string; // '1h', '6h', '24h', '7d', '30d', 'permanent'
   defaultMaxDownloads: number;

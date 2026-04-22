@@ -13,6 +13,8 @@ import {
   Table,
   Popconfirm,
   Tag,
+  Upload,
+  Avatar,
 } from 'antd';
 import {
   SaveOutlined,
@@ -22,12 +24,19 @@ import {
   ReloadOutlined,
   UnlockOutlined,
   ClockCircleOutlined,
+  UploadOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
+import type { UploadProps } from 'antd';
 import { NetworkInfo, BannedIPInfo } from '../../shared/types';
 
 const { Text, Title } = Typography;
 
 interface AppSettings {
+  // 用户设置
+  userName: string;
+  userAvatar?: string;
+  
   // 基础设置
   autoStart: boolean;
   defaultNickname: string;
@@ -54,6 +63,8 @@ interface AppSettings {
 }
 
 const defaultSettings: AppSettings = {
+  userName: '',
+  userAvatar: undefined,
   autoStart: false,
   defaultNickname: '',
   defaultExtractCode: true,
@@ -111,6 +122,10 @@ const SettingsPage: React.FC = () => {
           } else {
             convertedData.defaultExpiry = '30d';
           }
+        }
+        // 兼容旧版本，如果没有 userName，使用 defaultNickname
+        if (!convertedData.userName && convertedData.defaultNickname) {
+          convertedData.userName = convertedData.defaultNickname;
         }
         const finalSettings = { ...defaultSettings, ...convertedData };
         setSettings(finalSettings);
@@ -270,6 +285,47 @@ const SettingsPage: React.FC = () => {
     }
   };
 
+  const handleAvatarChange: UploadProps['onChange'] = (info) => {
+    if (info.file.status === 'done') {
+      // 上传成功
+      message.success(`${info.file.name} 上传成功`);
+    } else if (info.file.status === 'error') {
+      message.error(`${info.file.name} 上传失败`);
+    }
+  };
+
+  const beforeUpload: UploadProps['beforeUpload'] = (file) => {
+    const isImage = file.type.startsWith('image/');
+    if (!isImage) {
+      message.error('只能上传图片文件！');
+      return false;
+    }
+    const isLt2M = file.size / 1024 / 1024 < 2;
+    if (!isLt2M) {
+      message.error('图片大小不能超过 2MB！');
+      return false;
+    }
+    
+    // 将图片转换为 base64
+    return new Promise<boolean>((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        updateSetting('userAvatar', reader.result as string);
+        resolve(false); // 不使用默认上传
+      };
+      reader.onerror = () => {
+        message.error('读取图片失败');
+        resolve(false);
+      };
+    });
+  };
+
+  const handleRemoveAvatar = () => {
+    updateSetting('userAvatar', undefined);
+    message.success('头像已删除');
+  };
+
   useEffect(() => {
     fetchSettings();
     fetchNetworkInfo();
@@ -306,6 +362,51 @@ const SettingsPage: React.FC = () => {
 
   return (
     <div>
+      {/* 用户设置 */}
+      <div className="settings-section">
+        <div className="settings-section-title">用户设置</div>
+        
+        <div className="settings-item">
+          <div>
+            <div className="settings-label">用户头像</div>
+            <div className="settings-desc">上传您的头像（仅支持图片，最大 2MB）</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <Avatar 
+              size={64} 
+              src={settings.userAvatar} 
+              icon={<UserOutlined />}
+            />
+            <Space>
+              <Upload
+                beforeUpload={beforeUpload}
+                onChange={handleAvatarChange}
+                showUploadList={false}
+              >
+                <Button icon={<UploadOutlined />}>选择图片</Button>
+              </Upload>
+              {settings.userAvatar && (
+                <Button onClick={handleRemoveAvatar}>删除头像</Button>
+              )}
+            </Space>
+          </div>
+        </div>
+        
+        <div className="settings-item">
+          <div>
+            <div className="settings-label">用户名称</div>
+            <div className="settings-desc">设置您的名称，将用于分享文件时显示</div>
+          </div>
+          <Input
+            value={settings.userName}
+            onChange={(e) => updateSetting('userName', e.target.value)}
+            placeholder="请输入用户名称"
+            maxLength={20}
+            style={{ width: 200 }}
+          />
+        </div>
+      </div>
+
       {/* 基础设置 */}
       <div className="settings-section">
         <div className="settings-section-title">基础设置</div>
