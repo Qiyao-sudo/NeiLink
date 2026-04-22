@@ -12,7 +12,7 @@ import { Logger } from './services/logger';
 import { SettingsManager } from './services/settings';
 import { ShareManager } from './services/shareManager';
 import { registerIpcHandlers } from './ipcHandlers';
-import { setLogger } from './services/httpServer';
+import { setLogger, updateUserSettings } from './services/httpServer';
 
 let mainWindow: BrowserWindow | null = null;
 let shareManager: ShareManager | null = null;
@@ -78,6 +78,12 @@ async function initializeServices(): Promise<void> {
   
   // 设置 httpServer 的 logger
   setLogger(logger);
+  
+  // 设置 httpServer 的用户设置
+  updateUserSettings({
+    userName: settings.userName,
+    userAvatar: settings.userAvatar
+  });
 
   // 2.5 初始化网络模块，加载用户选择的适配器
   await initializeNetwork(settingsManager);

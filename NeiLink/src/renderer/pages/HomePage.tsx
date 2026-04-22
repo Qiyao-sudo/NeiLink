@@ -40,7 +40,6 @@ const HomePage: React.FC = () => {
   const [selectedFilePath, setSelectedFilePath] = useState('');
   const [selectedIsFolder, setSelectedIsFolder] = useState(false);
   const [defaultSettings, setDefaultSettings] = useState({
-    defaultNickname: '',
     defaultExtractCode: true,
     defaultExpiry: '24h',
     defaultMaxDownloads: -1,
@@ -76,7 +75,6 @@ const HomePage: React.FC = () => {
       if (result?.success && result.data) {
         const settings = result.data as Record<string, unknown>;
         setDefaultSettings({
-          defaultNickname: (settings.defaultNickname as string) || '',
           defaultExtractCode: settings.defaultExtractCode as boolean ?? true,
           defaultExpiry: (settings.defaultExpiry as string) || '24h',
           defaultMaxDownloads: settings.defaultMaxDownloads as number ?? -1,
@@ -187,7 +185,6 @@ const HomePage: React.FC = () => {
         expiryTime,
         maxDownloads: config.maxDownloads,
         maxConcurrent: config.maxConcurrentDownloads,
-        uploaderName: config.uploaderNickname || '匿名用户',
       };
       
       const result = await window.neilink.ipc.invoke('share:create', shareParams) as any;
@@ -410,7 +407,6 @@ const HomePage: React.FC = () => {
         visible={shareModalVisible}
         filePath={selectedFilePath}
         isFolder={selectedIsFolder}
-        defaultNickname={defaultSettings.defaultNickname}
         defaultExtractCode={defaultSettings.defaultExtractCode}
         defaultExpiry={defaultSettings.defaultExpiry}
         defaultMaxDownloads={defaultSettings.defaultMaxDownloads}

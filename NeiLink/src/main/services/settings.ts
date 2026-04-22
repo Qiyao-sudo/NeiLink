@@ -27,6 +27,9 @@ const DEFAULT_SETTINGS: SystemSettings = {
   logStoragePath: '', // 运行时由 app.getPath('userData') 填充
   clearSharesOnExit: false, // 默认不删除
   selectedAdapter: undefined, // 用户选择的网络适配器名称
+  // 用户设置
+  userName: 'NeiLink用户',
+  userAvatar: undefined,
 };
 
 export class SettingsManager {
@@ -84,6 +87,11 @@ export class SettingsManager {
         // 确保日志存储路径不为空
         if (!this.settings.logStoragePath || this.settings.logStoragePath.trim() === '') {
           this.settings.logStoragePath = path.join(this.userDataPath, 'logs');
+        }
+        
+        // 从 defaultNickname 迁移到 userName
+        if (!this.settings.userName || this.settings.userName.trim() === '') {
+          this.settings.userName = this.settings.defaultNickname;
         }
       } else {
         // 首次运行，保存默认设置

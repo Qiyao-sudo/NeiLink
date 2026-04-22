@@ -13,6 +13,7 @@ import {
   Table,
   Popconfirm,
   Tag,
+  Avatar,
 } from 'antd';
 import {
   SaveOutlined,
@@ -22,12 +23,18 @@ import {
   ReloadOutlined,
   UnlockOutlined,
   ClockCircleOutlined,
+  UserOutlined,
+  PlusOutlined,
 } from '@ant-design/icons';
 import { NetworkInfo, BannedIPInfo } from '../../shared/types';
 
 const { Text, Title } = Typography;
 
 interface AppSettings {
+  // 用户设置
+  userName?: string;
+  userAvatar?: string;
+
   // 基础设置
   autoStart: boolean;
   defaultNickname: string;
@@ -54,6 +61,8 @@ interface AppSettings {
 }
 
 const defaultSettings: AppSettings = {
+  userName: 'NeiLink用户',
+  userAvatar: undefined,
   autoStart: false,
   defaultNickname: '',
   defaultExtractCode: true,
@@ -176,6 +185,40 @@ const SettingsPage: React.FC = () => {
     } catch {
       message.error('恢复默认设置失败');
     }
+  };
+
+  const handleSelectAvatar = async () => {
+    try {
+      const result = await window.neilink.ipc.invoke('file:select') as any;
+      if (result?.success && result.files && result.files.length > 0) {
+        const filePath = result.files[0];
+        // 读取文件并转换为 base64
+        // 注意：在 Electron 渲染进程中，我们需要通过 IPC 来处理文件读取
+        // 这里我们先创建一个隐藏的 input 元素来选择文件并转换为 base64
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.style.display = 'none';
+        input.onchange = async (e: any) => {
+          const file = e.target.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              const base64 = event.target?.result as string;
+              updateSetting('userAvatar', base64);
+            };
+            reader.readAsDataURL(file);
+          }
+        };
+        input.click();
+      }
+    } catch {
+      message.error('选择头像失败');
+    }
+  };
+
+  const handleRemoveAvatar = () => {
+    updateSetting('userAvatar', undefined);
   };
 
   const handleDetectPort = async () => {
@@ -306,6 +349,57 @@ const SettingsPage: React.FC = () => {
 
   return (
     <div>
+      {/* 用户设置 */}
+      <div className="settings-section">
+        <div className="settings-section-title">用户设置</div>
+
+        <div className="settings-item">
+          <div>
+            <div className="settings-label">头像</div>
+            <div className="settings-desc">用于接收端页面展示</div>
+          </div>
+          <Space align="center">
+            <Avatar
+              size={80}
+              src={settings.userAvatar}
+              icon={<UserOutlined />}
+              style={{ backgroundColor: '#1890ff' }}
+            />
+            <Space direction="vertical">
+              <Button
+                icon={<PlusOutlined />}
+                onClick={handleSelectAvatar}
+              >
+                选择头像
+              </Button>
+              {settings.userAvatar && (
+                <Button
+                  danger
+                  size="small"
+                  onClick={handleRemoveAvatar}
+                >
+                  移除头像
+                </Button>
+              )}
+            </Space>
+          </Space>
+        </div>
+
+        <div className="settings-item">
+          <div>
+            <div className="settings-label">用户名称</div>
+            <div className="settings-desc">用于接收端页面展示的上传者名称</div>
+          </div>
+          <Input
+            value={settings.userName || ''}
+            onChange={(e) => updateSetting('userName', e.target.value)}
+            placeholder="请输入用户名称"
+            maxLength={20}
+            style={{ width: 200 }}
+          />
+        </div>
+      </div>
+
       {/* 基础设置 */}
       <div className="settings-section">
         <div className="settings-section-title">基础设置</div>
@@ -321,19 +415,7 @@ const SettingsPage: React.FC = () => {
           />
         </div>
 
-        <div className="settings-item">
-          <div>
-            <div className="settings-label">默认上传者昵称</div>
-            <div className="settings-desc">创建分享时默认填写的昵称</div>
-          </div>
-          <Input
-            value={settings.defaultNickname}
-            onChange={(e) => updateSetting('defaultNickname', e.target.value)}
-            placeholder="请输入昵称"
-            maxLength={20}
-            style={{ width: 200 }}
-          />
-        </div>
+
 
         <div className="settings-item">
           <div>

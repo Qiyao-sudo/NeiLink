@@ -65,7 +65,7 @@ export interface BannedIPInfo {
 // 系统设置
 export interface SystemSettings {
   autoStart: boolean;
-  defaultNickname: string;
+  defaultNickname: string; // 保留用于兼容性
   defaultExtractCode: boolean;
   defaultExpiry: string; // '1h', '6h', '24h', '7d', '30d', 'permanent'
   defaultMaxDownloads: number;
@@ -81,6 +81,9 @@ export interface SystemSettings {
   logStoragePath: string;
   clearSharesOnExit: boolean; // 应用关闭时删除已分享的文件
   selectedAdapter?: string; // 用户选择的网络适配器名称
+  // 用户设置
+  userName?: string; // 用户名称
+  userAvatar?: string; // 用户头像的base64数据或文件路径
 }
 
 // IPC 通道定义
@@ -137,6 +140,11 @@ export const IPC_CHANNELS = {
   BANNED_IPS_GET: 'banned-ips:get',
   BANNED_IPS_UNBAN: 'banned-ips:unban',
   BANNED_IPS_UPDATE_DURATION: 'banned-ips:update-duration',
+  
+  // 用户设置相关
+  USER_AVATAR_SET: 'user:avatar:set',
+  USER_AVATAR_GET: 'user:avatar:get',
+  USER_SETTINGS_ON_UPDATE: 'user:settings:on-update',
 } as const;
 
 // NeiLink API

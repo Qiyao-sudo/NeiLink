@@ -12,6 +12,8 @@ export interface ShareInfo {
   remainingDownloads?: number;
   isFolder?: boolean;
   shareId?: string;
+  userAvatar?: string;
+  userName?: string;
 }
 
 /**
@@ -90,11 +92,16 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
     remainingDownloads,
     isFolder,
     shareId,
+    userAvatar,
+    userName,
   } = shareInfo;
 
   const formattedSize = formatFileSize(fileSize);
   const fileIcon = getFileIconSVG(fileName);
   const expiryText = expiryTime ? formatExpiryTime(expiryTime) : '永久有效';
+  
+  // 确定显示的上传者名称：优先使用 userName，然后是 uploaderName
+  const displayName = userName || uploaderName;
 
   return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -625,13 +632,13 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
 
   <!-- ===== 页面头部 ===== -->
   <div class="page-header">
-    <svg class="logo-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    ${userAvatar ? `<img class="logo-icon" src="${userAvatar}" alt="用户头像" style="border-radius: 50%; object-fit: cover;"/>` : `<svg class="logo-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
       <circle cx="24" cy="24" r="20" fill="#1890FF" opacity="0.1"/>
       <path d="M24 14v20M14 24h20" stroke="#1890FF" stroke-width="3" stroke-linecap="round"/>
       <circle cx="24" cy="24" r="20" stroke="#1890FF" stroke-width="2" fill="none"/>
-    </svg>
-    <h1>文件分享</h1>
-    <p class="subtitle">NeiLink 安全文件传输</p>
+    </svg>`}
+    <h1>${escapeHtml(displayName)}</h1>
+    <p class="subtitle">分享文件</p>
   </div>
 
   <!-- ===== 验证页面 ===== -->
@@ -671,14 +678,14 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
         <div class="file-info-details">
           <div class="file-name" id="display-file-name">${escapeHtml(fileName)}</div>
           <div class="file-meta">
-            <div class="file-meta-item">
-              <span class="meta-label">大小：</span>
-              <span>${escapeHtml(formattedSize)}</span>
-            </div>
-            <div class="file-meta-item">
-              <span class="meta-label">上传者：</span>
-              <span>${escapeHtml(uploaderName)}</span>
-            </div>
+              <div class="file-meta-item">
+                <span class="meta-label">大小：</span>
+                <span>${escapeHtml(formattedSize)}</span>
+              </div>
+              <div class="file-meta-item">
+                <span class="meta-label">上传者：</span>
+                <span>${escapeHtml(displayName)}</span>
+              </div>
             <div class="file-meta-item">
               <span class="meta-label">有效期：</span>
               <span>${escapeHtml(expiryText)}</span>
@@ -777,7 +784,9 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
     hasExtractCode: ${hasExtractCode},
     expiryTime: ${expiryTime || 0},
     remainingDownloads: ${remainingDownloads !== undefined ? remainingDownloads : -1},
-    isFolder: ${!!isFolder}
+    isFolder: ${!!isFolder},
+    userAvatar: ${JSON.stringify(userAvatar)},
+    userName: ${JSON.stringify(userName)}
   };
 
   // ===== DOM 元素 =====
@@ -835,10 +844,15 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
         if (data.expiryTime !== undefined) CONFIG.expiryTime = data.expiryTime;
         if (data.remainingDownloads !== undefined) CONFIG.remainingDownloads = data.remainingDownloads;
         if (data.isFolder !== undefined) CONFIG.isFolder = data.isFolder;
+        if (data.userAvatar) CONFIG.userAvatar = data.userAvatar;
+        if (data.userName) CONFIG.userName = data.userName;
 
         // 更新页面显示
         var displayName = document.getElementById('display-file-name');
         if (displayName) displayName.textContent = CONFIG.fileName;
+        
+        // 更新用户头像和名称
+        updateUserInfo(data.userAvatar, data.userName, data.uploaderName);
 
         if (CONFIG.hasExtractCode) {
           showPage('verify');
@@ -856,6 +870,54 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
           checkResumeDownload();
         }
       });
+  }
+  
+  // ===== 更新用户信息 =====
+  function updateUserInfo(userAvatar, userName, uploaderName) {
+    var displayName = userName || uploaderName;
+    
+    // 更新标题
+    var headerTitle = document.querySelector('.page-header h1');
+    if (headerTitle) headerTitle.textContent = displayName;
+    
+    // 更新头像
+    var header = document.querySelector('.page-header');
+    if (header) {
+      var currentLogo = header.querySelector('.logo-icon');
+      if (userAvatar) {
+        // 如果有用户头像，替换为 img 标签
+        if (!currentLogo || currentLogo.tagName !== 'IMG') {
+          var img = document.createElement('img');
+          img.className = 'logo-icon';
+          img.alt = '用户头像';
+          img.style.borderRadius = '50%';
+          img.style.objectFit = 'cover';
+          if (currentLogo) currentLogo.replaceWith(img);
+          currentLogo = img;
+        }
+        currentLogo.src = userAvatar;
+      } else {
+        // 如果没有用户头像，替换为默认 svg
+        if (!currentLogo || currentLogo.tagName !== 'svg') {
+          var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          svg.setAttribute('class', 'logo-icon');
+          svg.setAttribute('viewBox', '0 0 48 48');
+          svg.setAttribute('fill', 'none');
+          svg.innerHTML = '<circle cx="24" cy="24" r="20" fill="#1890FF" opacity="0.1"/><path d="M24 14v20M14 24h20" stroke="#1890FF" stroke-width="3" stroke-linecap="round"/><circle cx="24" cy="24" r="20" stroke="#1890FF" stroke-width="2" fill="none"/>';
+          if (currentLogo) currentLogo.replaceWith(svg);
+        }
+      }
+    }
+    
+    // 更新文件信息中的上传者名称
+    var uploaderElements = document.querySelectorAll('.file-meta-item');
+    uploaderElements.forEach(function(el) {
+      var label = el.querySelector('.meta-label');
+      if (label && label.textContent === '上传者：') {
+        var valueSpan = el.querySelector('span:nth-child(2)');
+        if (valueSpan) valueSpan.textContent = displayName;
+      }
+    });
   }
 
   // ===== 页面切换 =====

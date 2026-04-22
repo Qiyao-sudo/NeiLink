@@ -7,7 +7,7 @@ import * as http from 'http';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import { ShareConfig } from '../../shared/types';
+import { ShareConfig, SystemSettings } from '../../shared/types';
 import { Logger } from './logger';
 import { generateReceiverHTML, generateFileCodeInputHTML, ShareInfo } from './receiverPage';
 
@@ -47,6 +47,23 @@ let rateLimitSettings: {
 /** 限流记录存储（IP -> 记录） */
 const rateLimitRecords: Map<string, RateLimitRecord> = new Map();
 
+/** 用户设置 */
+let userSettings: Partial<SystemSettings> = {};
+
+/**
+ * 更新用户设置
+ */
+export function updateUserSettings(settings: Partial<SystemSettings>): void {
+  userSettings = { ...userSettings, ...settings };
+}
+
+/**
+ * 获取用户设置
+ */
+export function getUserSettings(): Partial<SystemSettings> {
+  return { ...userSettings };
+}
+
 /**
  * 格式化文件大小为可读字符串
  */
@@ -70,6 +87,8 @@ function toShareInfo(shareConfig: ShareConfig): ShareInfo {
     remainingDownloads: shareConfig.maxDownloads === -1 ? undefined : shareConfig.maxDownloads - shareConfig.downloadCount,
     isFolder: shareConfig.isFolder,
     shareId: shareConfig.id,
+    userAvatar: userSettings.userAvatar,
+    userName: userSettings.userName,
   };
 }
 
@@ -228,6 +247,7 @@ export function startGlobalServer(
 
       // Favicon 路由
       if (req.method === 'GET' && (req.url === '/favicon.ico' || req.url === '/NeiLink.ico')) {
+        // 使用默认图标
         const faviconPath = path.join(__dirname, '../assets/NeiLink.ico');
         if (fs.existsSync(faviconPath)) {
           res.writeHead(200, {
@@ -301,6 +321,8 @@ export function startGlobalServer(
           uploaderName: shareConfig.uploaderName,
           hasExtractCode: !!shareConfig.extractCode,
           createdAt: shareConfig.createdAt,
+          userAvatar: userSettings.userAvatar,
+          userName: userSettings.userName,
         });
         return;
       }

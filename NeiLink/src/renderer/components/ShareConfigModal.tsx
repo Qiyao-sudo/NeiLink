@@ -19,7 +19,6 @@ interface ShareConfigModalProps {
   visible: boolean;
   filePath: string;
   isFolder?: boolean;
-  defaultNickname?: string;
   defaultExtractCode?: boolean;
   defaultExpiry?: string;
   defaultMaxDownloads?: number;
@@ -35,7 +34,6 @@ export interface ShareFormConfig {
   expiry: string;
   maxDownloads: number;
   maxConcurrentDownloads: number;
-  uploaderNickname: string;
 }
 
 export interface ShareResult {
@@ -49,7 +47,6 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
   visible,
   filePath,
   isFolder = false,
-  defaultNickname = '',
   defaultExtractCode = true,
   defaultExpiry = '24h',
   defaultMaxDownloads = -1,
@@ -70,13 +67,12 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
       setShareResult(null);
       setUseExtractionCode(defaultExtractCode);
       form.setFieldsValue({
-        uploaderNickname: defaultNickname,
         expiry: defaultExpiry,
         maxDownloads: defaultMaxDownloads,
         maxConcurrentDownloads: defaultMaxConcurrent,
       });
     }
-  }, [visible, form, defaultNickname, defaultExtractCode, defaultExpiry, defaultMaxDownloads, defaultMaxConcurrent]);
+  }, [visible, form, defaultExtractCode, defaultExpiry, defaultMaxDownloads, defaultMaxConcurrent]);
 
   const handleConfirm = async () => {
     try {
@@ -90,7 +86,6 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
         expiry: values.expiry,
         maxDownloads: values.maxDownloads,
         maxConcurrentDownloads: values.maxConcurrentDownloads,
-        uploaderNickname: values.uploaderNickname || '匿名用户',
       };
 
       const result = await onConfirm(config);
@@ -198,7 +193,6 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
             expiry: defaultExpiry,
             maxDownloads: defaultMaxDownloads,
             maxConcurrentDownloads: defaultMaxConcurrent,
-            uploaderNickname: defaultNickname,
           }}
         >
           <Form.Item label="文件名称">
@@ -277,13 +271,6 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
               <Select.Option value={10}>10 个</Select.Option>
               <Select.Option value={-1}>不限</Select.Option>
             </Select>
-          </Form.Item>
-
-          <Form.Item
-            name="uploaderNickname"
-            label="上传者昵称"
-          >
-            <Input placeholder="请输入昵称" maxLength={20} />
           </Form.Item>
 
           <div style={{ textAlign: 'right' }}>

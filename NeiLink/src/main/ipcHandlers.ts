@@ -4,6 +4,8 @@
  */
 
 import { ipcMain, dialog, BrowserWindow, shell } from 'electron';
+import * as fs from 'fs';
+import * as path from 'path';
 import { IPC_CHANNELS, ShareConfig, SystemSettings, LogEntry } from '../shared/types';
 import { getNetworkInfo, isPortAvailable, findAvailablePort, NetworkMonitor, getIPByAdapterName, setSelectedAdapterName } from './services/network';
 import { Logger } from './services/logger';
@@ -187,6 +189,20 @@ export function registerIpcHandlers(
       // 更新分享管理器的设置引用
       const fullSettings = await settingsManager.getSettings();
       shareManager.updateSettings(fullSettings);
+      
+      // 更新 httpServer 中的用户设置
+      httpServer.updateUserSettings({
+        userName: fullSettings.userName,
+        userAvatar: fullSettings.userAvatar
+      });
+      
+      // 通知渲染进程用户设置已更新
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(IPC_CHANNELS.USER_SETTINGS_ON_UPDATE, {
+          userName: fullSettings.userName,
+          userAvatar: fullSettings.userAvatar
+        });
+      }
 
       logger.log('system', '设置已更新');
       return { success: true };
