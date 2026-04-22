@@ -10,10 +10,8 @@ import { updateRateLimitSettings } from './httpServer';
 
 /** 默认系统设置 */
 const DEFAULT_SETTINGS: SystemSettings = {
-  userName: 'NeiLink用户',
-  userAvatar: undefined,
   autoStart: false,
-  defaultNickname: 'NeiLink用户', // 保留此字段用于兼容性
+  defaultNickname: 'NeiLink用户',
   defaultExtractCode: true,
   defaultExpiry: '24h', // 默认24小时过期
   defaultMaxDownloads: -1, // 不限
@@ -81,11 +79,6 @@ export class SettingsManager {
           } else {
             this.settings.defaultExpiry = '30d';
           }
-        }
-        
-        // 兼容旧版本，将 defaultNickname 迁移到 userName
-        if (!this.settings.userName && this.settings.defaultNickname) {
-          this.settings.userName = this.settings.defaultNickname;
         }
         
         // 确保日志存储路径不为空

@@ -172,7 +172,7 @@ export class ShareManager {
       expiryTime,
       maxDownloads: params.maxDownloads ?? this.settings.defaultMaxDownloads,
       maxConcurrent: params.maxConcurrent ?? this.settings.defaultMaxConcurrent,
-      uploaderName: params.uploaderName || this.settings.userName || this.settings.defaultNickname,
+      uploaderName: params.uploaderName || this.settings.defaultNickname,
       createdAt: Date.now(),
       port,
       status: 'active',
