@@ -25,6 +25,7 @@ import {
   ClockCircleOutlined,
   UserOutlined,
   PlusOutlined,
+  MinusOutlined,
 } from '@ant-design/icons';
 import { NetworkInfo, BannedIPInfo } from '../../shared/types';
 
@@ -189,35 +190,43 @@ const SettingsPage: React.FC = () => {
 
   const handleSelectAvatar = async () => {
     try {
-      const result = await window.neilink.ipc.invoke('file:select') as any;
-      if (result?.success && result.files && result.files.length > 0) {
-        const filePath = result.files[0];
-        // 读取文件并转换为 base64
-        // 注意：在 Electron 渲染进程中，我们需要通过 IPC 来处理文件读取
-        // 这里我们先创建一个隐藏的 input 元素来选择文件并转换为 base64
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.style.display = 'none';
-        input.onchange = async (e: any) => {
-          const file = e.target.files[0];
-          if (file) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-              const base64 = event.target?.result as string;
-              updateSetting('userAvatar', base64);
-            };
-            reader.readAsDataURL(file);
-          }
-        };
-        input.click();
-      }
+      // 直接使用 input 元素选择文件，避免两次弹窗问题
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.style.display = 'none';
+      input.onchange = async (e: any) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const base64 = event.target?.result as string;
+            updateSetting('userAvatar', base64);
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+      input.click();
     } catch {
       message.error('选择头像失败');
     }
   };
 
-  const handleRemoveAvatar = () => {
+  const handleAvatarClick = (e: React.MouseEvent) => {
+    if (settings.userAvatar) {
+      // 如果有头像，点击右下角图标时移除，否则选择新头像
+      // 我们需要判断点击的是头像本身还是右下角图标
+      // 这里我们简化处理：直接通过判断是否有头像来决定功能
+      // 实际上，我们将右下角图标单独处理
+      handleSelectAvatar();
+    } else {
+      // 如果没有头像，点击选择新头像
+      handleSelectAvatar();
+    }
+  };
+
+  const handleRemoveAvatar = (e: React.MouseEvent) => {
+    e.stopPropagation(); // 阻止事件冒泡
     updateSetting('userAvatar', undefined);
   };
 
@@ -356,32 +365,39 @@ const SettingsPage: React.FC = () => {
         <div className="settings-item">
           <div>
             <div className="settings-label">头像</div>
-            <div className="settings-desc">用于接收端页面展示</div>
+            <div className="settings-desc">用于接收端页面展示，点击头像可更换</div>
           </div>
           <Space align="center">
-            <Avatar
-              size={80}
-              src={settings.userAvatar}
-              icon={<UserOutlined />}
-              style={{ backgroundColor: '#1890ff' }}
-            />
-            <Space direction="vertical">
-              <Button
-                icon={<PlusOutlined />}
-                onClick={handleSelectAvatar}
-              >
-                选择头像
-              </Button>
+            <div style={{ cursor: 'pointer', position: 'relative' }} onClick={handleSelectAvatar}>
+              <Avatar
+                size={60}
+                src={settings.userAvatar}
+                icon={<UserOutlined />}
+                style={{ backgroundColor: '#1890ff' }}
+              />
               {settings.userAvatar && (
-                <Button
-                  danger
-                  size="small"
+                <div 
+                  style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    right: 0,
+                    backgroundColor: '#ff4d4f',
+                    color: '#fff',
+                    borderRadius: '50%',
+                    width: 20,
+                    height: 20,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 10,
+                    cursor: 'pointer',
+                  }}
                   onClick={handleRemoveAvatar}
                 >
-                  移除头像
-                </Button>
+                  <MinusOutlined />
+                </div>
               )}
-            </Space>
+            </div>
           </Space>
         </div>
 

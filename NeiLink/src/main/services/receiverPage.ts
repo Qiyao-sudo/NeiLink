@@ -634,8 +634,7 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
   <div class="page-header">
     ${userAvatar ? `<img class="logo-icon" src="${userAvatar}" alt="用户头像" style="border-radius: 50%; object-fit: cover;"/>` : `<svg class="logo-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
       <circle cx="24" cy="24" r="20" fill="#1890FF" opacity="0.1"/>
-      <path d="M24 14v20M14 24h20" stroke="#1890FF" stroke-width="3" stroke-linecap="round"/>
-      <circle cx="24" cy="24" r="20" stroke="#1890FF" stroke-width="2" fill="none"/>
+      <path d="M24 16c4.418 0 8 3.582 8 8s-3.582 8-8 8-8-3.582-8-8 3.582-8 8-8zm0 2c-3.314 0-6 2.686-6 6s2.686 6 6 6 6-2.686 6-6-2.686-6-6-6zm0-4c-5.523 0-10 4.477-10 10s4.477 10 10 10 10-4.477 10-10-4.477-10-10-10z" fill="#1890FF" opacity="0.6"/>
     </svg>`}
     <h1>${escapeHtml(displayName)}</h1>
     <p class="subtitle">分享文件</p>
@@ -903,7 +902,7 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
           svg.setAttribute('class', 'logo-icon');
           svg.setAttribute('viewBox', '0 0 48 48');
           svg.setAttribute('fill', 'none');
-          svg.innerHTML = '<circle cx="24" cy="24" r="20" fill="#1890FF" opacity="0.1"/><path d="M24 14v20M14 24h20" stroke="#1890FF" stroke-width="3" stroke-linecap="round"/><circle cx="24" cy="24" r="20" stroke="#1890FF" stroke-width="2" fill="none"/>';
+          svg.innerHTML = '<circle cx="24" cy="24" r="20" fill="#1890FF" opacity="0.1"/><path d="M24 16c4.418 0 8 3.582 8 8s-3.582 8-8 8-8-3.582-8-8 3.582-8 8-8zm0 2c-3.314 0-6 2.686-6 6s2.686 6 6 6 6-2.686 6-6-2.686-6-6-6zm0-4c-5.523 0-10 4.477-10 10s4.477 10 10 10 10-4.477 10-10-4.477-10-10-10z" fill="#1890FF" opacity="0.6"/>';
           if (currentLogo) currentLogo.replaceWith(svg);
         }
       }
