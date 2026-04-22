@@ -104,6 +104,7 @@ export const IPC_CHANNELS = {
   // 文件相关
   FILE_SELECT: 'file:select',
   FILE_SELECT_FOLDER: 'file:select-folder',
+  FILE_PATH_FROM_DROP: 'file:path-from-drop',
 
   // 设置相关
   SETTINGS_GET: 'settings:get',
@@ -155,6 +156,7 @@ export interface NeiLinkAPI {
     chrome: string;
     electron: string;
   };
+  getPathForFile: (file: File) => string;
   ipc: {
     send: (channel: string, ...args: unknown[]) => void;
     on: (channel: string, callback: (...args: unknown[]) => void) => () => void;

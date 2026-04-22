@@ -115,7 +115,7 @@ const HomePage: React.FC = () => {
     e.stopPropagation();
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
@@ -123,10 +123,19 @@ const HomePage: React.FC = () => {
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
       const file = files[0];
-      const path = (file as File & { path?: string }).path || file.name;
-      setSelectedFilePath(path);
-      setSelectedIsFolder(false);
-      setShareModalVisible(true);
+      try {
+        const filePath = window.neilink.getPathForFile(file);
+        const result = await window.neilink.ipc.invoke('file:path-from-drop', filePath) as any;
+        if (result?.success) {
+          setSelectedFilePath(result.path);
+          setSelectedIsFolder(result.isFolder);
+          setShareModalVisible(true);
+        } else {
+          message.error('获取文件路径失败');
+        }
+      } catch {
+        message.error('获取文件路径失败');
+      }
     }
   };
 

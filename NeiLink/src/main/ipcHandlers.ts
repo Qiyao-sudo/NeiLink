@@ -167,6 +167,19 @@ export function registerIpcHandlers(
     }
   });
 
+  // 从拖拽中获取文件路径
+  ipcMain.handle(IPC_CHANNELS.FILE_PATH_FROM_DROP, async (_event, filePath: string) => {
+    try {
+      // 判断是否为文件夹
+      const isFolder = fs.existsSync(filePath) && fs.lstatSync(filePath).isDirectory();
+      return { success: true, path: filePath, isFolder };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.log('error', '获取拖拽文件路径失败', message);
+      return { success: false, error: message };
+    }
+  });
+
   // ==================== 设置相关 ====================
 
   // 获取设置

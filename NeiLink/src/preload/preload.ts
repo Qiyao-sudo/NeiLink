@@ -3,7 +3,7 @@
  * 通过 contextBridge 安全地暴露 IPC 通道给渲染进程
  */
 
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 
 // 直接定义 IPC_CHANNELS，避免路径加载问题
 const IPC_CHANNELS = {
@@ -19,6 +19,7 @@ const IPC_CHANNELS = {
   SHARE_ON_DOWNLOAD: 'share:on-download',
   FILE_SELECT: 'file:select',
   FILE_SELECT_FOLDER: 'file:select-folder',
+  FILE_PATH_FROM_DROP: 'file:path-from-drop',
   SETTINGS_GET: 'settings:get',
   SETTINGS_SAVE: 'settings:save',
   SETTINGS_RESET: 'settings:reset',
@@ -64,6 +65,7 @@ const invokeChannels: string[] = [
   IPC_CHANNELS.SHARE_UPDATE_CONFIG,
   IPC_CHANNELS.FILE_SELECT,
   IPC_CHANNELS.FILE_SELECT_FOLDER,
+  IPC_CHANNELS.FILE_PATH_FROM_DROP,
   IPC_CHANNELS.SETTINGS_GET,
   IPC_CHANNELS.SETTINGS_SAVE,
   IPC_CHANNELS.SETTINGS_RESET,
@@ -102,6 +104,9 @@ contextBridge.exposeInMainWorld('neilink', {
     node: process.versions.node,
     chrome: process.versions.chrome,
     electron: process.versions.electron,
+  },
+  getPathForFile: (file: File) => {
+    return webUtils.getPathForFile(file);
   },
   ipc: {
     /**
