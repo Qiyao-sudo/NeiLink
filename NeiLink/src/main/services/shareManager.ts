@@ -106,7 +106,7 @@ export class ShareManager {
   }
 
   /**
-   * 创建分享任务
+   * 创建分享任务（流式版本，零预加密预压缩）
    */
   async createShare(params: CreateShareParams): Promise<ShareConfig> {
     const id = crypto.randomUUID();
@@ -154,11 +154,8 @@ export class ShareManager {
       }
     }
 
-    // 生成加密密钥
+    // 生成加密密钥（流式传输时使用）
     const encryptionKey = generateKey(this.settings.encryptionBits);
-
-    // 确定加密文件路径
-    const encryptedFilePath = path.join(this.tempDir, `${id}.enc`);
 
     // 创建分享配置 - 如果是文件夹，文件名加上 .zip 后缀
     const finalFileName = isFolder ? `${fileName}.zip` : fileName;
@@ -177,23 +174,12 @@ export class ShareManager {
       port,
       status: 'active',
       downloadCount: 0,
-      encryptedFilePath,
+      // 不再生成 encryptedFilePath，流式传输
       encryptionKey,
     };
 
     try {
-      // 如果是文件夹，先打包为 ZIP
-      let fileToEncrypt = filePath;
-      if (isFolder) {
-        const zipPath = path.join(this.tempDir, `${id}.zip`);
-        await this.zipFolder(filePath, zipPath);
-        fileToEncrypt = zipPath;
-      }
-
-      // 加密文件
-      await encryptFile(fileToEncrypt, encryptedFilePath, encryptionKey);
-
-      // 注册分享到全局服务器
+      // 直接注册分享到全局服务器（零预加密等待！）
       registerShare(shareConfig, (shareId) => {
         // 下载完成回调
         const share = this.shares.get(shareId);
@@ -216,9 +202,6 @@ export class ShareManager {
 
       return shareConfig;
     } catch (err) {
-      // 清理临时文件
-      this.cleanupTempFiles(id);
-
       this.logger.log('error', `创建分享任务失败: ${finalFileName}`, err instanceof Error ? err.message : String(err));
       throw new Error(`创建分享失败: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -502,14 +485,11 @@ export class ShareManager {
       
       let restoredCount = 0;
       for (const share of sharesData) {
-        // 检查临时文件是否存在
-        const encFileExists = share.encryptedFilePath ? fs.existsSync(share.encryptedFilePath) : false;
-        
         // 检查原始文件是否存在
         const originalFileExists = fs.existsSync(share.filePath);
         
-        // 无论状态如何，只要文件存在就恢复
-        if (encFileExists && originalFileExists) {
+        // 只要原始文件存在就恢复（支持新旧分享任务
+        if (originalFileExists) {
           // 确保端口一致
           share.port = port;
           
