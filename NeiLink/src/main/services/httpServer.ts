@@ -7,9 +7,11 @@ import * as http from 'http';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import archiver from 'archiver';
 import { ShareConfig, SystemSettings } from '../../shared/types';
 import { Logger } from './logger';
 import { generateReceiverHTML, generateFileCodeInputHTML, ShareInfo } from './receiverPage';
+import { createEncryptStream } from './encryption';
 
 let logger: Logger | null = null;
 
@@ -357,16 +359,16 @@ export function startGlobalServer(
       }
 
       if (req.method === 'GET' && req.url?.startsWith('/api/download/')) {
-        // 文件下载（支持断点续传和加密）
+        // 文件下载（流式传输版本）
         const fileCode = req.url.substring('/api/download/'.length);
         const shareConfig = shares.get(fileCode);
         if (!shareConfig) {
           sendJSON(res, 404, { error: '分享不存在' });
           return;
         }
-        const filePath = shareConfig.encryptedFilePath || shareConfig.filePath;
 
-        if (!filePath || !fs.existsSync(filePath)) {
+        // 检查原始文件是否存在
+        if (!shareConfig.filePath || !fs.existsSync(shareConfig.filePath)) {
           sendJSON(res, 404, { error: '文件不存在' });
           return;
         }
@@ -382,13 +384,10 @@ export function startGlobalServer(
           return;
         }
 
-        const stat = fs.statSync(filePath);
-        let fileSize = stat.size;
-        const range = parseRange(req.headers.range, fileSize);
-
         const headers: http.OutgoingHttpHeaders = {
           'Access-Control-Allow-Origin': '*',
-          'Accept-Ranges': 'bytes',
+          'Content-Type': 'application/octet-stream',
+          'Content-Disposition': `attachment; filename="${encodeURIComponent(shareConfig.fileName)}"`,
         };
 
         // 先绑定事件监听器，再发送响应
@@ -403,58 +402,69 @@ export function startGlobalServer(
           }
         });
 
-        // 处理加密文件
-        if (shareConfig.encryptedFilePath && shareConfig.encryptionKey) {
-          // 加密文件格式: [IV(16字节)][加密数据]
-          
-          // 读取IV（前16字节）
+        // 向后兼容：检查是否有旧的预加密文件
+        if (shareConfig.encryptedFilePath && fs.existsSync(shareConfig.encryptedFilePath)) {
+          // 使用旧的解密下载流程
+          const filePath = shareConfig.encryptedFilePath;
+          const stat = fs.statSync(filePath);
           const ivBuffer = Buffer.alloc(16);
           const fd = fs.openSync(filePath, 'r');
           fs.readSync(fd, ivBuffer, 0, 16, 0);
           fs.closeSync(fd);
           
-          // 从hex字符串创建密钥Buffer
-          const keyBuffer = Buffer.from(shareConfig.encryptionKey, 'hex');
-          
-          // 对于加密文件，我们不支持断点续传，因为AES加密的特性使得断点续传变得复杂
-          // 直接返回完整文件
-          headers['Content-Type'] = 'application/octet-stream';
-          headers['Content-Disposition'] = `attachment; filename="${encodeURIComponent(shareConfig.fileName)}"`;
-          // 加密文件的实际大小是 shareConfig.fileSize（解密后的原始大小）
+          const keyBuffer = Buffer.from(shareConfig.encryptionKey!, 'hex');
           headers['Content-Length'] = shareConfig.fileSize;
-
+          
           res.writeHead(200, headers);
-
-          // 创建读取流（跳过IV）
+          
           const inputStream = fs.createReadStream(filePath, { start: 16 });
-          
-          // 创建解密器
           const decipher = crypto.createDecipheriv('aes-256-cbc', keyBuffer, ivBuffer);
-          
-          // 管道传输：读取流 -> 解密器 -> 响应流
           inputStream.pipe(decipher).pipe(res);
         } else {
-          // 非加密文件
-          if (range) {
-            // 断点续传 - 返回 206 Partial Content
-            headers['Content-Range'] = `bytes ${range.start}-${range.end}/${fileSize}`;
-            headers['Content-Length'] = range.end - range.start + 1;
-            headers['Content-Type'] = 'application/octet-stream';
-
-            res.writeHead(206, headers);
-
-            const stream = fs.createReadStream(filePath, { start: range.start, end: range.end });
-            stream.pipe(res);
-          } else {
-            // 完整下载 - 返回 200
-            headers['Content-Length'] = fileSize;
-            headers['Content-Type'] = 'application/octet-stream';
-            headers['Content-Disposition'] = `attachment; filename="${encodeURIComponent(shareConfig.fileName)}"`;
-
-            res.writeHead(200, headers);
-
-            const stream = fs.createReadStream(filePath);
-            stream.pipe(res);
+          // ========== 新流式传输逻辑 ==========
+          try {
+            // ========== 处理文件夹 vs 文件 ==========
+            if (shareConfig.isFolder) {
+              // 文件夹：使用 archiver 流式打包 -> 传输（chunked encoding，无 Content-Length）
+              res.writeHead(200, headers);
+              const archive = archiver('zip', { zlib: { level: 1 } });
+              
+              // 将文件夹内容加入压缩包（文件夹名作为根目录）
+              const folderName = path.basename(shareConfig.filePath);
+              archive.directory(shareConfig.filePath, folderName);
+              
+              // 管道：archiver -> 响应
+              archive.pipe(res);
+              
+              archive.on('error', (err) => {
+                if (!res.headersSent) {
+                  sendJSON(res, 500, { error: '文件压缩失败' });
+                }
+                console.error('Archive error:', err);
+              });
+              
+              archive.finalize();
+            } else {
+              // 单文件：直接流式传输，设置 Content-Length
+              const stat = fs.statSync(shareConfig.filePath);
+              headers['Content-Length'] = stat.size;
+              res.writeHead(200, headers);
+              
+              const inputStream = fs.createReadStream(shareConfig.filePath);
+              inputStream.pipe(res);
+              
+              inputStream.on('error', (err) => {
+                if (!res.headersSent) {
+                  sendJSON(res, 500, { error: '文件读取失败' });
+                }
+                console.error('File read error:', err);
+              });
+            }
+          } catch (err) {
+            if (!res.headersSent) {
+              sendJSON(res, 500, { error: '文件传输失败' });
+            }
+            console.error('Download error:', err);
           }
         }
 
