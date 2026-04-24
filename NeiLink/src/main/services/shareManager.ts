@@ -106,6 +106,24 @@ export class ShareManager {
   }
 
   /**
+   * 处理下载完成：通知回调，并在达到最大下载次数时立即标记为过期
+   */
+  private handleDownloadComplete(shareId: string): void {
+    const share = this.shares.get(shareId);
+    if (!share) return;
+
+    this.notifyDownload(shareId, share.downloadCount);
+
+    if (share.maxDownloads !== -1 && share.downloadCount >= share.maxDownloads) {
+      share.status = 'expired';
+      unregisterShare(shareId);
+      this.saveShares();
+      this.logger.log('system', `分享任务因达到最大下载次数而过期: ${share.fileName} (ID: ${shareId})`);
+      this.notifyShareUpdate();
+    }
+  }
+
+  /**
    * 创建分享任务（流式版本，零预加密预压缩）
    */
   async createShare(params: CreateShareParams): Promise<ShareConfig> {
@@ -181,11 +199,7 @@ export class ShareManager {
     try {
       // 直接注册分享到全局服务器（零预加密等待！）
       registerShare(shareConfig, (shareId) => {
-        // 下载完成回调
-        const share = this.shares.get(shareId);
-        if (share) {
-          this.notifyDownload(shareId, share.downloadCount);
-        }
+        this.handleDownloadComplete(shareId);
       });
 
       // 保存分享任务
@@ -305,12 +319,15 @@ export class ShareManager {
         share.status = 'active';
         // 重新注册到服务器
         registerShare(share, (shareId) => {
-          const shareData = this.shares.get(shareId);
-          if (shareData) {
-            this.notifyDownload(shareId, shareData.downloadCount);
-          }
+          this.handleDownloadComplete(shareId);
         });
       }
+    } else {
+      // 如果分享已经是活跃状态，也需要更新服务器端的分享配置
+      // 确保服务器端的 downloadCount 被正确重置
+      registerShare(share, (shareId) => {
+        this.handleDownloadComplete(shareId);
+      });
     }
 
     // 保存到文件
@@ -496,10 +513,7 @@ export class ShareManager {
           // 只有活跃的分享才注册到服务器
           if (share.status === 'active') {
             registerShare(share, (shareId) => {
-              const shareData = this.shares.get(shareId);
-              if (shareData) {
-                this.notifyDownload(shareId, shareData.downloadCount);
-              }
+              this.handleDownloadComplete(shareId);
             });
           }
           
