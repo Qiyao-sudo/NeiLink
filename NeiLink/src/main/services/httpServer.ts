@@ -10,7 +10,7 @@ import * as crypto from 'crypto';
 import archiver from 'archiver';
 import { ShareConfig, SystemSettings } from '../../shared/types';
 import { Logger } from './logger';
-import { generateReceiverHTML, generateFileCodeInputHTML, ShareInfo } from './receiverPage';
+import { generateReceiverHTML, generateFileCodeInputHTML, sendErrorPage, ShareInfo } from './receiverPage';
 import { createEncryptStream } from './encryption';
 
 let logger: Logger | null = null;
@@ -269,7 +269,7 @@ export function startGlobalServer(
           rateLimitSettings.rateLimitBanDuration || 30
         );
         if (isLimited) {
-          sendJSON(res, 429, { error: '请求过于频繁，请稍后再试' });
+          sendErrorPage(res, 429, '请求过于频繁', '请求过于频繁，请稍后再试', false);
           return;
         }
       }
@@ -298,8 +298,7 @@ export function startGlobalServer(
           res.end(generateReceiverHTML(toShareInfo(shareConfig)));
           return;
         } else {
-          // 文件码不匹配，返回错误页面
-          sendJSON(res, 404, { error: '文件码错误或不存在' });
+          sendErrorPage(res, 404, '文件码错误', '文件码错误或不存在，请检查链接是否正确');
           return;
         }
       }
@@ -363,24 +362,24 @@ export function startGlobalServer(
         const fileCode = req.url.substring('/api/download/'.length);
         const shareConfig = shares.get(fileCode);
         if (!shareConfig) {
-          sendJSON(res, 404, { error: '分享不存在' });
+          sendErrorPage(res, 404, '分享不存在', '该分享链接对应的文件不存在或已被删除');
           return;
         }
 
         // 检查原始文件是否存在
         if (!shareConfig.filePath || !fs.existsSync(shareConfig.filePath)) {
-          sendJSON(res, 404, { error: '文件不存在' });
+          sendErrorPage(res, 404, '文件不存在', '该分享链接对应的文件已被删除或不存在');
           return;
         }
 
         if (shareConfig.status !== 'active') {
-          sendJSON(res, 410, { error: '该分享已过期或被取消' });
+          sendErrorPage(res, 410, '分享已过期', '该分享链接已过期或被取消，请联系分享者重新分享');
           return;
         }
 
         // 检查下载次数限制
         if (shareConfig.maxDownloads !== -1 && shareConfig.downloadCount >= shareConfig.maxDownloads) {
-          sendJSON(res, 410, { error: '已达到最大下载次数' });
+          sendErrorPage(res, 410, '达到下载上限', '该分享已达到最大下载次数限制，请联系分享者重新分享');
           return;
         }
 
@@ -438,7 +437,7 @@ export function startGlobalServer(
               
               archive.on('error', (err) => {
                 if (!res.headersSent) {
-                  sendJSON(res, 500, { error: '文件压缩失败' });
+                  sendErrorPage(res, 500, '服务器错误', '文件压缩失败，请稍后再试');
                 }
                 console.error('Archive error:', err);
               });
@@ -455,14 +454,14 @@ export function startGlobalServer(
               
               inputStream.on('error', (err) => {
                 if (!res.headersSent) {
-                  sendJSON(res, 500, { error: '文件读取失败' });
+                  sendErrorPage(res, 500, '服务器错误', '文件读取失败，请稍后再试');
                 }
                 console.error('File read error:', err);
               });
             }
           } catch (err) {
             if (!res.headersSent) {
-              sendJSON(res, 500, { error: '文件传输失败' });
+              sendErrorPage(res, 500, '服务器错误', '文件传输失败，请稍后再试');
             }
             console.error('Download error:', err);
           }
@@ -472,7 +471,7 @@ export function startGlobalServer(
       }
 
       // 404
-      sendJSON(res, 404, { error: '未找到请求的资源' });
+      sendErrorPage(res, 404, '页面不存在', '未找到请求的资源，请检查URL是否正确');
     });
 
     globalServer.on('error', (err: NodeJS.ErrnoException) => {

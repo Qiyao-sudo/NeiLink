@@ -16,6 +16,7 @@ release/
 .vscode/
 .idea/
 .trae/
+.claude/
 *.swp
 *.swo
 *~
