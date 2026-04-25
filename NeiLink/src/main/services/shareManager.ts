@@ -116,7 +116,6 @@ export class ShareManager {
 
     if (share.maxDownloads !== -1 && share.downloadCount >= share.maxDownloads) {
       share.status = 'expired';
-      unregisterShare(shareId);
       this.saveShares();
       this.logger.log('system', `分享任务因达到最大下载次数而过期: ${share.fileName} (ID: ${shareId})`);
       this.notifyShareUpdate();
@@ -382,14 +381,12 @@ export class ShareManager {
       // 检查是否过期
       if (share.expiryTime && now >= share.expiryTime) {
         share.status = 'expired';
-        unregisterShare(id);
         expiredCount++;
       }
 
       // 检查是否达到最大下载次数
       if (share.maxDownloads !== -1 && share.downloadCount >= share.maxDownloads) {
         share.status = 'expired';
-        unregisterShare(id);
         expiredCount++;
       }
     }
