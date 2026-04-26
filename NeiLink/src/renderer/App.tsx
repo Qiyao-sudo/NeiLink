@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { Menu } from 'antd';
+import { Menu, ConfigProvider, theme as antTheme } from 'antd';
 import {
   HomeOutlined,
   ShareAltOutlined,
@@ -14,10 +14,12 @@ import ShareManagePage from './pages/ShareManagePage';
 import LogPage from './pages/LogPage';
 import SettingsPage from './pages/SettingsPage';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { SystemSettings } from '../shared/types';
 
 const AppLayout: React.FC = () => {
   const { locale } = useLanguage();
+  const { resolvedTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -49,33 +51,42 @@ const AppLayout: React.FC = () => {
   };
 
   return (
-    <div className="app-layout">
-      <div className="sidebar">
-        <div className="sidebar-logo">
-          <img src={logo} alt="NeiLink" style={{ width: 32, height: 32 }} />
-          <span>NeiLink</span>
+    <ConfigProvider
+      theme={{
+        algorithm: resolvedTheme === 'dark' ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
+        token: {
+          colorPrimary: resolvedTheme === 'dark' ? '#4da6ff' : '#1890ff',
+        },
+      }}
+    >
+      <div className="app-layout">
+        <div className="sidebar">
+          <div className="sidebar-logo">
+            <img src={logo} alt="NeiLink" style={{ width: 32, height: 32 }} />
+            <span>NeiLink</span>
+          </div>
+          <Menu
+            className="sidebar-menu"
+            theme="dark"
+            mode="inline"
+            selectedKeys={[location.pathname]}
+            items={menuItems}
+            onClick={handleMenuClick}
+          />
         </div>
-        <Menu
-          className="sidebar-menu"
-          theme="dark"
-          mode="inline"
-          selectedKeys={[location.pathname]}
-          items={menuItems}
-          onClick={handleMenuClick}
-        />
-      </div>
-      <div className="main-content">
-        <TopBar />
-        <div className="content-area">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/shares" element={<ShareManagePage />} />
-            <Route path="/logs" element={<LogPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-          </Routes>
+        <div className="main-content">
+          <TopBar />
+          <div className="content-area">
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/shares" element={<ShareManagePage />} />
+              <Route path="/logs" element={<LogPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+            </Routes>
+          </div>
         </div>
       </div>
-    </div>
+    </ConfigProvider>
   );
 };
 
@@ -99,6 +110,7 @@ const App: React.FC = () => {
     clearSharesOnExit: false,
     selectedAdapter: undefined,
     language: 'zh-CN',
+    theme: 'auto',
     userName: 'NeiLink用户',
     userAvatar: undefined,
   });
@@ -122,7 +134,9 @@ const App: React.FC = () => {
   return (
     <HashRouter>
       <LanguageProvider initialSettings={initialSettings}>
-        <AppLayout />
+        <ThemeProvider initialTheme={initialSettings.theme}>
+          <AppLayout />
+        </ThemeProvider>
       </LanguageProvider>
     </HashRouter>
   );

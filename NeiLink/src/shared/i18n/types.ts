@@ -179,6 +179,11 @@ export interface Locale {
     unlimited: string;
     changePath: string;
     detectPort: string;
+    theme: string;
+    themeHint: string;
+    themeLight: string;
+    themeDark: string;
+    themeAuto: string;
   };
   
   // 日志页面

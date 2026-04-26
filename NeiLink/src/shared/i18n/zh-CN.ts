@@ -180,6 +180,11 @@ export const zhCN: Locale = {
     unlimited: '不限',
     changePath: '更改路径',
     detectPort: '检测可用端口',
+    theme: '主题',
+    themeHint: '应用界面主题风格',
+    themeLight: '亮色',
+    themeDark: '暗色',
+    themeAuto: '自动（跟随系统）',
   },
   
   // 日志页面

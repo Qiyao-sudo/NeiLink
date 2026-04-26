@@ -133,7 +133,7 @@ const LogPage: React.FC = () => {
         <span className={`log-type ${item.type}`}>{tagInfo.label}</span>
         <span
           className="log-message"
-          style={isError ? { color: '#ff4d4f' } : undefined}
+          style={isError ? { color: 'var(--color-error)' } : undefined}
         >
           {item.message}
         </span>
@@ -205,9 +205,9 @@ const LogPage: React.FC = () => {
 
       {/* 日志列表 */}
       <div style={{
-        background: '#fff',
+        background: 'var(--bg-secondary)',
         borderRadius: 8,
-        border: '1px solid #e8e8e8',
+        border: '1px solid var(--border-primary)',
         overflow: 'hidden',
       }}>
         <List
@@ -216,8 +216,8 @@ const LogPage: React.FC = () => {
           renderItem={renderLogItem}
           locale={{
             emptyText: (
-              <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>
-                <CalendarOutlined style={{ fontSize: 36, marginBottom: 12, color: '#d9d9d9' }} />
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                <CalendarOutlined style={{ fontSize: 36, marginBottom: 12, color: 'var(--border-dashed)' }} />
                 <div>{locale.log.noLogs}</div>
               </div>
             ),
@@ -225,9 +225,9 @@ const LogPage: React.FC = () => {
         />
         <div style={{
           padding: '8px 16px',
-          borderTop: '1px solid #f0f0f0',
+          borderTop: '1px solid var(--border-secondary)',
           textAlign: 'center',
-          color: '#999',
+          color: 'var(--text-tertiary)',
           fontSize: 12,
         }}>
           {locale.log.totalLogs.replace('{count}', totalCount.toString())}

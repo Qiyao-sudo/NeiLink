@@ -29,6 +29,7 @@ import {
 } from '@ant-design/icons';
 import { NetworkInfo, BannedIPInfo } from '../../shared/types';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { getSupportedLanguages } from '../../shared/i18n';
 
 const { Text, Title } = Typography;
@@ -47,6 +48,7 @@ interface AppSettings {
   defaultMaxConcurrent: number;
   clearSharesOnExit: boolean;
   language: string;
+  theme: 'light' | 'dark' | 'auto';
 
   // 网络设置
   port: number;
@@ -75,6 +77,7 @@ const defaultSettings: AppSettings = {
   defaultMaxConcurrent: -1,
   clearSharesOnExit: false,
   language: 'zh-CN',
+  theme: 'auto',
   port: 8080,
   hotspotPrefix: 'NeiLink',
   hotspotPasswordLength: 8,
@@ -88,6 +91,7 @@ const defaultSettings: AppSettings = {
 
 const SettingsPage: React.FC = () => {
   const { locale, language, setLanguage } = useLanguage();
+  const { theme, setTheme } = useTheme();
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -451,6 +455,26 @@ const SettingsPage: React.FC = () => {
             }}
             style={{ width: 140 }}
             options={getSupportedLanguages()}
+          />
+        </div>
+
+        <div className="settings-item">
+          <div>
+            <div className="settings-label">{locale.settings.theme}</div>
+            <div className="settings-desc">{locale.settings.themeHint}</div>
+          </div>
+          <Select
+            value={settings.theme}
+            onChange={(val) => {
+              updateSetting('theme', val);
+              setTheme(val);
+            }}
+            style={{ width: 140 }}
+            options={[
+              { value: 'light', label: locale.settings.themeLight },
+              { value: 'dark', label: locale.settings.themeDark },
+              { value: 'auto', label: locale.settings.themeAuto },
+            ]}
           />
         </div>
 

@@ -180,6 +180,11 @@ export const enUS: Locale = {
     unlimited: 'Unlimited',
     changePath: 'Change Path',
     detectPort: 'Detect Available Port',
+    theme: 'Theme',
+    themeHint: 'Application interface theme style',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+    themeAuto: 'Auto (Follow System)',
   },
   
   // 日志页面

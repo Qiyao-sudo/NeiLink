@@ -28,6 +28,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   clearSharesOnExit: false, // 默认不删除
   selectedAdapter: undefined, // 用户选择的网络适配器名称
   language: 'zh-CN', // 默认语言
+  theme: 'auto', // 默认主题（跟随系统）
   // 用户设置
   userName: 'NeiLink用户',
   userAvatar: undefined,
@@ -98,6 +99,10 @@ export class SettingsManager {
         // 确保语言设置存在
         if (!this.settings.language) {
           this.settings.language = 'zh-CN';
+        }
+        // 确保主题设置存在
+        if (!this.settings.theme) {
+          this.settings.theme = 'auto';
         }
       } else {
         // 首次运行，保存默认设置
