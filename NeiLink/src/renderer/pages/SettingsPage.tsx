@@ -28,6 +28,8 @@ import {
   MinusOutlined,
 } from '@ant-design/icons';
 import { NetworkInfo, BannedIPInfo } from '../../shared/types';
+import { useLanguage } from '../contexts/LanguageContext';
+import { getSupportedLanguages } from '../../shared/i18n';
 
 const { Text, Title } = Typography;
 
@@ -44,6 +46,7 @@ interface AppSettings {
   defaultMaxDownloads: number;
   defaultMaxConcurrent: number;
   clearSharesOnExit: boolean;
+  language: string;
 
   // 网络设置
   port: number;
@@ -71,6 +74,7 @@ const defaultSettings: AppSettings = {
   defaultMaxDownloads: -1,
   defaultMaxConcurrent: -1,
   clearSharesOnExit: false,
+  language: 'zh-CN',
   port: 8080,
   hotspotPrefix: 'NeiLink',
   hotspotPasswordLength: 8,
@@ -83,6 +87,7 @@ const defaultSettings: AppSettings = {
 };
 
 const SettingsPage: React.FC = () => {
+  const { locale, language, setLanguage } = useLanguage();
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -360,12 +365,12 @@ const SettingsPage: React.FC = () => {
     <div>
       {/* 用户设置 */}
       <div className="settings-section">
-        <div className="settings-section-title">用户设置</div>
+        <div className="settings-section-title">{locale.settings.user}</div>
 
         <div className="settings-item">
           <div>
-            <div className="settings-label">头像</div>
-            <div className="settings-desc">用于接收端页面展示，点击头像可更换</div>
+            <div className="settings-label">{locale.settings.userAvatar}</div>
+            <div className="settings-desc">{locale.settings.userAvatarHint}</div>
           </div>
           <Space align="center">
             <div style={{ cursor: 'pointer', position: 'relative' }} onClick={handleSelectAvatar}>
@@ -403,13 +408,13 @@ const SettingsPage: React.FC = () => {
 
         <div className="settings-item">
           <div>
-            <div className="settings-label">用户名称</div>
-            <div className="settings-desc">用于接收端页面展示的上传者名称</div>
+            <div className="settings-label">{locale.settings.userName}</div>
+            <div className="settings-desc">{locale.settings.userNameHint}</div>
           </div>
           <Input
             value={settings.userName || ''}
             onChange={(e) => updateSetting('userName', e.target.value)}
-            placeholder="请输入用户名称"
+            placeholder="{locale.settings.userNameHint}"
             maxLength={20}
             style={{ width: 200 }}
           />
@@ -418,12 +423,13 @@ const SettingsPage: React.FC = () => {
 
       {/* 基础设置 */}
       <div className="settings-section">
-        <div className="settings-section-title">基础设置</div>
+        <div className="settings-section-title">{locale.settings.general}</div>
+
 
         <div className="settings-item">
           <div>
-            <div className="settings-label">开机自启</div>
-            <div className="settings-desc">系统启动时自动运行 NeiLink</div>
+            <div className="settings-label">{locale.settings.autoStart}</div>
+            <div className="settings-desc">{locale.settings.autoStartHint}</div>
           </div>
           <Switch
             checked={settings.autoStart}
@@ -431,12 +437,28 @@ const SettingsPage: React.FC = () => {
           />
         </div>
 
+        
+        <div className="settings-item">
+          <div>
+            <div className="settings-label">{locale.settings.language}</div>
+            <div className="settings-desc">{locale.settings.languageHint}</div>
+          </div>
+          <Select
+            value={settings.language}
+            onChange={(val) => {
+              updateSetting('language', val);
+              setLanguage(val);
+            }}
+            style={{ width: 140 }}
+            options={getSupportedLanguages()}
+          />
+        </div>
 
 
         <div className="settings-item">
           <div>
-            <div className="settings-label">默认使用提取码</div>
-            <div className="settings-desc">创建分享时默认启用提取码</div>
+            <div className="settings-label">{locale.settings.defaultExtractCode}</div>
+            <div className="settings-desc">{locale.settings.defaultExtractCodeHint}</div>
           </div>
           <Switch
             checked={settings.defaultExtractCode}
@@ -446,80 +468,82 @@ const SettingsPage: React.FC = () => {
 
         <div className="settings-item">
           <div>
-            <div className="settings-label">默认有效期</div>
-            <div className="settings-desc">创建分享时的默认有效时长</div>
+            <div className="settings-label">{locale.settings.defaultExpiry}</div>
+            <div className="settings-desc">{locale.settings.defaultExpiryHint}</div>
           </div>
           <Select
             value={settings.defaultExpiry}
             onChange={(val) => updateSetting('defaultExpiry', val)}
             style={{ width: 140 }}
             options={[
-              { value: '1h', label: '1 小时' },
-              { value: '6h', label: '6 小时' },
-              { value: '24h', label: '24 小时' },
-              { value: '7d', label: '7 天' },
-              { value: '30d', label: '30 天' },
-              { value: 'permanent', label: '永久' },
+              { value: '1h', label: `1 ${locale.settings.hour}` },
+              { value: '6h', label: `6 ${locale.settings.hour}` },
+              { value: '24h', label: `24 ${locale.settings.hour}` },
+              { value: '7d', label: `7 ${locale.settings.day}` },
+              { value: '30d', label: `30 ${locale.settings.day}` },
+              { value: 'permanent', label: locale.settings.permanent },
             ]}
           />
         </div>
 
         <div className="settings-item">
           <div>
-            <div className="settings-label">默认下载次数</div>
-            <div className="settings-desc">创建分享时的默认最大下载次数</div>
+            <div className="settings-label">{locale.settings.defaultMaxDownloads}</div>
+            <div className="settings-desc">{locale.settings.defaultMaxDownloadsHint}</div>
           </div>
           <Select
             value={settings.defaultMaxDownloads}
             onChange={(val) => updateSetting('defaultMaxDownloads', val)}
             style={{ width: 140 }}
             options={[
-              { value: 1, label: '1 次' },
-              { value: 5, label: '5 次' },
-              { value: 10, label: '10 次' },
-              { value: 50, label: '50 次' },
-              { value: -1, label: '不限次数' },
+              { value: 1, label: `1 ${locale.settings.time}` },
+              { value: 5, label: `5 ${locale.settings.time}` },
+              { value: 10, label: `10 ${locale.settings.time}` },
+              { value: 50, label: `50 ${locale.settings.time}` },
+              { value: -1, label: locale.settings.unlimited },
             ]}
           />
         </div>
 
         <div className="settings-item">
           <div>
-            <div className="settings-label">默认最大同时下载数</div>
-            <div className="settings-desc">创建分享时的默认最大同时下载数</div>
+            <div className="settings-label">{locale.settings.defaultMaxConcurrent}</div>
+            <div className="settings-desc">{locale.settings.defaultMaxConcurrentHint}</div>
           </div>
           <Select
             value={settings.defaultMaxConcurrent}
             onChange={(val) => updateSetting('defaultMaxConcurrent', val)}
             style={{ width: 140 }}
             options={[
-              { value: 3, label: '3 个' },
-              { value: 5, label: '5 个' },
-              { value: 10, label: '10 个' },
-              { value: -1, label: '不限' },
+              { value: 3, label: `3 ${locale.settings.count}` },
+              { value: 5, label: `5 ${locale.settings.count}` },
+              { value: 10, label: `10 ${locale.settings.count}` },
+              { value: -1, label: locale.settings.unlimited },
             ]}
           />
         </div>
 
         <div className="settings-item">
           <div>
-            <div className="settings-label">关闭时删除分享</div>
-            <div className="settings-desc">应用关闭时删除所有已分享的文件</div>
+            <div className="settings-label">{locale.settings.clearSharesOnExit}</div>
+            <div className="settings-desc">{locale.settings.clearSharesOnExitHint}</div>
           </div>
           <Switch
             checked={settings.clearSharesOnExit}
             onChange={(val) => updateSetting('clearSharesOnExit', val)}
           />
         </div>
+
+
       </div>
 
       {/* 网络设置 */}
       <div className="settings-section">
-        <div className="settings-section-title">网络设置</div>
+        <div className="settings-section-title">{locale.settings.network}</div>
         <div className="settings-item">
           <div>
-            <div className="settings-label">网络适配器</div>
-            <div className="settings-desc">选择用于文件分享的网络适配器</div>
+            <div className="settings-label">{locale.settings.selectedAdapter}</div>
+            <div className="settings-desc">{locale.settings.selectedAdapterHint}</div>
           </div>
           <Select
             value={networkInfo.selectedAdapter}
@@ -529,14 +553,14 @@ const SettingsPage: React.FC = () => {
               label: `${adapter.name} (${adapter.ip})`,
               value: adapter.name,
             }))}
-            placeholder="选择网络适配器"
+            placeholder={locale.settings.selectedAdapterHint}
             disabled={networkInfo.adapters.length <= 1}
           />
         </div>
         <div className="settings-item">
           <div>
-            <div className="settings-label">服务端口</div>
-            <div className="settings-desc">HTTP 服务监听端口 (1-65535)</div>
+            <div className="settings-label">{locale.settings.port}</div>
+            <div className="settings-desc">{locale.settings.portHint} (1-65535)</div>
           </div>
           <Space>
             <InputNumber
@@ -551,15 +575,15 @@ const SettingsPage: React.FC = () => {
               onClick={handleDetectPort}
               size="small"
             >
-              检测可用端口
+              {locale.settings.detectPort}
             </Button>
           </Space>
         </div>
 
         <div className="settings-item">
           <div>
-            <div className="settings-label">热点名称前缀</div>
-            <div className="settings-desc">创建热点时的默认名称前缀</div>
+            <div className="settings-label">{locale.settings.hotspotPrefix}</div>
+            <div className="settings-desc">{locale.settings.hotspotPrefixHint}</div>
           </div>
           <Input
             value={settings.hotspotPrefix}
@@ -572,8 +596,8 @@ const SettingsPage: React.FC = () => {
 
         <div className="settings-item">
           <div>
-            <div className="settings-label">热点密码长度</div>
-            <div className="settings-desc">自动生成热点密码的长度 (8-63)</div>
+            <div className="settings-label">{locale.settings.hotspotPasswordLength}</div>
+            <div className="settings-desc">{locale.settings.hotspotPasswordLengthHint} (8-63)</div>
           </div>
           <InputNumber
             value={settings.hotspotPasswordLength}
@@ -587,12 +611,12 @@ const SettingsPage: React.FC = () => {
 
       {/* 安全设置 */}
       <div className="settings-section">
-        <div className="settings-section-title">安全设置</div>
+        <div className="settings-section-title">{locale.settings.security}</div>
 
         <div className="settings-item">
           <div>
-            <div className="settings-label">AES 加密密钥长度</div>
-            <div className="settings-desc">文件传输加密使用的密钥长度</div>
+            <div className="settings-label">{locale.settings.encryptionBits}</div>
+            <div className="settings-desc">{locale.settings.encryptionBitsHint}</div>
           </div>
           <Select
             value={settings.encryptionBits}
@@ -607,8 +631,8 @@ const SettingsPage: React.FC = () => {
 
         <div className="settings-item">
           <div>
-            <div className="settings-label">恶意访问防护</div>
-            <div className="settings-desc">自动封禁异常访问的 IP 地址</div>
+            <div className="settings-label">{locale.settings.rateLimitEnabled}</div>
+            <div className="settings-desc">{locale.settings.rateLimitEnabledHint}</div>
           </div>
           <Switch
             checked={settings.rateLimitEnabled}
@@ -620,8 +644,8 @@ const SettingsPage: React.FC = () => {
           <>
             <div className="settings-item">
               <div>
-                <div className="settings-label">最大尝试次数</div>
-                <div className="settings-desc">每分钟超过此次数后自动封禁 IP</div>
+                <div className="settings-label">{locale.settings.rateLimitMaxAttempts}</div>
+                <div className="settings-desc">{locale.settings.rateLimitMaxAttemptsHint}</div>
               </div>
               <InputNumber
                 value={settings.rateLimitMaxAttempts}
@@ -634,8 +658,8 @@ const SettingsPage: React.FC = () => {
 
             <div className="settings-item">
               <div>
-                <div className="settings-label">封禁时长（分钟）</div>
-                <div className="settings-desc">IP 被封禁的持续时间</div>
+                <div className="settings-label">{locale.settings.rateLimitBanDuration}</div>
+                <div className="settings-desc">{locale.settings.rateLimitBanDurationHint}</div>
               </div>
               <InputNumber
                 value={settings.rateLimitBanDuration}
@@ -652,14 +676,14 @@ const SettingsPage: React.FC = () => {
       {/* 封禁IP管理 */}
       <div className="settings-section">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div className="settings-section-title">封禁IP管理</div>
+          <div className="settings-section-title">{locale.settings.bannedIPManagement}</div>
           <Button
             icon={<ReloadOutlined />}
             onClick={fetchBannedIPs}
             loading={bannedIPsLoading}
             size="small"
           >
-            刷新
+            {locale.common.refresh}
           </Button>
         </div>
 
@@ -669,17 +693,17 @@ const SettingsPage: React.FC = () => {
           rowKey="ip"
           pagination={false}
           size="small"
-          locale={{ emptyText: '当前没有被封禁的IP' }}
+          locale={{ emptyText: locale.settings.noBannedIPs }}
           columns={[
             {
-              title: 'IP地址',
+              title: locale.settings.ipAddress,
               dataIndex: 'ip',
               key: 'ip',
               width: 180,
               render: (ip) => <Text strong>{ip}</Text>,
             },
             {
-              title: '每分钟尝试次数',
+              title: locale.settings.attemptsPerMinute,
               dataIndex: 'attempts',
               key: 'attempts',
               width: 140,
@@ -688,7 +712,7 @@ const SettingsPage: React.FC = () => {
               ),
             },
             {
-              title: '剩余封禁时间',
+              title: locale.settings.remainingBanTime,
               dataIndex: 'remainingTime',
               key: 'remainingTime',
               width: 180,
@@ -699,7 +723,7 @@ const SettingsPage: React.FC = () => {
               ),
             },
             {
-              title: '操作',
+              title: locale.common.action,
               key: 'action',
               width: 280,
               render: (_, record) => (
@@ -707,7 +731,7 @@ const SettingsPage: React.FC = () => {
                   <Select
                     style={{ width: 140 }}
                     size="small"
-                    placeholder="修改时长"
+                    placeholder={locale.settings.modifyDuration}
                     options={[
                       { value: 5, label: '5 分钟' },
                       { value: 10, label: '10 分钟' },
@@ -718,11 +742,11 @@ const SettingsPage: React.FC = () => {
                     onChange={(value) => handleUpdateBanDuration(record.ip, value)}
                   />
                   <Popconfirm
-                    title="确定要解封此IP吗？"
-                    description={`解封后，该IP将恢复正常访问权限。`}
+                    title={locale.settings.confirmUnban}
+                    description={locale.settings.unbanDescription}
                     onConfirm={() => handleUnbanIP(record.ip)}
-                    okText="确定"
-                    cancelText="取消"
+                    okText={locale.common.confirm}
+                    cancelText={locale.common.cancel}
                   >
                     <Button
                       type="primary"
@@ -730,7 +754,7 @@ const SettingsPage: React.FC = () => {
                       size="small"
                       icon={<UnlockOutlined />}
                     >
-                      解封
+                      {locale.settings.unban}
                     </Button>
                   </Popconfirm>
                 </Space>
@@ -742,12 +766,12 @@ const SettingsPage: React.FC = () => {
 
       {/* 日志设置 */}
       <div className="settings-section">
-        <div className="settings-section-title">日志设置</div>
+        <div className="settings-section-title">{locale.settings.logs}</div>
 
         <div className="settings-item">
           <div>
-            <div className="settings-label">日志保留时长</div>
-            <div className="settings-desc">超过此时长的日志将被自动清理</div>
+            <div className="settings-label">{locale.settings.logRetentionDays}</div>
+            <div className="settings-desc">{locale.settings.logRetentionDaysHint}</div>
           </div>
           <Select
             value={settings.logRetentionDays}
@@ -764,8 +788,8 @@ const SettingsPage: React.FC = () => {
 
         <div className="settings-item">
           <div>
-            <div className="settings-label">日志存储路径</div>
-            <div className="settings-desc">日志文件的存储目录</div>
+            <div className="settings-label">{locale.settings.logStoragePath}</div>
+            <div className="settings-desc">{locale.settings.logStoragePathHint}</div>
           </div>
           <Space>
             <Text
@@ -784,7 +808,7 @@ const SettingsPage: React.FC = () => {
               size="small"
               onClick={handleChangeLogPath}
             >
-              更改路径
+              {locale.settings.changePath}
             </Button>
           </Space>
         </div>
@@ -809,7 +833,7 @@ const SettingsPage: React.FC = () => {
           loading={saving}
           onClick={handleSave}
         >
-          保存配置
+          {locale.common.save}
         </Button>
       </div>
     </div>

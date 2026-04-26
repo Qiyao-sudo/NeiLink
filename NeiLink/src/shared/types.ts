@@ -81,6 +81,7 @@ export interface SystemSettings {
   logStoragePath: string;
   clearSharesOnExit: boolean; // 应用关闭时删除已分享的文件
   selectedAdapter?: string; // 用户选择的网络适配器名称
+  language: string; // 语言设置，如 'zh-CN', 'en-US'
   // 用户设置
   userName?: string; // 用户名称
   userAvatar?: string; // 用户头像的base64数据或文件路径

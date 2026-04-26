@@ -141,20 +141,35 @@ async function cleanup(): Promise<void> {
 
 // ==================== 应用生命周期 ====================
 
-app.whenReady().then(async () => {
-  try {
-    createWindow();
-    await initializeServices();
-  } catch (err) {
-    console.error('应用初始化失败:', err);
-  }
+const gotTheLock = app.requestSingleInstanceLock();
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) {
+        mainWindow.restore();
+      }
+      mainWindow.focus();
     }
   });
-});
+
+  app.whenReady().then(async () => {
+    try {
+      createWindow();
+      await initializeServices();
+    } catch (err) {
+      console.error('应用初始化失败:', err);
+    }
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+      }
+    });
+  });
+}
 
 app.on('window-all-closed', async () => {
   await cleanup();

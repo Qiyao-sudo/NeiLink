@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Menu } from 'antd';
 import {
@@ -13,33 +13,36 @@ import HomePage from './pages/HomePage';
 import ShareManagePage from './pages/ShareManagePage';
 import LogPage from './pages/LogPage';
 import SettingsPage from './pages/SettingsPage';
-
-const menuItems = [
-  {
-    key: '/',
-    icon: <HomeOutlined />,
-    label: '首页',
-  },
-  {
-    key: '/shares',
-    icon: <ShareAltOutlined />,
-    label: '分享管理',
-  },
-  {
-    key: '/logs',
-    icon: <FileTextOutlined />,
-    label: '日志查看',
-  },
-  {
-    key: '/settings',
-    icon: <SettingOutlined />,
-    label: '系统设置',
-  },
-];
+import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
+import { SystemSettings } from '../shared/types';
 
 const AppLayout: React.FC = () => {
+  const { locale } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const menuItems = [
+    {
+      key: '/',
+      icon: <HomeOutlined />,
+      label: locale.pages.home,
+    },
+    {
+      key: '/shares',
+      icon: <ShareAltOutlined />,
+      label: locale.pages.shareManage,
+    },
+    {
+      key: '/logs',
+      icon: <FileTextOutlined />,
+      label: locale.pages.log,
+    },
+    {
+      key: '/settings',
+      icon: <SettingOutlined />,
+      label: locale.pages.settings,
+    },
+  ];
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);
@@ -77,9 +80,50 @@ const AppLayout: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  const [initialSettings, setInitialSettings] = useState<SystemSettings>({
+    autoStart: false,
+    defaultNickname: 'NeiLink用户',
+    defaultExtractCode: true,
+    defaultExpiry: '24h',
+    defaultMaxDownloads: -1,
+    defaultMaxConcurrent: -1,
+    port: 8080,
+    hotspotPrefix: 'NeiLink',
+    hotspotPasswordLength: 8,
+    encryptionBits: 256,
+    rateLimitEnabled: true,
+    rateLimitMaxAttempts: 10,
+    rateLimitBanDuration: 30,
+    logRetentionDays: 30,
+    logStoragePath: '',
+    clearSharesOnExit: false,
+    selectedAdapter: undefined,
+    language: 'zh-CN',
+    userName: 'NeiLink用户',
+    userAvatar: undefined,
+  });
+
+  useEffect(() => {
+    // 初始获取系统设置
+    const fetchSettings = async () => {
+      try {
+        const result = await window.neilink.ipc.invoke('settings:get') as any;
+        if (result?.success && result.data) {
+          setInitialSettings(result.data as SystemSettings);
+        }
+      } catch (error) {
+        console.error('获取系统设置失败:', error);
+      }
+    };
+
+    fetchSettings();
+  }, []);
+
   return (
     <HashRouter>
-      <AppLayout />
+      <LanguageProvider initialSettings={initialSettings}>
+        <AppLayout />
+      </LanguageProvider>
     </HashRouter>
   );
 };

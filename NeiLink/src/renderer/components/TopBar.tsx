@@ -8,6 +8,7 @@ import {
 } from '@ant-design/icons';
 import { message } from 'antd';
 import { NetworkInfo, IPC_CHANNELS } from '../../shared/types';
+import { useLanguage } from '../contexts/LanguageContext';
 
 // 自定义堆叠方块图标
 const CustomRestoreIcon = () => (
@@ -17,6 +18,7 @@ const CustomRestoreIcon = () => (
 );
 
 const TopBar: React.FC = () => {
+  const { locale } = useLanguage();
   const [networkInfo, setNetworkInfo] = useState<NetworkInfo>({
     type: 'none',
     ip: '0.0.0.0',
@@ -69,9 +71,9 @@ const TopBar: React.FC = () => {
 
   const copyIP = () => {
     navigator.clipboard.writeText(networkInfo.ip).then(() => {
-      message.success('IP 地址已复制');
+      message.success(locale.common.copied);
     }).catch(() => {
-      message.error('复制失败');
+      message.error(locale.error.networkError);
     });
   };
 
@@ -81,9 +83,9 @@ const TopBar: React.FC = () => {
 
   const networkTypeText = () => {
     if (networkInfo.isOnline) {
-      return networkInfo.type === 'wifi' ? 'Wi-Fi' : '以太网';
+      return networkInfo.type === 'wifi' ? 'Wi-Fi' : locale.network.ethernet;
     } else {
-      return '未连接';
+      return locale.network.noNetwork;
     }
   };
 
@@ -95,13 +97,13 @@ const TopBar: React.FC = () => {
             className={`network-status-dot ${networkInfo.isOnline ? 'online' : 'offline'}`}
           />
           <span style={{ fontSize: 13, color: '#666' }}>
-            {networkInfo.isOnline ? '已连接' : '未连接'}
+            {networkInfo.isOnline ? locale.network.connected : locale.network.disconnected}
           </span>
           <span style={{ fontSize: 13, color: '#999' }}>
             ({networkTypeText()})
           </span>
         </div>
-        <Tooltip title="点击复制 IP 地址">
+        <Tooltip title={locale.common.copy}>
           <Tag
             icon={<CopyOutlined />}
             color="blue"

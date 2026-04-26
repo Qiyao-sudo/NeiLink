@@ -23,6 +23,7 @@ import {
   SearchOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -53,6 +54,7 @@ interface NetworkInfo {
 }
 
 const ShareManagePage: React.FC = () => {
+  const { locale } = useLanguage();
   const [tasks, setTasks] = useState<ShareTask[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -73,28 +75,28 @@ const ShareManagePage: React.FC = () => {
     const convertedTasks = rawShares.map((share) => {
       let expiry: string;
       if (share.status === 'expired') {
-        expiry = '已过期';
+        expiry = locale.shareManage.shareExpired;
       } else if (share.status === 'cancelled') {
-        expiry = '已取消';
+        expiry = locale.shareManage.shareCancelled;
       } else if (share.expiryTime) {
         const remaining = share.expiryTime - Date.now();
         if (remaining <= 0) {
-          expiry = '已过期';
+          expiry = locale.shareManage.shareExpired;
         } else {
           const seconds = Math.floor(remaining / 1000);
           const minutes = Math.floor(seconds / 60);
           const hours = Math.floor(minutes / 60);
           
           if (hours > 0) {
-            expiry = `${hours} 小时`;
+            expiry = `${hours} ${locale.shareManage.hour}`;
           } else if (minutes > 0) {
-            expiry = `${minutes} 分钟`;
+            expiry = `${minutes} ${locale.shareManage.minute}`;
           } else {
-            expiry = `${seconds} 秒`;
+            expiry = `${seconds} ${locale.shareManage.second}`;
           }
         }
       } else {
-        expiry = '永久';
+        expiry = locale.shareManage.permanent;
       }
       
       return {
@@ -311,23 +313,23 @@ const ShareManagePage: React.FC = () => {
 
   const columns = [
     {
-      title: '状态',
+      title: locale.shareManage.status,
       key: 'status',
       width: 80,
       align: 'center' as const,
       render: (_: unknown, record: any) => {
         if (record.status === 'active') {
-          return <Tag color="green">活跃</Tag>;
+          return <Tag color="green">{locale.shareManage.statusActive}</Tag>;
         } else if (record.status === 'expired') {
-          return <Tag color="red">已过期</Tag>;
+          return <Tag color="red">{locale.shareManage.shareExpired}</Tag>;
         } else if (record.status === 'cancelled') {
-          return <Tag color="default">已取消</Tag>;
+          return <Tag color="default">{locale.shareManage.shareCancelled}</Tag>;
         }
         return <Tag>未知</Tag>;
       },
     },
     {
-      title: '文件名',
+      title: locale.shareManage.fileName,
       dataIndex: 'fileName',
       key: 'fileName',
       ellipsis: true,
@@ -339,7 +341,7 @@ const ShareManagePage: React.FC = () => {
       ),
     },
     {
-      title: '分享链接',
+      title: locale.shareManage.shareLink,
       dataIndex: 'shareLink',
       key: 'shareLink',
       ellipsis: true,
@@ -359,40 +361,40 @@ const ShareManagePage: React.FC = () => {
       },
     },
     {
-      title: '提取码',
+      title: locale.shareManage.extractCode,
       dataIndex: 'extractCode',
       key: 'extractCode',
       width: 90,
       align: 'center' as const,
       render: (text: string) =>
-        text ? <Tag color="blue">{text}</Tag> : <Tag>无</Tag>,
+        text ? <Tag color="blue">{text}</Tag> : <Tag>{locale.common.none}</Tag>,
     },
     {
-      title: '有效期',
+      title: locale.shareManage.expiry,
       dataIndex: 'expiry',
       key: 'expiry',
       width: 90,
       align: 'center' as const,
     },
     {
-      title: '剩余下载',
+      title: locale.shareManage.remainingDownloads,
       key: 'remainingDownloads',
       width: 100,
       align: 'center' as const,
       render: (_: unknown, record: any) =>
-        record.rawData.maxDownloads === -1 ? <Tag color="green">不限</Tag> : <Text>{record.rawData.maxDownloads - record.rawData.downloadCount}</Text>,
+        record.rawData.maxDownloads === -1 ? <Tag color="green">{locale.common.unlimited}</Tag> : <Text>{record.rawData.maxDownloads - record.rawData.downloadCount}</Text>,
     },
     {
-      title: '最大同时下载',
+      title: locale.shareManage.maxConcurrentDownloads,
       dataIndex: 'maxConcurrentDownloads',
       key: 'maxConcurrentDownloads',
       width: 110,
       align: 'center' as const,
       render: (text: number) =>
-        text === -1 ? <Tag color="green">不限</Tag> : <Text>{text}</Text>,
+        text === -1 ? <Tag color="green">{locale.common.unlimited}</Tag> : <Text>{text}</Text>,
     },
     {
-      title: '上传者',
+      title: locale.shareManage.uploader,
       dataIndex: 'uploaderNickname',
       key: 'uploaderNickname',
       width: 100,
@@ -404,13 +406,13 @@ const ShareManagePage: React.FC = () => {
       ),
     },
     {
-      title: '操作',
+      title: locale.common.action,
       key: 'action',
       width: 150,
       fixed: 'right' as const,
       render: (_: unknown, record: any) => (
         <Space size="small">
-          <Tooltip title="复制链接">
+          <Tooltip title={locale.common.copy}>
             <Button
               type="text"
               size="small"
@@ -418,7 +420,7 @@ const ShareManagePage: React.FC = () => {
               onClick={() => handleCopyLink(record)}
             />
           </Tooltip>
-          <Tooltip title="编辑配置">
+          <Tooltip title={locale.common.edit}>
             <Button
               type="text"
               size="small"
@@ -427,12 +429,12 @@ const ShareManagePage: React.FC = () => {
             />
           </Tooltip>
           <Popconfirm
-            title="确定取消此分享？"
+            title={`${locale.common.confirm} ${locale.common.cancel} ${locale.shareManage.title}？`}
             onConfirm={() => handleCancelShare(record.id)}
-            okText="确定"
-            cancelText="取消"
+            okText={locale.common.ok}
+            cancelText={locale.common.cancel}
           >
-            <Tooltip title="取消分享">
+            <Tooltip title={locale.common.cancel}>
               <Button
                 type="text"
                 size="small"
@@ -456,11 +458,11 @@ const ShareManagePage: React.FC = () => {
         marginBottom: 16,
       }}>
         <Typography.Title level={4} style={{ margin: 0 }}>
-          分享管理
+          {locale.shareManage.title}
         </Typography.Title>
         <Space>
           <Input
-            placeholder="搜索文件名/链接"
+            placeholder={locale.common.search}
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
@@ -468,17 +470,17 @@ const ShareManagePage: React.FC = () => {
             allowClear
           />
           <Popconfirm
-            title={`确定取消选中的 ${selectedRowKeys.length} 个分享？`}
+            title={`${locale.common.confirm} ${locale.common.cancel} ${selectedRowKeys.length} ${locale.shareManage.title}？`}
             onConfirm={handleBatchCancel}
-            okText="确定"
-            cancelText="取消"
+            okText={locale.common.ok}
+            cancelText={locale.common.cancel}
             disabled={selectedRowKeys.length === 0}
           >
             <Button
               icon={<DeleteOutlined />}
               disabled={selectedRowKeys.length === 0}
             >
-              批量取消
+              {locale.common.batchDelete}
             </Button>
           </Popconfirm>
           <Button
@@ -486,7 +488,7 @@ const ShareManagePage: React.FC = () => {
             icon={<ReloadOutlined />}
             onClick={handleRefresh}
           >
-            刷新
+            {locale.common.refresh}
           </Button>
         </Space>
       </div>
@@ -506,7 +508,11 @@ const ShareManagePage: React.FC = () => {
         pagination={{
           pageSize: 10,
           showSizeChanger: true,
-          showTotal: (total) => `共 ${total} 条分享`,
+          pageSizeOptions: ['10', '20', '50', '100'],
+          showTotal: (total) => `${locale.shareManage.totalShares} ${total} ${locale.shareManage.share}`,
+          locale: {
+            items_per_page: locale.shareManage.perPage,
+          },
         }}
       />
 
