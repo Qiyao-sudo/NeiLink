@@ -7,17 +7,15 @@ import * as http from 'http';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import archiver from 'archiver';
 import { ShareConfig, SystemSettings } from '../../shared/types';
 import { Logger } from './logger';
-import { generateReceiverHTML, generateFileCodeInputHTML, ShareInfo } from './receiverPage';
+import { generateReceiverHTML, generateFileCodeInputHTML, sendErrorPage, ShareInfo } from './receiverPage';
 
-let logger: Logger | null = null;
+// =============================================================================
+// 类型定义
+// =============================================================================
 
-export function setLogger(l: Logger): void {
-  logger = l;
-}
-
-/** 限流记录 */
 interface RateLimitRecord {
   attempts: number;
   windowStart: number;
@@ -25,58 +23,40 @@ interface RateLimitRecord {
   banExpiry: number;
 }
 
-/** 全局 HTTP 服务器实例 */
-let globalServer: http.Server | null = null;
+export interface BannedIPInfo {
+  ip: string;
+  attempts: number;
+  windowStart: number;
+  banExpiry: number;
+  remainingTime: number;
+}
 
-/** 全局服务器监听的端口 */
+// =============================================================================
+// 模块状态
+// =============================================================================
+
+let logger: Logger | null = null;
+
+let globalServer: http.Server | null = null;
 let globalServerPort: number | null = null;
 
-/** 分享配置存储（文件码 -> 分享配置） */
 const shares: Map<string, ShareConfig> = new Map();
-
-/** 下载回调存储（文件码 -> 下载回调） */
 const downloadCallbacks: Map<string, (shareId: string) => void> = new Map();
 
-/** 限流设置 */
 let rateLimitSettings: {
   rateLimitEnabled?: boolean;
   rateLimitMaxAttempts?: number;
   rateLimitBanDuration?: number;
 } = {};
 
-/** 限流记录存储（IP -> 记录） */
 const rateLimitRecords: Map<string, RateLimitRecord> = new Map();
 
-/** 用户设置 */
 let userSettings: Partial<SystemSettings> = {};
 
-/**
- * 更新用户设置
- */
-export function updateUserSettings(settings: Partial<SystemSettings>): void {
-  userSettings = { ...userSettings, ...settings };
-}
+// =============================================================================
+// 工具函数
+// =============================================================================
 
-/**
- * 获取用户设置
- */
-export function getUserSettings(): Partial<SystemSettings> {
-  return { ...userSettings };
-}
-
-/**
- * 格式化文件大小为可读字符串
- */
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + units[i];
-}
-
-/**
- * 将 ShareConfig 转换为 ShareInfo
- */
 function toShareInfo(shareConfig: ShareConfig): ShareInfo {
   return {
     fileName: shareConfig.fileName,
@@ -84,7 +64,10 @@ function toShareInfo(shareConfig: ShareConfig): ShareInfo {
     uploaderName: shareConfig.uploaderName,
     hasExtractCode: !!shareConfig.extractCode,
     expiryTime: shareConfig.expiryTime,
-    remainingDownloads: shareConfig.maxDownloads === -1 ? undefined : shareConfig.maxDownloads - shareConfig.downloadCount,
+    remainingDownloads:
+      shareConfig.maxDownloads === -1
+        ? undefined
+        : shareConfig.maxDownloads - shareConfig.downloadCount,
     isFolder: shareConfig.isFolder,
     shareId: shareConfig.id,
     userAvatar: userSettings.userAvatar,
@@ -92,90 +75,20 @@ function toShareInfo(shareConfig: ShareConfig): ShareInfo {
   };
 }
 
-/**
- * 检查并执行限流
- * @returns true 表示被限流（拒绝访问），false 表示允许访问
- */
-function checkRateLimit(
-  ip: string,
-  maxAttempts: number,
-  banDuration: number
-): boolean {
-  const now = Date.now();
-  const WINDOW_MS = 60 * 1000; // 1分钟时间窗口
-  let record = rateLimitRecords.get(ip);
-
-  if (!record) {
-    record = { attempts: 0, windowStart: now, banned: false, banExpiry: 0 };
-    rateLimitRecords.set(ip, record);
-  }
-
-  // 检查是否在封禁期
-  if (record.banned) {
-    if (now < record.banExpiry) {
-      return true; // 仍在封禁中
-    }
-    // 封禁期已过，重置记录
-    record.banned = false;
-    record.attempts = 0;
-    record.windowStart = now;
-  }
-
-  // 检查是否需要重置时间窗口
-  if (now - record.windowStart > WINDOW_MS) {
-    record.attempts = 0;
-    record.windowStart = now;
-  }
-
-  // 增加访问计数
-  record.attempts++;
-
-  // 检查是否超过最大尝试次数
-  if (record.attempts > maxAttempts) {
-    record.banned = true;
-    record.banExpiry = now + banDuration * 60 * 1000;
-    if (logger) {
-      logger.log('system', `封禁IP: ${ip}，每分钟尝试次数: ${record.attempts}，封禁时长: ${banDuration}分钟`);
-    }
-    return true;
-  }
-
-  return false;
-}
-
-/**
- * 获取客户端 IP 地址
- */
 function getClientIP(req: http.IncomingMessage): string {
-  let ip: string | undefined;
   const forwarded = req.headers['x-forwarded-for'];
+  let ip: string | undefined;
   if (typeof forwarded === 'string') {
     ip = forwarded.split(',')[0].trim();
   } else {
     ip = req.socket.remoteAddress;
   }
-  
-  // 标准化 IPv6 地址，例如 ::ffff:127.0.0.1 -> 127.0.0.1
   if (ip && ip.startsWith('::ffff:')) {
     return ip.substring(7);
   }
   return ip || 'unknown';
 }
 
-/**
- * 更新限流设置
- */
-export function updateRateLimitSettings(settings: {
-  rateLimitEnabled?: boolean;
-  rateLimitMaxAttempts?: number;
-  rateLimitBanDuration?: number;
-}): void {
-  rateLimitSettings = { ...rateLimitSettings, ...settings };
-}
-
-/**
- * 发送 JSON 响应
- */
 function sendJSON(res: http.ServerResponse, statusCode: number, data: unknown): void {
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -186,30 +99,259 @@ function sendJSON(res: http.ServerResponse, statusCode: number, data: unknown): 
   res.end(JSON.stringify(data));
 }
 
-/**
- * 解析 Range 头
- */
-function parseRange(rangeHeader: string | undefined, fileSize: number): { start: number; end: number } | null {
-  if (!rangeHeader) return null;
-
-  const match = rangeHeader.match(/^bytes=(\d+)-(\d*)$/);
-  if (!match) return null;
-
-  const start = parseInt(match[1], 10);
-  const end = match[2] ? parseInt(match[2], 10) : fileSize - 1;
-
-  if (start >= fileSize || end >= fileSize || start > end) {
-    return null;
-  }
-
-  return { start, end };
+function sendHTML(res: http.ServerResponse, statusCode: number, html: string): void {
+  res.writeHead(statusCode, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Access-Control-Allow-Origin': '*',
+  });
+  res.end(html);
 }
 
-/**
- * 启动全局 HTTP 服务器
- * @param port 监听端口
- * @param settings 限流设置
- */
+// =============================================================================
+// 限流
+// =============================================================================
+
+function checkRateLimit(ip: string, maxAttempts: number, banDuration: number): boolean {
+  const now = Date.now();
+  const WINDOW_MS = 60 * 1000;
+
+  let record = rateLimitRecords.get(ip);
+  if (!record) {
+    record = { attempts: 0, windowStart: now, banned: false, banExpiry: 0 };
+    rateLimitRecords.set(ip, record);
+  }
+
+  if (record.banned) {
+    if (now < record.banExpiry) return true;
+    record.banned = false;
+    record.attempts = 0;
+    record.windowStart = now;
+  }
+
+  if (now - record.windowStart > WINDOW_MS) {
+    record.attempts = 0;
+    record.windowStart = now;
+  }
+
+  record.attempts++;
+
+  if (record.attempts > maxAttempts) {
+    record.banned = true;
+    record.banExpiry = now + banDuration * 60 * 1000;
+    logger?.log('system', `封禁IP: ${ip}，每分钟尝试次数: ${record.attempts}，封禁时长: ${banDuration}分钟`);
+    return true;
+  }
+
+  return false;
+}
+
+// =============================================================================
+// 路由处理
+// =============================================================================
+
+function handleFavicon(req: http.IncomingMessage, res: http.ServerResponse): boolean {
+  if (req.method !== 'GET') return false;
+  if (req.url !== '/favicon.ico' && req.url !== '/NeiLink.ico') return false;
+
+  const faviconPath = path.join(__dirname, '../assets/NeiLink.ico');
+  if (fs.existsSync(faviconPath)) {
+    res.writeHead(200, {
+      'Content-Type': 'image/x-icon',
+      'Access-Control-Allow-Origin': '*',
+    });
+    fs.createReadStream(faviconPath).pipe(res);
+  }
+  return true;
+}
+
+function handleHomePage(req: http.IncomingMessage, res: http.ServerResponse): boolean {
+  if (req.method !== 'GET' || req.url !== '/') return false;
+  sendHTML(res, 200, generateFileCodeInputHTML());
+  return true;
+}
+
+function handleFileCodePage(
+  req: http.IncomingMessage,
+  res: http.ServerResponse
+): boolean {
+  if (req.method !== 'GET' || !req.url || req.url.length <= 1 || req.url.startsWith('/api/')) {
+    return false;
+  }
+
+  const fileCode = req.url.substring(1);
+  const share = shares.get(fileCode);
+  if (!share) {
+    sendErrorPage(res, 404, '文件码错误', '文件码错误或不存在，请检查链接是否正确');
+    return true;
+  }
+  if (share.status !== 'active') {
+    sendErrorPage(res, 410, '分享已过期', '该分享链接已过期，请联系分享者重新分享');
+    return true;
+  }
+
+  sendHTML(res, 200, generateReceiverHTML(toShareInfo(share)));
+  return true;
+}
+
+function handleShareInfoAPI(req: http.IncomingMessage, res: http.ServerResponse): boolean {
+  if (req.method !== 'GET' || !req.url?.startsWith('/api/share-info/')) return false;
+
+  const fileCode = req.url.substring('/api/share-info/'.length);
+  const share = shares.get(fileCode);
+  if (!share) {
+    sendJSON(res, 404, { error: '分享不存在' });
+    return true;
+  }
+  if (share.status !== 'active') {
+    sendJSON(res, 410, { error: '该分享已过期' });
+    return true;
+  }
+
+  sendJSON(res, 200, {
+    fileName: share.fileName,
+    fileSize: share.fileSize,
+    isFolder: share.isFolder,
+    uploaderName: share.uploaderName,
+    hasExtractCode: !!share.extractCode,
+    createdAt: share.createdAt,
+    userAvatar: userSettings.userAvatar,
+    userName: userSettings.userName,
+  });
+  return true;
+}
+
+function handleVerifyAPI(req: http.IncomingMessage, res: http.ServerResponse): boolean {
+  if (req.method !== 'POST' || !req.url?.startsWith('/api/verify/')) return false;
+
+  const fileCode = req.url.substring('/api/verify/'.length);
+  const share = shares.get(fileCode);
+  if (!share) {
+    sendJSON(res, 404, { error: '分享不存在' });
+    return true;
+  }
+
+  let body = '';
+  req.on('data', (chunk) => {
+    body += chunk;
+  });
+  req.on('end', () => {
+    try {
+      const data = JSON.parse(body);
+      if (!share.extractCode) {
+        sendJSON(res, 200, { success: true });
+        return;
+      }
+      if (data.code === share.extractCode) {
+        sendJSON(res, 200, { success: true });
+      } else {
+        sendJSON(res, 403, { success: false, error: '提取码错误' });
+      }
+    } catch {
+      sendJSON(res, 400, { success: false, error: '无效的请求' });
+    }
+  });
+  return true;
+}
+
+function handleDownloadAPI(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  clientIP: string
+): boolean {
+  if (req.method !== 'GET' || !req.url?.startsWith('/api/download/')) return false;
+
+  const fileCode = req.url.substring('/api/download/'.length);
+  const share = shares.get(fileCode);
+  if (!share) {
+    sendErrorPage(res, 404, '分享不存在', '该分享链接对应的文件不存在或已被删除');
+    return true;
+  }
+  if (!share.filePath || !fs.existsSync(share.filePath)) {
+    sendErrorPage(res, 404, '文件不存在', '该分享链接对应的文件已被删除或不存在');
+    return true;
+  }
+  if (share.status !== 'active') {
+    sendErrorPage(res, 410, '分享已过期', '该分享链接已过期，请联系分享者重新分享');
+    return true;
+  }
+  if (share.maxDownloads !== -1 && share.downloadCount >= share.maxDownloads) {
+    sendErrorPage(res, 410, '达到下载上限', '该分享已达到最大下载次数限制，请联系分享者重新分享');
+    return true;
+  }
+
+  // 下载完成回调
+  res.on('finish', () => {
+    share.downloadCount++;
+    logger?.log('download', `文件下载成功: ${share.fileName} (下载码: ${fileCode})，下载IP: ${clientIP}`);
+    const cb = downloadCallbacks.get(fileCode);
+    if (cb) cb(share.id);
+  });
+
+  const headers: http.OutgoingHttpHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Content-Type': 'application/octet-stream',
+    'Content-Disposition': `attachment; filename="${encodeURIComponent(share.fileName)}"`,
+  };
+
+  // 向后兼容：旧的预加密文件
+  if (share.encryptedFilePath && fs.existsSync(share.encryptedFilePath)) {
+    const ivBuffer = Buffer.alloc(16);
+    const fd = fs.openSync(share.encryptedFilePath, 'r');
+    fs.readSync(fd, ivBuffer, 0, 16, 0);
+    fs.closeSync(fd);
+
+    const keyBuffer = Buffer.from(share.encryptionKey!, 'hex');
+    headers['Content-Length'] = share.fileSize;
+    res.writeHead(200, headers);
+
+    const inputStream = fs.createReadStream(share.encryptedFilePath, { start: 16 });
+    const decipher = crypto.createDecipheriv('aes-256-cbc', keyBuffer, ivBuffer);
+    inputStream.pipe(decipher).pipe(res);
+    return true;
+  }
+
+  // 新流式传输逻辑
+  try {
+    if (share.isFolder) {
+      res.writeHead(200, headers);
+      const archive = archiver('zip', { zlib: { level: 1 } });
+      const folderName = path.basename(share.filePath);
+      archive.directory(share.filePath, folderName);
+      archive.pipe(res);
+      archive.on('error', (err) => {
+        if (!res.headersSent) {
+          sendErrorPage(res, 500, '服务器错误', '文件压缩失败，请稍后再试');
+        }
+        console.error('Archive error:', err);
+      });
+      archive.finalize();
+    } else {
+      const stat = fs.statSync(share.filePath);
+      headers['Content-Length'] = stat.size;
+      res.writeHead(200, headers);
+      const inputStream = fs.createReadStream(share.filePath);
+      inputStream.pipe(res);
+      inputStream.on('error', (err) => {
+        if (!res.headersSent) {
+          sendErrorPage(res, 500, '服务器错误', '文件读取失败，请稍后再试');
+        }
+        console.error('File read error:', err);
+      });
+    }
+  } catch (err) {
+    if (!res.headersSent) {
+      sendErrorPage(res, 500, '服务器错误', '文件传输失败，请稍后再试');
+    }
+    console.error('Download error:', err);
+  }
+
+  return true;
+}
+
+// =============================================================================
+// 服务器生命周期
+// =============================================================================
+
 export function startGlobalServer(
   port: number,
   settings?: {
@@ -219,22 +361,19 @@ export function startGlobalServer(
   }
 ): Promise<number> {
   return new Promise((resolve, reject) => {
-    // 如果服务器已经在运行，直接返回
     if (globalServer && globalServerPort) {
       resolve(globalServerPort);
       return;
     }
 
-    // 保存限流设置
     if (settings) {
       rateLimitSettings = settings;
     }
 
-    // 创建全局服务器
     globalServer = http.createServer((req, res) => {
       const clientIP = getClientIP(req);
 
-      // CORS 预检请求
+      // CORS 预检
       if (req.method === 'OPTIONS') {
         res.writeHead(204, {
           'Access-Control-Allow-Origin': '*',
@@ -245,224 +384,32 @@ export function startGlobalServer(
         return;
       }
 
-      // Favicon 路由
-      if (req.method === 'GET' && (req.url === '/favicon.ico' || req.url === '/NeiLink.ico')) {
-        // 使用默认图标
-        const faviconPath = path.join(__dirname, '../assets/NeiLink.ico');
-        if (fs.existsSync(faviconPath)) {
-          res.writeHead(200, {
-            'Content-Type': 'image/x-icon',
-            'Access-Control-Allow-Origin': '*',
-          });
-          fs.createReadStream(faviconPath).pipe(res);
-          return;
-        }
-      }
+      // 静态资源 / 页面路由
+      if (handleFavicon(req, res)) return;
+      if (handleHomePage(req, res)) return;
+      if (handleFileCodePage(req, res)) return;
 
-      // 限流检查
+      // 限流（在 API 路由之前）
       if (rateLimitSettings.rateLimitEnabled) {
-        const isLimited = checkRateLimit(
-          clientIP,
-          rateLimitSettings.rateLimitMaxAttempts || 10,
-          rateLimitSettings.rateLimitBanDuration || 30
-        );
-        if (isLimited) {
-          sendJSON(res, 429, { error: '请求过于频繁，请稍后再试' });
+        if (
+          checkRateLimit(
+            clientIP,
+            rateLimitSettings.rateLimitMaxAttempts || 10,
+            rateLimitSettings.rateLimitBanDuration || 30
+          )
+        ) {
+          sendErrorPage(res, 429, '请求过于频繁', '请求过于频繁，请稍后再试', false);
           return;
         }
       }
 
-      // 路由处理
-      if (req.method === 'GET' && req.url === '/') {
-        // 返回文件码输入页面
-        res.writeHead(200, {
-          'Content-Type': 'text/html; charset=utf-8',
-          'Access-Control-Allow-Origin': '*',
-        });
-        res.end(generateFileCodeInputHTML());
-        return;
-      }
-
-      if (req.method === 'GET' && req.url && req.url.length > 1 && !req.url.startsWith('/api/')) {
-        // 处理文件码路径，如 /$文件码$
-        const fileCode = req.url.substring(1);
-        const shareConfig = shares.get(fileCode);
-        if (shareConfig) {
-          // 文件码匹配，返回接收端 Web 页面
-          res.writeHead(200, {
-            'Content-Type': 'text/html; charset=utf-8',
-            'Access-Control-Allow-Origin': '*',
-          });
-          res.end(generateReceiverHTML(toShareInfo(shareConfig)));
-          return;
-        } else {
-          // 文件码不匹配，返回错误页面
-          sendJSON(res, 404, { error: '文件码错误或不存在' });
-          return;
-        }
-      }
-
-      if (req.method === 'GET' && req.url?.startsWith('/api/share-info/')) {
-        // 返回分享信息（不含提取码和密钥）
-        const fileCode = req.url.substring('/api/share-info/'.length);
-        const shareConfig = shares.get(fileCode);
-        if (!shareConfig) {
-          sendJSON(res, 404, { error: '分享不存在' });
-          return;
-        }
-        if (shareConfig.status !== 'active') {
-          sendJSON(res, 410, { error: '该分享已过期或被取消' });
-          return;
-        }
-        sendJSON(res, 200, {
-          fileName: shareConfig.fileName,
-          fileSize: shareConfig.fileSize,
-          isFolder: shareConfig.isFolder,
-          uploaderName: shareConfig.uploaderName,
-          hasExtractCode: !!shareConfig.extractCode,
-          createdAt: shareConfig.createdAt,
-          userAvatar: userSettings.userAvatar,
-          userName: userSettings.userName,
-        });
-        return;
-      }
-
-      if (req.method === 'POST' && req.url?.startsWith('/api/verify/')) {
-        // 验证提取码
-        const fileCode = req.url.substring('/api/verify/'.length);
-        const shareConfig = shares.get(fileCode);
-        if (!shareConfig) {
-          sendJSON(res, 404, { error: '分享不存在' });
-          return;
-        }
-        let body = '';
-        req.on('data', (chunk) => { body += chunk; });
-        req.on('end', () => {
-          try {
-            const data = JSON.parse(body);
-            if (!shareConfig.extractCode) {
-              sendJSON(res, 200, { success: true });
-              return;
-            }
-            if (data.code === shareConfig.extractCode) {
-              sendJSON(res, 200, { success: true });
-            } else {
-              sendJSON(res, 403, { success: false, error: '提取码错误' });
-            }
-          } catch {
-            sendJSON(res, 400, { success: false, error: '无效的请求' });
-          }
-        });
-        return;
-      }
-
-      if (req.method === 'GET' && req.url?.startsWith('/api/download/')) {
-        // 文件下载（支持断点续传和加密）
-        const fileCode = req.url.substring('/api/download/'.length);
-        const shareConfig = shares.get(fileCode);
-        if (!shareConfig) {
-          sendJSON(res, 404, { error: '分享不存在' });
-          return;
-        }
-        const filePath = shareConfig.encryptedFilePath || shareConfig.filePath;
-
-        if (!filePath || !fs.existsSync(filePath)) {
-          sendJSON(res, 404, { error: '文件不存在' });
-          return;
-        }
-
-        if (shareConfig.status !== 'active') {
-          sendJSON(res, 410, { error: '该分享已过期或被取消' });
-          return;
-        }
-
-        // 检查下载次数限制
-        if (shareConfig.maxDownloads !== -1 && shareConfig.downloadCount >= shareConfig.maxDownloads) {
-          sendJSON(res, 410, { error: '已达到最大下载次数' });
-          return;
-        }
-
-        const stat = fs.statSync(filePath);
-        let fileSize = stat.size;
-        const range = parseRange(req.headers.range, fileSize);
-
-        const headers: http.OutgoingHttpHeaders = {
-          'Access-Control-Allow-Origin': '*',
-          'Accept-Ranges': 'bytes',
-        };
-
-        // 先绑定事件监听器，再发送响应
-        res.on('finish', () => {
-          shareConfig.downloadCount++;
-          if (logger) {
-            logger.log('download', `文件下载成功: ${shareConfig.fileName} (下载码: ${fileCode})，下载IP: ${clientIP}`);
-          }
-          const onDownload = downloadCallbacks.get(fileCode);
-          if (onDownload) {
-            onDownload(shareConfig.id);
-          }
-        });
-
-        // 处理加密文件
-        if (shareConfig.encryptedFilePath && shareConfig.encryptionKey) {
-          // 加密文件格式: [IV(16字节)][加密数据]
-          
-          // 读取IV（前16字节）
-          const ivBuffer = Buffer.alloc(16);
-          const fd = fs.openSync(filePath, 'r');
-          fs.readSync(fd, ivBuffer, 0, 16, 0);
-          fs.closeSync(fd);
-          
-          // 从hex字符串创建密钥Buffer
-          const keyBuffer = Buffer.from(shareConfig.encryptionKey, 'hex');
-          
-          // 对于加密文件，我们不支持断点续传，因为AES加密的特性使得断点续传变得复杂
-          // 直接返回完整文件
-          headers['Content-Type'] = 'application/octet-stream';
-          headers['Content-Disposition'] = `attachment; filename="${encodeURIComponent(shareConfig.fileName)}"`;
-          // 加密文件的实际大小是 shareConfig.fileSize（解密后的原始大小）
-          headers['Content-Length'] = shareConfig.fileSize;
-
-          res.writeHead(200, headers);
-
-          // 创建读取流（跳过IV）
-          const inputStream = fs.createReadStream(filePath, { start: 16 });
-          
-          // 创建解密器
-          const decipher = crypto.createDecipheriv('aes-256-cbc', keyBuffer, ivBuffer);
-          
-          // 管道传输：读取流 -> 解密器 -> 响应流
-          inputStream.pipe(decipher).pipe(res);
-        } else {
-          // 非加密文件
-          if (range) {
-            // 断点续传 - 返回 206 Partial Content
-            headers['Content-Range'] = `bytes ${range.start}-${range.end}/${fileSize}`;
-            headers['Content-Length'] = range.end - range.start + 1;
-            headers['Content-Type'] = 'application/octet-stream';
-
-            res.writeHead(206, headers);
-
-            const stream = fs.createReadStream(filePath, { start: range.start, end: range.end });
-            stream.pipe(res);
-          } else {
-            // 完整下载 - 返回 200
-            headers['Content-Length'] = fileSize;
-            headers['Content-Type'] = 'application/octet-stream';
-            headers['Content-Disposition'] = `attachment; filename="${encodeURIComponent(shareConfig.fileName)}"`;
-
-            res.writeHead(200, headers);
-
-            const stream = fs.createReadStream(filePath);
-            stream.pipe(res);
-          }
-        }
-
-        return;
-      }
+      // API 路由
+      if (handleShareInfoAPI(req, res)) return;
+      if (handleVerifyAPI(req, res)) return;
+      if (handleDownloadAPI(req, res, clientIP)) return;
 
       // 404
-      sendJSON(res, 404, { error: '未找到请求的资源' });
+      sendErrorPage(res, 404, '页面不存在', '未找到请求的资源，请检查URL是否正确');
     });
 
     globalServer.on('error', (err: NodeJS.ErrnoException) => {
@@ -480,11 +427,30 @@ export function startGlobalServer(
   });
 }
 
-/**
- * 注册分享到全局服务器
- * @param shareConfig 分享配置
- * @param onDownload 下载完成回调
- */
+export function stopGlobalServer(): Promise<void> {
+  return new Promise((resolve) => {
+    if (!globalServer) {
+      resolve();
+      return;
+    }
+    globalServer.close(() => {
+      globalServer = null;
+      globalServerPort = null;
+      shares.clear();
+      downloadCallbacks.clear();
+      resolve();
+    });
+  });
+}
+
+export function isServerRunning(): boolean {
+  return globalServer !== null && globalServerPort !== null;
+}
+
+// =============================================================================
+// 分享管理
+// =============================================================================
+
 export function registerShare(
   shareConfig: ShareConfig,
   onDownload?: (shareId: string) => void
@@ -496,73 +462,46 @@ export function registerShare(
   }
 }
 
-/**
- * 从全局服务器移除分享
- * @param fileCode 文件码
- */
 export function unregisterShare(fileCode: string): void {
   shares.delete(fileCode);
   downloadCallbacks.delete(fileCode);
 }
 
-/**
- * 获取全局服务器端口
- */
 export function getGlobalServerPort(): number | null {
   return globalServerPort;
 }
 
-/**
- * 停止全局 HTTP 服务器
- */
-export function stopGlobalServer(): Promise<void> {
-  return new Promise((resolve) => {
-    if (!globalServer) {
-      resolve();
-      return;
-    }
+// =============================================================================
+// 设置
+// =============================================================================
 
-    globalServer.close(() => {
-      globalServer = null;
-      globalServerPort = null;
-      shares.clear();
-      downloadCallbacks.clear();
-      resolve();
-    });
-  });
+export function setLogger(l: Logger): void {
+  logger = l;
 }
 
-/**
- * 为了保持向后兼容性，保留这些函数但它们什么都不做
- */
-export function createServer(): Promise<number> {
-  return Promise.resolve(globalServerPort || 3000);
+export function updateUserSettings(settings: Partial<SystemSettings>): void {
+  userSettings = { ...userSettings, ...settings };
 }
 
-export function stopServer(): Promise<void> {
-  return Promise.resolve();
+export function getUserSettings(): Partial<SystemSettings> {
+  return { ...userSettings };
 }
 
-export function stopAllServers(): Promise<void> {
-  return stopGlobalServer();
+export function updateRateLimitSettings(settings: {
+  rateLimitEnabled?: boolean;
+  rateLimitMaxAttempts?: number;
+  rateLimitBanDuration?: number;
+}): void {
+  rateLimitSettings = { ...rateLimitSettings, ...settings };
 }
 
-export function isServerRunning(): boolean {
-  return globalServer !== null && globalServerPort !== null;
-}
-
-export interface BannedIPInfo {
-  ip: string;
-  attempts: number;
-  windowStart: number;
-  banExpiry: number;
-  remainingTime: number;
-}
+// =============================================================================
+// 封禁 IP 管理
+// =============================================================================
 
 export function getBannedIPs(): BannedIPInfo[] {
   const now = Date.now();
   const result: BannedIPInfo[] = [];
-  
   rateLimitRecords.forEach((record, ip) => {
     if (record.banned && now < record.banExpiry) {
       result.push({
@@ -574,7 +513,6 @@ export function getBannedIPs(): BannedIPInfo[] {
       });
     }
   });
-  
   return result.sort((a, b) => a.banExpiry - b.banExpiry);
 }
 
@@ -585,9 +523,7 @@ export function unbanIP(ip: string): boolean {
     record.banExpiry = 0;
     record.attempts = 0;
     record.windowStart = Date.now();
-    if (logger) {
-      logger.log('system', `解封IP: ${ip}`);
-    }
+    logger?.log('system', `解封IP: ${ip}`);
     return true;
   }
   return false;
@@ -596,12 +532,25 @@ export function unbanIP(ip: string): boolean {
 export function updateBanDuration(ip: string, durationMinutes: number): boolean {
   const record = rateLimitRecords.get(ip);
   if (record && record.banned) {
-    const now = Date.now();
-    record.banExpiry = now + durationMinutes * 60 * 1000;
-    if (logger) {
-      logger.log('system', `更新封禁时长: ${ip} -> ${durationMinutes}分钟`);
-    }
+    record.banExpiry = Date.now() + durationMinutes * 60 * 1000;
+    logger?.log('system', `更新封禁时长: ${ip} -> ${durationMinutes}分钟`);
     return true;
   }
   return false;
+}
+
+// =============================================================================
+// 向后兼容
+// =============================================================================
+
+export function createServer(): Promise<number> {
+  return Promise.resolve(globalServerPort || 3000);
+}
+
+export function stopServer(): Promise<void> {
+  return Promise.resolve();
+}
+
+export function stopAllServers(): Promise<void> {
+  return stopGlobalServer();
 }

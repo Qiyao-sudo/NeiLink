@@ -3,6 +3,8 @@
  * 生成内嵌在HTTP服务器中返回的完整HTML页面
  */
 
+import type { ServerResponse } from 'http';
+
 export interface ShareInfo {
   fileName: string;
   fileSize: number;
@@ -1259,6 +1261,252 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
 </script>
 </body>
 </html>`;
+}
+
+/**
+ * 生成错误页面 HTML
+ * @param statusCode HTTP 状态码
+ * @param title 错误标题
+ * @param message 错误描述
+ * @param showBackButton 是否显示返回按钮
+ */
+export function generateErrorHTML(
+  statusCode: number,
+  title: string,
+  message: string,
+  showBackButton: boolean = true
+): string {
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link rel="icon" type="image/x-icon" href="/NeiLink.ico">
+<link rel="shortcut icon" type="image/x-icon" href="/NeiLink.ico">
+<title>${escapeHtml(title)} - NeiLink</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+      'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background: #F0F2F5;
+    color: #333;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px 16px;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 480px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+  }
+
+  .page-header {
+    background: linear-gradient(135deg, #FFF1F0 0%, #FFCCC7 100%);
+    padding: 40px 24px 32px;
+    text-align: center;
+  }
+
+  .error-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #FFF1F0;
+    border-radius: 50%;
+  }
+
+  .error-code {
+    font-size: 14px;
+    color: #FF7875;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+
+  .error-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #CF1322;
+    margin-bottom: 8px;
+  }
+
+  .page-body {
+    padding: 32px 24px;
+    text-align: center;
+  }
+
+  .error-message {
+    font-size: 15px;
+    color: #666;
+    line-height: 1.6;
+    margin-bottom: 28px;
+  }
+
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .btn-primary {
+    width: 100%;
+    height: 48px;
+    background: linear-gradient(135deg, #1890FF 0%, #096DD9 100%);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.3s;
+    box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+  }
+
+  .btn-primary:hover {
+    opacity: 0.9;
+  }
+
+  .btn-secondary {
+    width: 100%;
+    height: 44px;
+    background: #fff;
+    color: #666;
+    border: 1px solid #D9D9D9;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.3s, color 0.3s;
+  }
+
+  .btn-secondary:hover {
+    border-color: #1890FF;
+    color: #1890FF;
+  }
+
+  .tips-section {
+    margin-top: 24px;
+    border-top: 1px solid #F0F0F0;
+    padding-top: 16px;
+    text-align: left;
+  }
+
+  .tip-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 13px;
+    color: #999;
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+
+  .tip-item:last-child {
+    margin-bottom: 0;
+  }
+
+  .tip-icon {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    margin-top: 1px;
+  }
+
+  @media (max-width: 768px) {
+    body {
+      padding: 0;
+      align-items: stretch;
+    }
+
+    .container {
+      max-width: 100%;
+      border-radius: 0;
+      box-shadow: none;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .page-header {
+      padding: 32px 16px 24px;
+    }
+
+    .page-body {
+      padding: 24px 16px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .btn-primary {
+      height: 44px;
+      font-size: 15px;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="page-header">
+    <div class="error-icon">
+      <svg width="40" height="40" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="32" cy="32" r="28" fill="#FFF1F0" stroke="#FF4D4F" stroke-width="2"/>
+        <path d="M32 20v14M32 42v0" stroke="#FF4D4F" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="error-code">错误 ${statusCode}</div>
+    <h1 class="error-title">${escapeHtml(title)}</h1>
+  </div>
+
+  <div class="page-body">
+    <p class="error-message">${escapeHtml(message)}</p>
+    <div class="actions">
+      ${showBackButton ? `<button class="btn-secondary" onclick="window.history.back()">返回上一页</button>` : ''}
+      <button class="btn-primary" onclick="window.location.href='/'">返回首页</button>
+    </div>
+
+    <div class="tips-section">
+      <div class="tip-item">
+        <svg class="tip-icon" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="7" stroke="#1890FF" stroke-width="1.5" fill="none"/>
+          <path d="M8 7v4M8 5v0" stroke="#1890FF" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <span>请确认文件码是否正确，或联系分享者重新获取链接</span>
+      </div>
+      <div class="tip-item">
+        <svg class="tip-icon" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="7" stroke="#1890FF" stroke-width="1.5" fill="none"/>
+          <path d="M8 7v4M8 5v0" stroke="#1890FF" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <span>分享可能已被取消或已过期，请联系分享者重新分享</span>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>`;
+}
+
+export function sendErrorPage(res: ServerResponse, statusCode: number, title: string, message: string, showBackButton?: boolean): void {
+  const html = generateErrorHTML(statusCode, title, message, showBackButton);
+  res.writeHead(statusCode, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Access-Control-Allow-Origin': '*',
+  });
+  res.end(html);
 }
 
 /**

@@ -18,6 +18,7 @@ import {
 } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { LogEntry } from '../../shared/types';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const { Text, Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -26,6 +27,7 @@ type LogTypeFilter = 'all' | 'share' | 'download' | 'error' | 'system';
 type TimeRange = 'today' | 'yesterday' | '7days' | '30days' | 'custom';
 
 const LogPage: React.FC = () => {
+  const { locale } = useLanguage();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [typeFilter, setTypeFilter] = useState<LogTypeFilter>('all');
@@ -131,7 +133,7 @@ const LogPage: React.FC = () => {
         <span className={`log-type ${item.type}`}>{tagInfo.label}</span>
         <span
           className="log-message"
-          style={isError ? { color: '#ff4d4f' } : undefined}
+          style={isError ? { color: 'var(--color-error)' } : undefined}
         >
           {item.message}
         </span>
@@ -150,18 +152,18 @@ const LogPage: React.FC = () => {
         flexWrap: 'wrap',
         gap: 12,
       }}>
-        <Title level={4} style={{ margin: 0 }}>日志查看</Title>
+        <Title level={4} style={{ margin: 0 }}>{locale.log.title}</Title>
         <Space wrap>
           <Select
             value={timeRange}
             onChange={handleTimeRangeChange}
             style={{ width: 120 }}
             options={[
-              { value: 'today', label: '今日' },
-              { value: 'yesterday', label: '昨日' },
-              { value: '7days', label: '近 7 天' },
-              { value: '30days', label: '近 30 天' },
-              { value: 'custom', label: '自定义' },
+              { value: 'today', label: locale.log.today },
+              { value: 'yesterday', label: locale.log.yesterday },
+              { value: '7days', label: locale.log.last7Days },
+              { value: '30days', label: locale.log.last30Days },
+              { value: 'custom', label: locale.log.custom },
             ]}
           />
           {timeRange === 'custom' && (
@@ -176,36 +178,36 @@ const LogPage: React.FC = () => {
             onChange={setTypeFilter}
             style={{ width: 110 }}
             options={[
-              { value: 'all', label: '全部类型' },
-              { value: 'share', label: '分享' },
-              { value: 'download', label: '下载' },
-              { value: 'error', label: '异常' },
-              { value: 'system', label: '系统' },
+              { value: 'all', label: locale.log.allTypes },
+              { value: 'share', label: locale.log.share },
+              { value: 'download', label: locale.log.download },
+              { value: 'error', label: locale.log.error },
+              { value: 'system', label: locale.log.system },
             ]}
           />
-          <Tooltip title="刷新日志">
+          <Tooltip title={locale.common.refresh}>
             <Button icon={<ReloadOutlined />} onClick={fetchLogs} />
           </Tooltip>
           <Button
             icon={<DeleteOutlined />}
             onClick={handleClearLogs}
           >
-            清理过期日志
+            {locale.log.clearLogs}
           </Button>
           <Button
             icon={<ExportOutlined />}
             onClick={handleExportLogs}
           >
-            导出日志
+            {locale.log.exportLogs}
           </Button>
         </Space>
       </div>
 
       {/* 日志列表 */}
       <div style={{
-        background: '#fff',
+        background: 'var(--bg-secondary)',
         borderRadius: 8,
-        border: '1px solid #e8e8e8',
+        border: '1px solid var(--border-primary)',
         overflow: 'hidden',
       }}>
         <List
@@ -214,21 +216,21 @@ const LogPage: React.FC = () => {
           renderItem={renderLogItem}
           locale={{
             emptyText: (
-              <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>
-                <CalendarOutlined style={{ fontSize: 36, marginBottom: 12, color: '#d9d9d9' }} />
-                <div>暂无日志记录</div>
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                <CalendarOutlined style={{ fontSize: 36, marginBottom: 12, color: 'var(--border-dashed)' }} />
+                <div>{locale.log.noLogs}</div>
               </div>
             ),
           }}
         />
         <div style={{
           padding: '8px 16px',
-          borderTop: '1px solid #f0f0f0',
+          borderTop: '1px solid var(--border-secondary)',
           textAlign: 'center',
-          color: '#999',
+          color: 'var(--text-tertiary)',
           fontSize: 12,
         }}>
-          共 {totalCount} 条日志
+          {locale.log.totalLogs.replace('{count}', totalCount.toString())}
         </div>
       </div>
     </div>

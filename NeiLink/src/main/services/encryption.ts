@@ -130,3 +130,24 @@ export function decryptFile(inputPath: string, outputPath: string, key: string):
     }
   });
 }
+
+/**
+ * 创建加密流（用于实时传输，不落地本地文件）
+ * 返回加密器和使用的 IV
+ *
+ * @param key hex 格式的密钥字符串
+ * @param iv 可选的自定义 IV（用于断点续传）
+ * @returns { cipher: crypto.Cipher, iv: Buffer }
+ */
+export function createEncryptStream(
+  key: string,
+  iv?: Buffer
+): {
+  cipher: crypto.Cipher;
+  iv: Buffer;
+} {
+  const keyBuffer = Buffer.from(key, 'hex');
+  const finalIv = iv || crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv('aes-256-cbc', keyBuffer, finalIv);
+  return { cipher, iv: finalIv };
+}

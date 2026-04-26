@@ -12,6 +12,7 @@ import {
   message,
 } from 'antd';
 import { CopyOutlined, LinkOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const { Text, Paragraph } = Typography;
 
@@ -54,6 +55,7 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
+  const { locale } = useLanguage();
   const [form] = Form.useForm();
   const [useExtractionCode, setUseExtractionCode] = useState(defaultExtractCode);
   const [loading, setLoading] = useState(false);
@@ -118,7 +120,7 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
 
   return (
     <Modal
-      title={shareResult ? '分享成功' : '分享配置'}
+      title={shareResult ? locale.shareConfig.shareSuccess : locale.shareConfig.title}
       open={visible}
       onCancel={handleClose}
       footer={null}
@@ -132,13 +134,13 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
               style={{ fontSize: 48, color: '#52c41a', marginBottom: 12 }}
             />
             <div style={{ fontSize: 16, fontWeight: 600, color: '#333' }}>
-              文件分享创建成功
+              {locale.shareConfig.shareSuccess}
             </div>
           </div>
 
           <div style={{ background: '#f6ffed', borderRadius: 8, padding: 16, marginBottom: 16 }}>
             <div style={{ marginBottom: 8 }}>
-              <Text type="secondary">分享链接：</Text>
+              <Text type="secondary">{locale.shareConfig.shareLink}：</Text>
               <Paragraph
                 copyable={{ text: shareResult.shareLink }}
                 style={{ margin: 0, wordBreak: 'break-all' }}
@@ -148,7 +150,7 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
             </div>
             {shareResult.extractionCode && (
               <div>
-                <Text type="secondary">提取码：</Text>
+                <Text type="secondary">{locale.shareConfig.extractCode}：</Text>
                 <Text strong style={{ fontSize: 16, letterSpacing: 2 }}>
                   {shareResult.extractionCode}
                 </Text>
@@ -162,9 +164,9 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
               icon={<CopyOutlined />}
               onClick={copyLink}
             >
-              复制分享信息
+              {locale.shareConfig.copyShareInfo}
             </Button>
-            <Button onClick={handleClose}>关闭</Button>
+            <Button onClick={handleClose}>{locale.common.close}</Button>
           </Space>
 
           {shareResult.hotspotName && (
@@ -173,11 +175,11 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
               showIcon
               icon={<LinkOutlined />}
               style={{ marginTop: 16 }}
-              message="热点连接信息"
+              message={locale.shareConfig.hotspotInfo}
               description={
                 <div>
-                  <div>热点名称: {shareResult.hotspotName}</div>
-                  <div>热点密码: {shareResult.hotspotPassword}</div>
+                  <div>{locale.shareConfig.hotspotName}: {shareResult.hotspotName}</div>
+                  <div>{locale.shareConfig.hotspotPassword}: {shareResult.hotspotPassword}</div>
                 </div>
               }
             />
@@ -195,7 +197,7 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
             maxConcurrentDownloads: defaultMaxConcurrent,
           }}
         >
-          <Form.Item label="文件名称">
+          <Form.Item label={locale.shareConfig.fileName}>
             <Input
               value={fileName}
               readOnly
@@ -203,7 +205,7 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
             />
           </Form.Item>
 
-          <Form.Item label="提取码设置">
+          <Form.Item label={locale.shareConfig.extractCodeSetting}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <Switch
                 checked={useExtractionCode}
@@ -214,16 +216,16 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
                   name="extractionCode"
                   noStyle
                   rules={[
-                    { required: true, message: '请输入提取码' },
-                    { min: 6, max: 12, message: '提取码长度为6-12位' },
+                    { required: true, message: locale.shareConfig.enterExtractCode },
+                    { min: 6, max: 12, message: locale.shareConfig.extractCodeLength },
                     {
                       pattern: /^[a-zA-Z0-9]+$/,
-                      message: '仅支持数字和字母',
+                      message: locale.shareConfig.extractCodeFormat,
                     },
                   ]}
                 >
                   <Input
-                    placeholder="请输入6-12位提取码"
+                    placeholder={locale.shareConfig.extractCodePlaceholder}
                     maxLength={12}
                     style={{ width: 200 }}
                   />
@@ -231,57 +233,57 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
               )}
             </div>
             <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
-              支持纯数字、字母、混合格式，6-12位
+              {locale.shareConfig.extractCodeHint}
             </div>
           </Form.Item>
 
           <Form.Item
             name="expiry"
-            label="有效期"
+            label={locale.shareConfig.expiry}
           >
             <Select>
-              <Select.Option value="1h">1 小时</Select.Option>
-              <Select.Option value="6h">6 小时</Select.Option>
-              <Select.Option value="24h">24 小时</Select.Option>
-              <Select.Option value="7d">7 天</Select.Option>
-              <Select.Option value="30d">30 天</Select.Option>
-              <Select.Option value="permanent">永久</Select.Option>
+              <Select.Option value="1h">1 {locale.shareConfig.hour}</Select.Option>
+              <Select.Option value="6h">6 {locale.shareConfig.hour}</Select.Option>
+              <Select.Option value="24h">24 {locale.shareConfig.hour}</Select.Option>
+              <Select.Option value="7d">7 {locale.shareConfig.day}</Select.Option>
+              <Select.Option value="30d">30 {locale.shareConfig.day}</Select.Option>
+              <Select.Option value="permanent">{locale.shareConfig.permanent}</Select.Option>
             </Select>
           </Form.Item>
 
           <Form.Item
             name="maxDownloads"
-            label="最大下载次数"
+            label={locale.shareConfig.maxDownloads}
           >
             <Select>
               <Select.Option value={1}>1 次</Select.Option>
               <Select.Option value={5}>5 次</Select.Option>
               <Select.Option value={10}>10 次</Select.Option>
-              <Select.Option value={-1}>不限次数</Select.Option>
+              <Select.Option value={-1}>{locale.shareConfig.unlimited}</Select.Option>
             </Select>
           </Form.Item>
 
           <Form.Item
             name="maxConcurrentDownloads"
-            label="最大同时下载数"
+            label={locale.shareConfig.maxConcurrentDownloads}
           >
             <Select>
               <Select.Option value={3}>3 个</Select.Option>
               <Select.Option value={5}>5 个</Select.Option>
               <Select.Option value={10}>10 个</Select.Option>
-              <Select.Option value={-1}>不限</Select.Option>
+              <Select.Option value={-1}>{locale.shareConfig.unlimited}</Select.Option>
             </Select>
           </Form.Item>
 
           <div style={{ textAlign: 'right' }}>
             <Space>
-              <Button onClick={onCancel}>取消</Button>
+              <Button onClick={onCancel}>{locale.common.cancel}</Button>
               <Button
                 type="primary"
                 loading={loading}
                 onClick={handleConfirm}
               >
-                确认分享
+                {locale.shareConfig.confirmShare}
               </Button>
             </Space>
           </div>

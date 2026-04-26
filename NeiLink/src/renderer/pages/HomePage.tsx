@@ -11,6 +11,7 @@ import {
 import ShareConfigModal, { ShareFormConfig, ShareResult } from '../components/ShareConfigModal';
 import HotspotConfigModal from '../components/HotspotConfigModal';
 import { NetworkInfo, ShareConfig } from '../../shared/types';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const { Text, Title } = Typography;
 
@@ -22,6 +23,7 @@ interface HotspotStatus {
 }
 
 const HomePage: React.FC = () => {
+  const { locale } = useLanguage();
   const [networkStatus, setNetworkStatus] = useState<NetworkInfo>({
     type: 'none',
     ip: '0.0.0.0',
@@ -290,19 +292,19 @@ const HomePage: React.FC = () => {
             {renderNetworkIcon()}
             <div>
               <div style={{ fontSize: 15, fontWeight: 600, color: '#333' }}>
-                {networkStatus.isOnline ? '网络已连接' : '网络未连接'}
+                {networkStatus.isOnline ? locale.network.connected : locale.network.disconnected}
               </div>
               <div style={{ fontSize: 13, color: '#999', marginTop: 2 }}>
                 {networkStatus.isOnline ? 
-                  (networkStatus.type === 'wifi' ? 'Wi-Fi' : '以太网') :
-                  '未检测到网络'}
+                  (networkStatus.type === 'wifi' ? 'Wi-Fi' : locale.network.ethernet) :
+                  locale.network.noNetwork}
               </div>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
             {networkStatus.adapters.length > 1 && (
               <div style={{ minWidth: 200 }}>
-                <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>网络适配器</div>
+                <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>{locale.network.adapter}</div>
                 <Select
                   style={{ width: '100%' }}
                   value={networkStatus.selectedAdapter}
@@ -315,9 +317,9 @@ const HomePage: React.FC = () => {
               </div>
             )}
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>本地 IP</div>
+              <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>{locale.network.localIP}</div>
               <Text
-                copyable={{ tooltips: ['复制', '已复制'] }}
+                copyable={{ tooltips: [locale.common.copy, locale.common.copied] }}
                 style={{ fontSize: 16, fontWeight: 600 }}
                 onClick={copyIP}
               >
@@ -342,10 +344,10 @@ const HomePage: React.FC = () => {
             <CloudUploadOutlined />
           </div>
           <div className="drop-zone-text">
-            拖拽文件/文件夹至此处发起分享
+            {locale.home.dragText}
           </div>
           <div className="drop-zone-hint">
-            支持任意类型文件，拖拽后可配置分享参数
+            {locale.home.dropHint}
           </div>
           <Space style={{ marginTop: 20 }}>
             <Button
@@ -353,13 +355,13 @@ const HomePage: React.FC = () => {
               icon={<FileAddOutlined />}
               onClick={handleSelectFile}
             >
-              选择文件
+              {locale.home.selectFile}
             </Button>
             <Button
               icon={<FolderAddOutlined />}
               onClick={handleSelectFolder}
             >
-              选择文件夹
+              {locale.home.selectFolder}
             </Button>
           </Space>
         </div>
@@ -369,7 +371,7 @@ const HomePage: React.FC = () => {
       <div className="hotspot-section">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <Title level={5} style={{ margin: 0 }}>移动热点</Title>
+            <Title level={5} style={{ margin: 0 }}>{locale.hotspot.title}</Title>
             <Switch
               checked={hotspotInfo.enabled}
               onChange={handleHotspotToggle}
@@ -381,19 +383,19 @@ const HomePage: React.FC = () => {
             type="link"
             onClick={() => setHotspotModalVisible(true)}
           >
-            修改热点配置
+            {locale.hotspot.title}
           </Button>
         </div>
 
         {hotspotInfo.enabled && hotspotInfo.ssid && (
           <div style={{ marginTop: 12, display: 'flex', gap: 24 }}>
             <div>
-              <Text type="secondary">热点名称：</Text>
+              <Text type="secondary">{locale.hotspot.ssid}：</Text>
               <Text strong>{hotspotInfo.ssid}</Text>
             </div>
             {hotspotInfo.password && (
               <div>
-                <Text type="secondary">热点密码：</Text>
+                <Text type="secondary">{locale.hotspot.password}：</Text>
                 <Text strong>{hotspotInfo.password}</Text>
               </div>
             )}
