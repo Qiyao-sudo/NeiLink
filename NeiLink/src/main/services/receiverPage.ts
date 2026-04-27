@@ -654,7 +654,7 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
           id="extract-code-input"
           class="verify-input"
           placeholder="请输入提取码"
-          maxlength="12"
+          maxlength="8"
           autocomplete="off"
         />
       </div>
@@ -947,7 +947,7 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
   // ===== 提取码验证 =====
   extractCodeInput.addEventListener('input', function() {
     var val = extractCodeInput.value.trim();
-    verifyBtn.disabled = val.length < 6 || val.length > 12;
+    verifyBtn.disabled = val.length < 4 || val.length > 8;
     // 清除错误状态
     extractCodeInput.classList.remove('error');
     verifyError.textContent = '';
@@ -963,7 +963,7 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
 
   function verifyExtractCode() {
     var code = extractCodeInput.value.trim();
-    if (code.length < 6 || code.length > 12) return;
+    if (code.length < 4 || code.length > 8) return;
 
     verifyBtn.disabled = true;
     verifyBtn.textContent = '验证中...';

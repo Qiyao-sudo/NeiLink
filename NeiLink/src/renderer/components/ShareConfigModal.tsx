@@ -217,7 +217,7 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
                   noStyle
                   rules={[
                     { required: true, message: locale.shareConfig.enterExtractCode },
-                    { min: 6, max: 12, message: locale.shareConfig.extractCodeLength },
+                    { min: 4, max: 8, message: locale.shareConfig.extractCodeLength },
                     {
                       pattern: /^[a-zA-Z0-9]+$/,
                       message: locale.shareConfig.extractCodeFormat,
@@ -226,7 +226,7 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
                 >
                   <Input
                     placeholder={locale.shareConfig.extractCodePlaceholder}
-                    maxLength={12}
+                    maxLength={8}
                     style={{ width: 200 }}
                   />
                 </Form.Item>

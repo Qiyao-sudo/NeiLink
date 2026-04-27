@@ -541,11 +541,11 @@ const ShareManagePage: React.FC = () => {
             name="extractCode"
             label="提取码"
             rules={[
-              { min: 6, max: 12, message: '提取码长度为6-12位' },
+              { min: 4, max: 8, message: '提取码长度为4-8位' },
               { pattern: /^[a-zA-Z0-9]*$/, message: '仅支持数字和字母' },
             ]}
           >
-            <Input placeholder="留空则不使用提取码" maxLength={12} />
+            <Input placeholder="留空则不使用提取码" maxLength={8} />
           </Form.Item>
 
           <Form.Item
