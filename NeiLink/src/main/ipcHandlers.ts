@@ -203,11 +203,12 @@ export function registerIpcHandlers(
       const fullSettings = await settingsManager.getSettings();
       shareManager.updateSettings(fullSettings);
       
-      // 更新 httpServer 中的用户设置
+      // 更新 httpServer 中的用户设置和限速设置
       httpServer.updateUserSettings({
         userName: fullSettings.userName,
         userAvatar: fullSettings.userAvatar
       });
+      httpServer.updateSpeedLimit(fullSettings.downloadSpeedLimit || 0);
       
       // 通知渲染进程用户设置已更新
       if (mainWindow && !mainWindow.isDestroyed()) {

@@ -74,6 +74,7 @@ export interface SystemSettings {
   hotspotPrefix: string;
   hotspotPasswordLength: number;
   encryptionBits: 128 | 256;
+  downloadSpeedLimit: number; // KB/s，0 表示不限速
   rateLimitEnabled: boolean;
   rateLimitMaxAttempts: number;
   rateLimitBanDuration: number; // 分钟

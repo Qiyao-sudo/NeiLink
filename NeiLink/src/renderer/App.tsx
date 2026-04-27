@@ -102,6 +102,7 @@ const App: React.FC = () => {
     hotspotPrefix: 'NeiLink',
     hotspotPasswordLength: 8,
     encryptionBits: 256,
+    downloadSpeedLimit: 0,
     rateLimitEnabled: true,
     rateLimitMaxAttempts: 10,
     rateLimitBanDuration: 30,

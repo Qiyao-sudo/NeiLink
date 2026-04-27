@@ -52,6 +52,7 @@ interface AppSettings {
 
   // 网络设置
   port: number;
+  downloadSpeedLimit: number;
   hotspotPrefix: string;
   hotspotPasswordLength: number;
 
@@ -79,6 +80,7 @@ const defaultSettings: AppSettings = {
   language: 'zh-CN',
   theme: 'auto',
   port: 8080,
+  downloadSpeedLimit: 0,
   hotspotPrefix: 'NeiLink',
   hotspotPasswordLength: 8,
   encryptionBits: 256,
@@ -602,6 +604,26 @@ const SettingsPage: React.FC = () => {
               {locale.settings.detectPort}
             </Button>
           </Space>
+        </div>
+
+        <div className="settings-item">
+          <div>
+            <div className="settings-label">{locale.settings.downloadSpeedLimit}</div>
+            <div className="settings-desc">{locale.settings.downloadSpeedLimitHint}</div>
+          </div>
+          <Select
+            value={settings.downloadSpeedLimit}
+            onChange={(val) => updateSetting('downloadSpeedLimit', val)}
+            style={{ width: 140 }}
+            options={[
+              { value: 0, label: locale.settings.downloadSpeedLimitUnlimited },
+              { value: 1024, label: '1 MB/s' },
+              { value: 5120, label: '5 MB/s' },
+              { value: 10240, label: '10 MB/s' },
+              { value: 51200, label: '50 MB/s' },
+              { value: 102400, label: '100 MB/s' },
+            ]}
+          />
         </div>
 
         <div className="settings-item">

@@ -7,6 +7,7 @@ import * as http from 'http';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { Transform, TransformCallback } from 'stream';
 import archiver from 'archiver';
 import { ShareConfig, SystemSettings } from '../../shared/types';
 import { Logger } from './logger';
@@ -53,6 +54,8 @@ const rateLimitRecords: Map<string, RateLimitRecord> = new Map();
 
 let userSettings: Partial<SystemSettings> = {};
 
+let downloadSpeedLimit: number = 0; // KB/s, 0 = 不限制
+
 // =============================================================================
 // 工具函数
 // =============================================================================
@@ -87,6 +90,52 @@ function getClientIP(req: http.IncomingMessage): string {
     return ip.substring(7);
   }
   return ip || 'unknown';
+}
+
+class ThrottleTransform extends Transform {
+  private bytesPerSecond: number;
+  private startTime: number = 0;
+  private bytesSent: number = 0;
+
+  constructor(bytesPerSecond: number) {
+    super();
+    this.bytesPerSecond = bytesPerSecond;
+  }
+
+  _transform(chunk: Buffer, _encoding: BufferEncoding, callback: TransformCallback): void {
+    if (this.bytesPerSecond <= 0) {
+      this.push(chunk);
+      callback();
+      return;
+    }
+
+    if (this.startTime === 0) {
+      this.startTime = Date.now();
+    }
+
+    this.bytesSent += chunk.length;
+
+    // 按目标速率计算当前字节数对应的预期耗时
+    const expectedElapsed = (this.bytesSent / this.bytesPerSecond) * 1000;
+    const actualElapsed = Date.now() - this.startTime;
+
+    if (actualElapsed >= expectedElapsed) {
+      // 落后于预期进度，立即发送
+      this.push(chunk);
+      callback();
+    } else {
+      // 超前了，延迟发送
+      const delay = Math.ceil(expectedElapsed - actualElapsed);
+      setTimeout(() => {
+        this.push(chunk);
+        callback();
+      }, delay);
+    }
+  }
+}
+
+function createThrottle(): ThrottleTransform {
+  return new ThrottleTransform(downloadSpeedLimit * 1024); // KB/s -> bytes/s
 }
 
 function sendJSON(res: http.ServerResponse, statusCode: number, data: unknown): void {
@@ -306,7 +355,7 @@ function handleDownloadAPI(
 
     const inputStream = fs.createReadStream(share.encryptedFilePath, { start: 16 });
     const decipher = crypto.createDecipheriv('aes-256-cbc', keyBuffer, ivBuffer);
-    inputStream.pipe(decipher).pipe(res);
+    inputStream.pipe(decipher).pipe(createThrottle()).pipe(res);
     return true;
   }
 
@@ -317,7 +366,7 @@ function handleDownloadAPI(
       const archive = archiver('zip', { zlib: { level: 1 } });
       const folderName = path.basename(share.filePath);
       archive.directory(share.filePath, folderName);
-      archive.pipe(res);
+      archive.pipe(createThrottle()).pipe(res);
       archive.on('error', (err) => {
         if (!res.headersSent) {
           sendErrorPage(res, 500, '服务器错误', '文件压缩失败，请稍后再试');
@@ -330,7 +379,7 @@ function handleDownloadAPI(
       headers['Content-Length'] = stat.size;
       res.writeHead(200, headers);
       const inputStream = fs.createReadStream(share.filePath);
-      inputStream.pipe(res);
+      inputStream.pipe(createThrottle()).pipe(res);
       inputStream.on('error', (err) => {
         if (!res.headersSent) {
           sendErrorPage(res, 500, '服务器错误', '文件读取失败，请稍后再试');
@@ -493,6 +542,10 @@ export function updateRateLimitSettings(settings: {
   rateLimitBanDuration?: number;
 }): void {
   rateLimitSettings = { ...rateLimitSettings, ...settings };
+}
+
+export function updateSpeedLimit(kbps: number): void {
+  downloadSpeedLimit = kbps;
 }
 
 // =============================================================================

@@ -143,6 +143,10 @@ export interface Locale {
     hotspotPasswordLengthHint: string;
     encryptionBits: string;
     encryptionBitsHint: string;
+    downloadSpeedLimit: string;
+    downloadSpeedLimitHint: string;
+    downloadSpeedLimitUnlimited: string;
+    downloadSpeedLimitUnit: string;
     rateLimitEnabled: string;
     rateLimitEnabledHint: string;
     rateLimitMaxAttempts: string;

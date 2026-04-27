@@ -6,7 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { SystemSettings } from '../../shared/types';
-import { updateRateLimitSettings } from './httpServer';
+import { updateRateLimitSettings, updateSpeedLimit } from './httpServer';
 
 /** 默认系统设置 */
 const DEFAULT_SETTINGS: SystemSettings = {
@@ -23,6 +23,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   rateLimitEnabled: true,
   rateLimitMaxAttempts: 10,
   rateLimitBanDuration: 30, // 30分钟
+  downloadSpeedLimit: 0, // 0 表示不限速
   logRetentionDays: 30,
   logStoragePath: '', // 运行时由 app.getPath('userData') 填充
   clearSharesOnExit: false, // 默认不删除
@@ -115,6 +116,9 @@ export class SettingsManager {
         rateLimitMaxAttempts: this.settings.rateLimitMaxAttempts,
         rateLimitBanDuration: this.settings.rateLimitBanDuration,
       });
+
+      // 初始化时更新 httpServer 的下载限速设置
+      updateSpeedLimit(this.settings.downloadSpeedLimit);
     } catch (err) {
       console.error('加载设置失败，使用默认设置:', err);
       await this.saveSettings(this.settings);
@@ -148,6 +152,11 @@ export class SettingsManager {
         rateLimitMaxAttempts: this.settings.rateLimitMaxAttempts,
         rateLimitBanDuration: this.settings.rateLimitBanDuration,
       });
+
+      // 更新 httpServer 的下载限速设置
+      if (settings.downloadSpeedLimit !== undefined) {
+        updateSpeedLimit(settings.downloadSpeedLimit);
+      }
 
       // 确保目录存在
       const dir = path.dirname(this.settingsFilePath);
