@@ -4,6 +4,8 @@
  */
 
 import type { ServerResponse } from 'http';
+import type { Locale } from '../../shared/i18n/types';
+import { enUS } from '../../shared/i18n';
 
 export interface ShareInfo {
   fileName: string;
@@ -84,7 +86,7 @@ function getFileIconSVG(fileName: string): string {
 /**
  * 生成接收端HTML页面
  */
-export function generateReceiverHTML(shareInfo: ShareInfo): string {
+export function generateReceiverHTML(shareInfo: ShareInfo, locale: Locale): string {
   const {
     fileName,
     fileSize,
@@ -100,19 +102,19 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
 
   const formattedSize = formatFileSize(fileSize);
   const fileIcon = getFileIconSVG(fileName);
-  const expiryText = expiryTime ? formatExpiryTime(expiryTime) : '永久有效';
+  const expiryText = expiryTime ? formatExpiryTime(expiryTime, locale) : locale.receiver.time.permanent;
   
   // 确定显示的上传者名称：优先使用 userName，然后是 uploaderName
   const displayName = userName || uploaderName;
 
   return `<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="${locale === enUS ? 'en' : 'zh-CN'}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <link rel="icon" type="image/x-icon" href="/NeiLink.ico">
 <link rel="shortcut icon" type="image/x-icon" href="/NeiLink.ico">
-<title>文件分享 - ${escapeHtml(fileName)}</title>
+<title>${locale.receiver.download.title} - ${escapeHtml(fileName)}</title>
 <style>
   * {
     margin: 0;
@@ -634,12 +636,12 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
 
   <!-- ===== 页面头部 ===== -->
   <div class="page-header">
-    ${userAvatar ? `<img class="logo-icon" src="${userAvatar}" alt="用户头像" style="border-radius: 50%; object-fit: cover;"/>` : `<svg class="logo-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    ${userAvatar ? `<img class="logo-icon" src="${userAvatar}" alt="${locale.receiver.userAvatar}" style="border-radius: 50%; object-fit: cover;"/>` : `<svg class="logo-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
       <circle cx="24" cy="24" r="20" fill="#1890FF" opacity="0.1"/>
       <path d="M24 16c4.418 0 8 3.582 8 8s-3.582 8-8 8-8-3.582-8-8 3.582-8 8-8zm0 2c-3.314 0-6 2.686-6 6s2.686 6 6 6 6-2.686 6-6-2.686-6-6-6zm0-4c-5.523 0-10 4.477-10 10s4.477 10 10 10 10-4.477 10-10-4.477-10-10-10z" fill="#1890FF" opacity="0.6"/>
     </svg>`}
     <h1>${escapeHtml(displayName)}</h1>
-    <p class="subtitle">分享文件</p>
+    <p class="subtitle">${locale.receiver.download.subtitle}</p>
   </div>
 
   <!-- ===== 验证页面 ===== -->
@@ -653,18 +655,18 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
           type="text"
           id="extract-code-input"
           class="verify-input"
-          placeholder="请输入提取码"
+          placeholder="${locale.receiver.download.extractCodePlaceholder}"
           maxlength="8"
           autocomplete="off"
         />
       </div>
-      <p class="verify-hint">支持纯数字、字母、混合格式</p>
+      <p class="verify-hint">${locale.receiver.download.extractCodeHint}</p>
       <div id="verify-error" class="verify-error"></div>
       <div id="verify-rate-limit" class="verify-rate-limit" style="display:none;">
-        操作频繁，请10分钟后再试
+        ${locale.receiver.download.rateLimitMessage}
       </div>
-      <button id="verify-btn" class="verify-btn" disabled>确认验证</button>
-      <p class="expiry-info">分享有效期：${escapeHtml(expiryText)}</p>
+      <button id="verify-btn" class="verify-btn" disabled>${locale.receiver.download.verifyButton}</button>
+      <p class="expiry-info">${locale.receiver.download.expiryLabel}${escapeHtml(expiryText)}</p>
     </div>
   </div>
 
@@ -680,24 +682,24 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
           <div class="file-name" id="display-file-name">${escapeHtml(fileName)}</div>
           <div class="file-meta">
               <div class="file-meta-item">
-                <span class="meta-label">大小：</span>
+                <span class="meta-label">${locale.receiver.download.fileSize}</span>
                 <span>${escapeHtml(formattedSize)}</span>
               </div>
               <div class="file-meta-item">
-                <span class="meta-label">上传者：</span>
+                <span class="meta-label">${locale.receiver.download.uploader}</span>
                 <span>${escapeHtml(displayName)}</span>
               </div>
             <div class="file-meta-item">
-              <span class="meta-label">有效期：</span>
+              <span class="meta-label">${locale.receiver.download.expiry}</span>
               <span>${escapeHtml(expiryText)}</span>
             </div>
             ${remainingDownloads !== undefined ? `
             <div class="file-meta-item">
-              <span class="meta-label">剩余次数：</span>
+              <span class="meta-label">${locale.receiver.download.remaining}</span>
               <span>${remainingDownloads}</span>
             </div>` : ''}
           </div>
-          ${isFolder ? '<div class="folder-badge">ZIP 打包下载</div>' : ''}
+          ${isFolder ? '<div class="folder-badge">' + locale.receiver.download.zipDownload + '</div>' : ''}
         </div>
       </div>
     </div>
@@ -708,11 +710,11 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
         <svg viewBox="0 0 20 20" fill="currentColor">
           <path d="M10 3v10m0 0l-3.5-3.5M10 13l3.5-3.5M4 16h12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        下载
+        ${locale.receiver.download.downloadButton}
       </button>
       <div id="resume-actions" class="resume-actions">
-        <button id="resume-btn" class="resume-btn continue">继续下载</button>
-        <button id="restart-btn" class="resume-btn restart">重新下载</button>
+        <button id="resume-btn" class="resume-btn continue">${locale.receiver.download.resumeButton}</button>
+        <button id="restart-btn" class="resume-btn restart">${locale.receiver.download.restartButton}</button>
       </div>
     </div>
 
@@ -735,7 +737,7 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
         <circle cx="24" cy="24" r="20" stroke="#52C41A" stroke-width="2" fill="none"/>
         <path d="M15 24l6 6 12-12" stroke="#52C41A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-      <div class="success-text">下载完成</div>
+      <div class="success-text">${locale.receiver.download.downloadComplete}</div>
     </div>
 
     <!-- 提示信息区 -->
@@ -745,14 +747,14 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
           <circle cx="8" cy="8" r="7" stroke="#1890FF" stroke-width="1.5" fill="none"/>
           <path d="M8 7v4M8 5v0" stroke="#1890FF" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
-        <span>下载完成后可直接打开文件</span>
+        <span>${locale.receiver.download.tip1}</span>
       </div>
       <div class="tip-item">
         <svg class="tip-icon" viewBox="0 0 16 16" fill="none">
           <circle cx="8" cy="8" r="7" stroke="#1890FF" stroke-width="1.5" fill="none"/>
           <path d="M8 7v4M8 5v0" stroke="#1890FF" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
-        <span>若下载中断，重新访问链接即可继续下载</span>
+        <span>${locale.receiver.download.tip2}</span>
       </div>
     </div>
   </div>
@@ -765,9 +767,9 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
         <circle cx="32" cy="32" r="28" stroke="#F5222D" stroke-width="2" fill="none"/>
         <path d="M32 20v14M32 42v0" stroke="#F5222D" stroke-width="3" stroke-linecap="round"/>
       </svg>
-      <div id="error-title" class="error-title">出错了</div>
-      <div id="error-message" class="error-message">请稍后再试</div>
-      <button id="error-btn" class="error-btn" onclick="window.history.back()">返回</button>
+      <div id="error-title" class="error-title">${locale.receiver.error.defaultTitle}</div>
+      <div id="error-message" class="error-message">${locale.receiver.error.defaultMessage}</div>
+      <button id="error-btn" class="error-btn" onclick="window.history.back()">${locale.receiver.error.back}</button>
     </div>
   </div>
 
@@ -776,6 +778,41 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
 <script>
 (function() {
   'use strict';
+
+  // ===== I18N =====
+  var __ = {
+    verifying: ${JSON.stringify(locale.receiver.download.verifying)},
+    verifyButton: ${JSON.stringify(locale.receiver.download.verifyButton)},
+    verificationFailed: ${JSON.stringify(locale.receiver.error.verificationFailed)},
+    downloadComplete: ${JSON.stringify(locale.receiver.download.downloadComplete)},
+    downloading: ${JSON.stringify(locale.receiver.download.downloading)},
+    download: ${JSON.stringify(locale.receiver.download.downloadButton)},
+    resume: ${JSON.stringify(locale.receiver.download.resumeButton)},
+    restart: ${JSON.stringify(locale.receiver.download.restartButton)},
+    fileNotFound: ${JSON.stringify(locale.receiver.error.fileNotFound)},
+    fileNotFoundMsg: ${JSON.stringify(locale.receiver.error.fileNotFoundMsg)},
+    shareExpired: ${JSON.stringify(locale.receiver.error.shareExpired)},
+    shareExpiredMsg: ${JSON.stringify(locale.receiver.error.shareExpiredMsg)},
+    noPermission: ${JSON.stringify(locale.receiver.error.noPermission)},
+    noPermissionMsg: ${JSON.stringify(locale.receiver.error.noPermissionMsg)},
+    networkError: ${JSON.stringify(locale.receiver.error.networkError)},
+    networkErrorMsg: ${JSON.stringify(locale.receiver.error.networkErrorMsg)},
+    downloadFailed: ${JSON.stringify(locale.receiver.error.downloadFailed)},
+    rateLimited: ${JSON.stringify(locale.receiver.error.rateLimited)},
+    back: ${JSON.stringify(locale.receiver.error.back)},
+    userAvatar: ${JSON.stringify(locale.receiver.userAvatar)},
+    uploader: ${JSON.stringify(locale.receiver.download.uploader)},
+    day: ${JSON.stringify(locale.receiver.time.day)},
+    hour: ${JSON.stringify(locale.receiver.time.hour)},
+    minute: ${JSON.stringify(locale.receiver.time.minute)},
+    second: ${JSON.stringify(locale.receiver.time.second)},
+    remaining: ${JSON.stringify(locale.receiver.time.remaining)},
+    expired: ${JSON.stringify(locale.receiver.time.expired)},
+    permanent: ${JSON.stringify(locale.receiver.time.permanent)},
+    aboutToExpire: ${JSON.stringify(locale.receiver.time.aboutToExpire)},
+    defaultError: ${JSON.stringify(locale.receiver.error.defaultMessage)},
+    errorTitle: ${JSON.stringify(locale.receiver.error.defaultTitle)}
+  };
 
   // ===== 配置 =====
   var CONFIG = {
@@ -890,7 +927,7 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
         if (!currentLogo || currentLogo.tagName !== 'IMG') {
           var img = document.createElement('img');
           img.className = 'logo-icon';
-          img.alt = '用户头像';
+          img.alt = __.userAvatar;
           img.style.borderRadius = '50%';
           img.style.objectFit = 'cover';
           if (currentLogo) currentLogo.replaceWith(img);
@@ -914,7 +951,7 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
     var uploaderElements = document.querySelectorAll('.file-meta-item');
     uploaderElements.forEach(function(el) {
       var label = el.querySelector('.meta-label');
-      if (label && label.textContent === '上传者：') {
+      if (label && label.textContent === __.uploader) {
         var valueSpan = el.querySelector('span:nth-child(2)');
         if (valueSpan) valueSpan.textContent = displayName;
       }
@@ -938,9 +975,9 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
 
   // ===== 显示错误页面 =====
   function showError(title, message, btnText) {
-    errorTitle.textContent = title || '出错了';
-    errorMessage.textContent = message || '请稍后再试';
-    errorBtn.textContent = btnText || '返回';
+    errorTitle.textContent = title || __.errorTitle;
+    errorMessage.textContent = message || __.defaultError;
+    errorBtn.textContent = btnText || __.back;
     showPage('error');
   }
 
@@ -966,7 +1003,7 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
     if (code.length < 4 || code.length > 8) return;
 
     verifyBtn.disabled = true;
-    verifyBtn.textContent = '验证中...';
+    verifyBtn.textContent = __.verifying;
     verifyError.textContent = '';
 
     fetch('/api/verify/' + CONFIG.shareId, {
@@ -977,10 +1014,10 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
     .then(function(res) {
       if (!res.ok) {
         return res.json().then(function(data) {
-          throw new Error(data.message || data.error || '验证失败');
+          throw new Error(data.message || data.error || __.verificationFailed);
         }).catch(function(e) {
-          if (e.message && e.message !== '验证失败') throw e;
-          throw new Error('验证失败');
+          if (e.message && e.message !== __.verificationFailed) throw e;
+          throw new Error(__.verificationFailed);
         });
       }
       return res.json();
@@ -994,18 +1031,18 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
       checkResumeDownload();
     })
     .catch(function(err) {
-      var msg = err.message || '验证失败';
-      if (msg.indexOf('频繁') !== -1 || msg.indexOf('rate') !== -1 || msg.indexOf('10分钟') !== -1) {
+      var msg = err.message || __.verificationFailed;
+      if (msg.indexOf('频繁') !== -1 || msg.indexOf('Rate') !== -1 || msg.indexOf('rate') !== -1 || msg.indexOf('10') !== -1) {
         // 频繁访问限制
         verifyRateLimit.style.display = 'block';
         extractCodeInput.disabled = true;
         verifyBtn.disabled = true;
-        verifyBtn.textContent = '确认验证';
+        verifyBtn.textContent = __.verifyButton;
       } else {
         verifyError.textContent = msg;
         extractCodeInput.classList.add('error');
         verifyBtn.disabled = false;
-        verifyBtn.textContent = '确认验证';
+        verifyBtn.textContent = __.verifyButton;
       }
     });
   }
@@ -1059,7 +1096,7 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
 
     // 更新UI状态
     downloadBtn.disabled = true;
-    downloadBtn.innerHTML = '<span class="loading-spinner"></span> 下载中...';
+    downloadBtn.innerHTML = '<span class="loading-spinner"></span> ' + __.downloading;
     resumeActions.classList.remove('show');
     progressSection.classList.add('show');
     downloadSuccess.classList.remove('show');
@@ -1110,13 +1147,13 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
         // 显示成功
         progressSection.classList.remove('show');
         downloadSuccess.classList.add('show');
-        downloadBtn.innerHTML = '<svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 3v10m0 0l-3.5-3.5M10 13l3.5-3.5M4 16h12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg> 下载完成';
+        downloadBtn.innerHTML = '<svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 3v10m0 0l-3.5-3.5M10 13l3.5-3.5M4 16h12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg> ' + __.downloadComplete;
       } else if (xhr.status === 416) {
-        // Range Not Satisfiable - 文件已完整下载
+        // Range Not Satisfiable - file already fully downloaded
         clearProgress();
         progressSection.classList.remove('show');
         downloadSuccess.classList.add('show');
-        downloadBtn.innerHTML = '<svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 3v10m0 0l-3.5-3.5M10 13l3.5-3.5M4 16h12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg> 下载完成';
+        downloadBtn.innerHTML = '<svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 3v10m0 0l-3.5-3.5M10 13l3.5-3.5M4 16h12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg> ' + __.downloadComplete;
       } else {
         handleDownloadError(xhr.status);
       }
@@ -1132,7 +1169,7 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
       isDownloading = false;
       currentXhr = null;
       downloadBtn.disabled = false;
-      downloadBtn.innerHTML = '<svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 3v10m0 0l-3.5-3.5M10 13l3.5-3.5M4 16h12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg> 下载';
+      downloadBtn.innerHTML = '<svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 3v10m0 0l-3.5-3.5M10 13l3.5-3.5M4 16h12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg> ' + __.download;
     };
 
     xhr.send();
@@ -1181,7 +1218,7 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
         var remaining = total - loaded;
         if (avgSpeed > 0) {
           var remainSec = remaining / avgSpeed;
-          progressRemaining.textContent = '剩余 ' + formatTime(remainSec);
+          progressRemaining.textContent = __.remaining + formatTime(remainSec);
         }
       }
 
@@ -1193,29 +1230,29 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
   // ===== 下载错误处理 =====
   function handleDownloadError(status) {
     downloadBtn.disabled = false;
-    downloadBtn.innerHTML = '<svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 3v10m0 0l-3.5-3.5M10 13l3.5-3.5M4 16h12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg> 重新下载';
+    downloadBtn.innerHTML = '<svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 3v10m0 0l-3.5-3.5M10 13l3.5-3.5M4 16h12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg> ' + __.restart;
 
-    var title = '下载失败';
-    var message = '请稍后再试';
+    var title = __.downloadFailed;
+    var message = __.defaultError;
 
     if (status === 404) {
-      title = '文件不存在';
-      message = '该分享链接对应的文件已被删除或不存在';
+      title = __.fileNotFound;
+      message = __.fileNotFoundMsg;
     } else if (status === 410) {
-      title = '分享已过期';
-      message = '该分享链接已过期，请联系分享者重新分享';
+      title = __.shareExpired;
+      message = __.shareExpiredMsg;
     } else if (status === 403) {
-      title = '无下载权限';
-      message = '请先验证提取码或联系分享者获取权限';
+      title = __.noPermission;
+      message = __.noPermissionMsg;
     } else if (status === 429) {
-      title = '操作频繁';
-      message = '下载请求过于频繁，请稍后再试';
+      title = __.rateLimited;
+      message = __.rateLimited;
     } else if (status === 0) {
-      title = '网络错误';
-      message = '无法连接到服务器，请检查网络连接后重试';
+      title = __.networkError;
+      message = __.networkErrorMsg;
     }
 
-    showError(title, message, '返回');
+    showError(title, message, __.back);
   }
 
   // ===== localStorage 进度管理 =====
@@ -1247,11 +1284,11 @@ export function generateReceiverHTML(shareInfo: ShareInfo): string {
   }
 
   function formatTime(seconds) {
-    if (seconds < 60) return Math.ceil(seconds) + '秒';
-    if (seconds < 3600) return Math.floor(seconds / 60) + '分' + Math.ceil(seconds % 60) + '秒';
+    if (seconds < 60) return Math.ceil(seconds) + __.second;
+    if (seconds < 3600) return Math.floor(seconds / 60) + __.minute + Math.ceil(seconds % 60) + __.second;
     var hours = Math.floor(seconds / 3600);
     var mins = Math.floor((seconds % 3600) / 60);
-    return hours + '小时' + mins + '分';
+    return hours + __.hour + mins + __.minute;
   }
 
   // ===== 启动 =====
@@ -1274,10 +1311,11 @@ export function generateErrorHTML(
   statusCode: number,
   title: string,
   message: string,
-  showBackButton: boolean = true
+  showBackButton: boolean = true,
+  locale: Locale
 ): string {
   return `<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="${locale === enUS ? 'en' : 'zh-CN'}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -1467,15 +1505,15 @@ export function generateErrorHTML(
         <path d="M32 20v14M32 42v0" stroke="#FF4D4F" stroke-width="3" stroke-linecap="round"/>
       </svg>
     </div>
-    <div class="error-code">错误 ${statusCode}</div>
+    <div class="error-code">${locale.receiver.error.errorPrefix}${statusCode}</div>
     <h1 class="error-title">${escapeHtml(title)}</h1>
   </div>
 
   <div class="page-body">
     <p class="error-message">${escapeHtml(message)}</p>
     <div class="actions">
-      ${showBackButton ? `<button class="btn-secondary" onclick="window.history.back()">返回上一页</button>` : ''}
-      <button class="btn-primary" onclick="window.location.href='/'">返回首页</button>
+      ${showBackButton ? `<button class="btn-secondary" onclick="window.history.back()">${locale.receiver.error.backToPrev}</button>` : ''}
+      <button class="btn-primary" onclick="window.location.href='/'">${locale.receiver.error.backToHome}</button>
     </div>
 
     <div class="tips-section">
@@ -1484,14 +1522,14 @@ export function generateErrorHTML(
           <circle cx="8" cy="8" r="7" stroke="#1890FF" stroke-width="1.5" fill="none"/>
           <path d="M8 7v4M8 5v0" stroke="#1890FF" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
-        <span>请确认文件码是否正确，或联系分享者重新获取链接</span>
+        <span>${locale.receiver.error.tipCheckCode}</span>
       </div>
       <div class="tip-item">
         <svg class="tip-icon" viewBox="0 0 16 16" fill="none">
           <circle cx="8" cy="8" r="7" stroke="#1890FF" stroke-width="1.5" fill="none"/>
           <path d="M8 7v4M8 5v0" stroke="#1890FF" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
-        <span>分享可能已被取消或已过期，请联系分享者重新分享</span>
+        <span>${locale.receiver.error.tipShareExpired}</span>
       </div>
     </div>
   </div>
@@ -1500,8 +1538,8 @@ export function generateErrorHTML(
 </html>`;
 }
 
-export function sendErrorPage(res: ServerResponse, statusCode: number, title: string, message: string, showBackButton?: boolean): void {
-  const html = generateErrorHTML(statusCode, title, message, showBackButton);
+export function sendErrorPage(res: ServerResponse, statusCode: number, title: string, message: string, showBackButton: boolean | undefined, locale: Locale): void {
+  const html = generateErrorHTML(statusCode, title, message, showBackButton, locale);
   res.writeHead(statusCode, {
     'Content-Type': 'text/html; charset=utf-8',
     'Access-Control-Allow-Origin': '*',
@@ -1524,15 +1562,15 @@ function escapeHtml(str: string): string {
 /**
  * 生成文件码输入页面
  */
-export function generateFileCodeInputHTML(): string {
+export function generateFileCodeInputHTML(locale: Locale): string {
   return `<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="${locale === enUS ? 'en' : 'zh-CN'}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <link rel="icon" type="image/x-icon" href="/NeiLink.ico">
 <link rel="shortcut icon" type="image/x-icon" href="/NeiLink.ico">
-<title>NeiLink - 文件分享</title>
+<title>NeiLink - ${locale.receiver.codeInput.title}</title>
 <style>
   * {
     margin: 0;
@@ -1742,7 +1780,7 @@ export function generateFileCodeInputHTML(): string {
       <circle cx="32" cy="32" r="28" stroke="#1890FF" stroke-width="2" fill="none"/>
     </svg>
     <h1>NeiLink</h1>
-    <p class="subtitle">安全文件传输</p>
+    <p class="subtitle">${locale.receiver.appTagline}</p>
   </div>
 
   <div class="page-body">
@@ -1752,14 +1790,14 @@ export function generateFileCodeInputHTML(): string {
           type="text"
           id="file-code-input"
           class="file-code-input"
-          placeholder="请输入文件码"
+          placeholder="${locale.receiver.codeInput.placeholder}"
           maxlength="36"
           autocomplete="off"
         />
       </div>
-      <p class="input-hint">文件码是分享链接中的唯一标识</p>
+      <p class="input-hint">${locale.receiver.codeInput.hint}</p>
       <div id="error-message" class="error-message"></div>
-      <button id="submit-btn" class="submit-btn" disabled>进入下载</button>
+      <button id="submit-btn" class="submit-btn" disabled>${locale.receiver.codeInput.submitButton}</button>
     </div>
 
     <div class="tips-section">
@@ -1768,14 +1806,14 @@ export function generateFileCodeInputHTML(): string {
           <circle cx="8" cy="8" r="7" stroke="#1890FF" stroke-width="1.5" fill="none"/>
           <path d="M8 7v4M8 5v0" stroke="#1890FF" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
-        <span>文件码由分享者提供，通常在分享链接中</span>
+        <span>${locale.receiver.codeInput.tip1}</span>
       </div>
       <div class="tip-item">
         <svg class="tip-icon" viewBox="0 0 16 16" fill="none">
           <circle cx="8" cy="8" r="7" stroke="#1890FF" stroke-width="1.5" fill="none"/>
           <path d="M8 7v4M8 5v0" stroke="#1890FF" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
-        <span>输入正确的文件码即可访问对应的文件</span>
+        <span>${locale.receiver.codeInput.tip2}</span>
       </div>
     </div>
   </div>
@@ -1821,18 +1859,18 @@ export function generateFileCodeInputHTML(): string {
 /**
  * 格式化过期时间
  */
-function formatExpiryTime(expiryTime: number): string {
+function formatExpiryTime(expiryTime: number, locale: Locale): string {
   const now = Date.now();
   const diff = expiryTime - now;
 
-  if (diff <= 0) return '已过期';
+  if (diff <= 0) return locale.receiver.time.expired;
 
   const minutes = Math.floor(diff / (1000 * 60));
   const hours = Math.floor(diff / (1000 * 60 * 60));
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
-  if (days > 0) return days + '天';
-  if (hours > 0) return hours + '小时';
-  if (minutes > 0) return minutes + '分钟';
-  return '即将过期';
+  if (days > 0) return days + locale.receiver.time.day;
+  if (hours > 0) return hours + locale.receiver.time.hour;
+  if (minutes > 0) return minutes + locale.receiver.time.minute;
+  return locale.receiver.time.aboutToExpire;
 }

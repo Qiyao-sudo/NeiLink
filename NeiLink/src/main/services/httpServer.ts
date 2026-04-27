@@ -12,6 +12,7 @@ import archiver from 'archiver';
 import { ShareConfig, SystemSettings } from '../../shared/types';
 import { Logger } from './logger';
 import { generateReceiverHTML, generateFileCodeInputHTML, sendErrorPage, ShareInfo } from './receiverPage';
+import { getLocale } from '../../shared/i18n';
 
 // =============================================================================
 // 类型定义
@@ -156,6 +157,25 @@ function sendHTML(res: http.ServerResponse, statusCode: number, html: string): v
   res.end(html);
 }
 
+function detectLanguage(req: http.IncomingMessage): string {
+  // query parameter override: ?lang=zh-CN or ?lang=en-US
+  try {
+    const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+    const langParam = url.searchParams.get('lang');
+    if (langParam === 'zh-CN' || langParam === 'en-US') return langParam;
+  } catch {
+    // fall through to header detection
+  }
+
+  // Accept-Language header
+  const acceptLang = req.headers['accept-language'];
+  if (acceptLang) {
+    if (acceptLang.includes('zh')) return 'zh-CN';
+    if (acceptLang.includes('en')) return 'en-US';
+  }
+  return 'zh-CN';
+}
+
 // =============================================================================
 // 限流
 // =============================================================================
@@ -215,7 +235,8 @@ function handleFavicon(req: http.IncomingMessage, res: http.ServerResponse): boo
 
 function handleHomePage(req: http.IncomingMessage, res: http.ServerResponse): boolean {
   if (req.method !== 'GET' || req.url !== '/') return false;
-  sendHTML(res, 200, generateFileCodeInputHTML());
+  const locale = getLocale(detectLanguage(req));
+  sendHTML(res, 200, generateFileCodeInputHTML(locale));
   return true;
 }
 
@@ -229,16 +250,17 @@ function handleFileCodePage(
 
   const fileCode = req.url.substring(1);
   const share = shares.get(fileCode);
+  const locale = getLocale(detectLanguage(req));
   if (!share) {
-    sendErrorPage(res, 404, '文件码错误', '文件码错误或不存在，请检查链接是否正确');
+    sendErrorPage(res, 404, locale.receiver.error.badFileCode, locale.receiver.error.badFileCodeMsg, undefined, locale);
     return true;
   }
   if (share.status !== 'active') {
-    sendErrorPage(res, 410, '分享已过期', '该分享链接已过期，请联系分享者重新分享');
+    sendErrorPage(res, 410, locale.receiver.error.shareExpired, locale.receiver.error.shareExpiredMsg, undefined, locale);
     return true;
   }
 
-  sendHTML(res, 200, generateReceiverHTML(toShareInfo(share)));
+  sendHTML(res, 200, generateReceiverHTML(toShareInfo(share), locale));
   return true;
 }
 
@@ -247,12 +269,13 @@ function handleShareInfoAPI(req: http.IncomingMessage, res: http.ServerResponse)
 
   const fileCode = req.url.substring('/api/share-info/'.length);
   const share = shares.get(fileCode);
+  const locale = getLocale(detectLanguage(req));
   if (!share) {
-    sendJSON(res, 404, { error: '分享不存在' });
+    sendJSON(res, 404, { error: locale.receiver.error.shareNotExist });
     return true;
   }
   if (share.status !== 'active') {
-    sendJSON(res, 410, { error: '该分享已过期' });
+    sendJSON(res, 410, { error: locale.receiver.error.shareExpired });
     return true;
   }
 
@@ -274,8 +297,9 @@ function handleVerifyAPI(req: http.IncomingMessage, res: http.ServerResponse): b
 
   const fileCode = req.url.substring('/api/verify/'.length);
   const share = shares.get(fileCode);
+  const locale = getLocale(detectLanguage(req));
   if (!share) {
-    sendJSON(res, 404, { error: '分享不存在' });
+    sendJSON(res, 404, { error: locale.receiver.error.shareNotExist });
     return true;
   }
 
@@ -293,10 +317,10 @@ function handleVerifyAPI(req: http.IncomingMessage, res: http.ServerResponse): b
       if (data.code === share.extractCode) {
         sendJSON(res, 200, { success: true });
       } else {
-        sendJSON(res, 403, { success: false, error: '提取码错误' });
+        sendJSON(res, 403, { success: false, error: locale.receiver.error.extractCodeIncorrect });
       }
     } catch {
-      sendJSON(res, 400, { success: false, error: '无效的请求' });
+      sendJSON(res, 400, { success: false, error: locale.receiver.error.invalidRequest });
     }
   });
   return true;
@@ -311,20 +335,21 @@ function handleDownloadAPI(
 
   const fileCode = req.url.substring('/api/download/'.length);
   const share = shares.get(fileCode);
+  const locale = getLocale(detectLanguage(req));
   if (!share) {
-    sendErrorPage(res, 404, '分享不存在', '该分享链接对应的文件不存在或已被删除');
+    sendErrorPage(res, 404, locale.receiver.error.shareNotExist, locale.receiver.error.shareNotExistMsg, undefined, locale);
     return true;
   }
   if (!share.filePath || !fs.existsSync(share.filePath)) {
-    sendErrorPage(res, 404, '文件不存在', '该分享链接对应的文件已被删除或不存在');
+    sendErrorPage(res, 404, locale.receiver.error.fileNotExist, locale.receiver.error.fileNotExistMsg, undefined, locale);
     return true;
   }
   if (share.status !== 'active') {
-    sendErrorPage(res, 410, '分享已过期', '该分享链接已过期，请联系分享者重新分享');
+    sendErrorPage(res, 410, locale.receiver.error.shareExpired, locale.receiver.error.shareExpiredMsg, undefined, locale);
     return true;
   }
   if (share.maxDownloads !== -1 && share.downloadCount >= share.maxDownloads) {
-    sendErrorPage(res, 410, '达到下载上限', '该分享已达到最大下载次数限制，请联系分享者重新分享');
+    sendErrorPage(res, 410, locale.receiver.error.maxDownloadsReached, locale.receiver.error.maxDownloadsReachedMsg, undefined, locale);
     return true;
   }
 
@@ -373,7 +398,7 @@ function handleDownloadAPI(
       archive.pipe(createThrottle()).pipe(res);
       archive.on('error', (err) => {
         if (!res.headersSent) {
-          sendErrorPage(res, 500, '服务器错误', '文件压缩失败，请稍后再试');
+          sendErrorPage(res, 500, locale.receiver.error.serverError, locale.receiver.error.archiveFailed, undefined, locale);
         }
         console.error('Archive error:', err);
       });
@@ -413,14 +438,14 @@ function handleDownloadAPI(
       inputStream.pipe(createThrottle()).pipe(res);
       inputStream.on('error', (err) => {
         if (!res.headersSent) {
-          sendErrorPage(res, 500, '服务器错误', '文件读取失败，请稍后再试');
+          sendErrorPage(res, 500, locale.receiver.error.serverError, locale.receiver.error.fileReadFailed, undefined, locale);
         }
         console.error('File read error:', err);
       });
     }
   } catch (err) {
     if (!res.headersSent) {
-      sendErrorPage(res, 500, '服务器错误', '文件传输失败，请稍后再试');
+      sendErrorPage(res, 500, locale.receiver.error.serverError, locale.receiver.error.transferFailed, undefined, locale);
     }
     console.error('Download error:', err);
   }
@@ -478,7 +503,8 @@ export function startGlobalServer(
             rateLimitSettings.rateLimitBanDuration || 30
           )
         ) {
-          sendErrorPage(res, 429, '请求过于频繁', '请求过于频繁，请稍后再试', false);
+          const rlLocale = getLocale(detectLanguage(req));
+          sendErrorPage(res, 429, rlLocale.receiver.error.rateLimitTitle, rlLocale.receiver.error.rateLimitMsg, false, rlLocale);
           return;
         }
       }
@@ -489,7 +515,8 @@ export function startGlobalServer(
       if (handleDownloadAPI(req, res, clientIP)) return;
 
       // 404
-      sendErrorPage(res, 404, '页面不存在', '未找到请求的资源，请检查URL是否正确');
+      const nfLocale = getLocale(detectLanguage(req));
+      sendErrorPage(res, 404, nfLocale.receiver.error.pageNotFound, nfLocale.receiver.error.pageNotFoundMsg, undefined, nfLocale);
     });
 
     globalServer.on('error', (err: NodeJS.ErrnoException) => {

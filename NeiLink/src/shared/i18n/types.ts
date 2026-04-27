@@ -294,6 +294,95 @@ export interface Locale {
     times: string;
     unlimited: string;
   };
+
+  // 接收端网页
+  receiver: {
+    appTagline: string;
+    userAvatar: string;
+
+    codeInput: {
+      title: string;
+      placeholder: string;
+      hint: string;
+      submitButton: string;
+      tip1: string;
+      tip2: string;
+    };
+
+    download: {
+      title: string;
+      subtitle: string;
+      fileSize: string;
+      uploader: string;
+      expiry: string;
+      remaining: string;
+      zipDownload: string;
+      downloadButton: string;
+      resumeButton: string;
+      restartButton: string;
+      downloadComplete: string;
+      downloading: string;
+      extractCodePlaceholder: string;
+      extractCodeHint: string;
+      rateLimitMessage: string;
+      verifyButton: string;
+      verifying: string;
+      expiryLabel: string;
+      tip1: string;
+      tip2: string;
+    };
+
+    error: {
+      errorPrefix: string;
+      defaultTitle: string;
+      defaultMessage: string;
+      back: string;
+      backToHome: string;
+      backToPrev: string;
+      fileNotFound: string;
+      fileNotFoundMsg: string;
+      shareExpired: string;
+      shareExpiredMsg: string;
+      noPermission: string;
+      noPermissionMsg: string;
+      downloadFailed: string;
+      networkError: string;
+      networkErrorMsg: string;
+      verificationFailed: string;
+      tipCheckCode: string;
+      tipShareExpired: string;
+      badFileCode: string;
+      badFileCodeMsg: string;
+      fileNotExist: string;
+      fileNotExistMsg: string;
+      shareNotExist: string;
+      shareNotExistMsg: string;
+      maxDownloadsReached: string;
+      maxDownloadsReachedMsg: string;
+      serverError: string;
+      archiveFailed: string;
+      fileReadFailed: string;
+      transferFailed: string;
+      rateLimitTitle: string;
+      rateLimitMsg: string;
+      pageNotFound: string;
+      pageNotFoundMsg: string;
+      rateLimited: string;
+      extractCodeIncorrect: string;
+      invalidRequest: string;
+    };
+
+    time: {
+      permanent: string;
+      expired: string;
+      aboutToExpire: string;
+      day: string;
+      hour: string;
+      minute: string;
+      second: string;
+      remaining: string;
+    };
+  };
 }
 
 // 支持的语言
