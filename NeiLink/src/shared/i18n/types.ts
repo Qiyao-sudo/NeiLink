@@ -98,6 +98,7 @@ export interface Locale {
     hour: string;
     minute: string;
     second: string;
+    day: string;
     permanent: string;
     totalShares: string;
     share: string;

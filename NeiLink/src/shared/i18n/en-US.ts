@@ -99,6 +99,7 @@ export const enUS: Locale = {
     hour: 'hour',
     minute: 'minute',
     second: 'second',
+    day: 'day',
     permanent: 'Permanent',
     totalShares: 'Total',
     share: 'shares',

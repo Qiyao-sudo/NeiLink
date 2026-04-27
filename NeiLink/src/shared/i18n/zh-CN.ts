@@ -99,6 +99,7 @@ export const zhCN: Locale = {
     hour: '小时',
     minute: '分钟',
     second: '秒',
+    day: '天',
     permanent: '永久',
     totalShares: '共',
     share: '条分享',

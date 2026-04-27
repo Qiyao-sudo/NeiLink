@@ -86,8 +86,11 @@ const ShareManagePage: React.FC = () => {
           const seconds = Math.floor(remaining / 1000);
           const minutes = Math.floor(seconds / 60);
           const hours = Math.floor(minutes / 60);
-          
-          if (hours > 0) {
+          const days = Math.floor(hours / 24);
+
+          if (days > 0) {
+            expiry = `${days} ${locale.shareManage.day}`;
+          } else if (hours > 0) {
             expiry = `${hours} ${locale.shareManage.hour}`;
           } else if (minutes > 0) {
             expiry = `${minutes} ${locale.shareManage.minute}`;
