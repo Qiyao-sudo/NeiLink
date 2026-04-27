@@ -6,6 +6,7 @@ import {
   ShareAltOutlined,
   FileTextOutlined,
   SettingOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
 import logo from './assets/logo.png';
 import TopBar from './components/TopBar';
@@ -13,6 +14,7 @@ import HomePage from './pages/HomePage';
 import ShareManagePage from './pages/ShareManagePage';
 import LogPage from './pages/LogPage';
 import SettingsPage from './pages/SettingsPage';
+import StatsPage from './pages/StatsPage';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { SystemSettings } from '../shared/types';
@@ -40,10 +42,16 @@ const AppLayout: React.FC = () => {
       label: locale.pages.log,
     },
     {
+      key: '/stats',
+      icon: <BarChartOutlined />,
+      label: locale.pages.stats,
+    },
+    {
       key: '/settings',
       icon: <SettingOutlined />,
       label: locale.pages.settings,
     },
+
   ];
 
   const handleMenuClick = ({ key }: { key: string }) => {
@@ -82,6 +90,7 @@ const AppLayout: React.FC = () => {
               <Route path="/shares" element={<ShareManagePage />} />
               <Route path="/logs" element={<LogPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/stats" element={<StatsPage />} />
             </Routes>
           </div>
         </div>

@@ -29,6 +29,7 @@ export const enUS: Locale = {
     shareManage: 'Share Management',
     settings: 'Settings',
     log: 'Logs',
+    stats: 'Statistics',
   },
   
   // 主页面
@@ -191,6 +192,25 @@ export const enUS: Locale = {
     themeAuto: 'Auto (Follow System)',
   },
   
+  // 流量统计
+  stats: {
+    title: 'Traffic Statistics',
+    totalDownloads: 'Total Downloads',
+    cumulativeTraffic: 'Cumulative Traffic',
+    totalFilesShared: 'Shared Files',
+    downloadsOverTime: 'Downloads Over Time',
+    trafficOverTime: 'Traffic Over Time',
+    topFiles: 'Top Downloaded Files',
+    timeRange7d: 'Last 7 Days',
+    timeRange30d: 'Last 30 Days',
+    timeRangeAll: 'All Time',
+    noData: 'No download data',
+    bytes: 'B',
+    kb: 'KB',
+    mb: 'MB',
+    gb: 'GB',
+  },
+
   // 日志页面
   log: {
     title: 'System Logs',

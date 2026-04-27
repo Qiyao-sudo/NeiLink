@@ -28,6 +28,7 @@ export interface Locale {
     shareManage: string;
     settings: string;
     log: string;
+    stats: string;
   };
   
   // 主页面
@@ -190,6 +191,25 @@ export interface Locale {
     themeAuto: string;
   };
   
+  // 流量统计
+  stats: {
+    title: string;
+    totalDownloads: string;
+    cumulativeTraffic: string;
+    totalFilesShared: string;
+    downloadsOverTime: string;
+    trafficOverTime: string;
+    topFiles: string;
+    timeRange7d: string;
+    timeRange30d: string;
+    timeRangeAll: string;
+    noData: string;
+    bytes: string;
+    kb: string;
+    mb: string;
+    gb: string;
+  };
+
   // 日志页面
   log: {
     title: string;

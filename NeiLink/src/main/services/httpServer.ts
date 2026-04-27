@@ -331,7 +331,11 @@ function handleDownloadAPI(
   // 下载完成回调
   res.on('finish', () => {
     share.downloadCount++;
-    logger?.log('download', `文件下载成功: ${share.fileName} (下载码: ${fileCode})，下载IP: ${clientIP}`);
+    logger?.log(
+      'download',
+      `文件下载成功: ${share.fileName} (下载码: ${fileCode})，下载IP: ${clientIP}`,
+      JSON.stringify({ fileSize: share.fileSize, shareId: share.id, fileName: share.fileName })
+    );
     const cb = downloadCallbacks.get(fileCode);
     if (cb) cb(share.id);
   });

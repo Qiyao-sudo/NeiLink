@@ -29,6 +29,7 @@ export const zhCN: Locale = {
     shareManage: '分享管理',
     settings: '设置',
     log: '日志',
+    stats: '流量统计',
   },
   
   // 主页面
@@ -191,6 +192,25 @@ export const zhCN: Locale = {
     themeAuto: '自动（跟随系统）',
   },
   
+  // 流量统计
+  stats: {
+    title: '流量统计',
+    totalDownloads: '总下载次数',
+    cumulativeTraffic: '累计流量',
+    totalFilesShared: '分享文件数',
+    downloadsOverTime: '下载趋势',
+    trafficOverTime: '流量趋势',
+    topFiles: '下载最多的文件',
+    timeRange7d: '近7天',
+    timeRange30d: '近30天',
+    timeRangeAll: '全部',
+    noData: '暂无下载数据',
+    bytes: 'B',
+    kb: 'KB',
+    mb: 'MB',
+    gb: 'GB',
+  },
+
   // 日志页面
   log: {
     title: '系统日志',
