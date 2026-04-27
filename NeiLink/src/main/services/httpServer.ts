@@ -376,9 +376,36 @@ function handleDownloadAPI(
       archive.finalize();
     } else {
       const stat = fs.statSync(share.filePath);
-      headers['Content-Length'] = stat.size;
-      res.writeHead(200, headers);
-      const inputStream = fs.createReadStream(share.filePath);
+      const fileSize = stat.size;
+      let startByte = 0;
+      let statusCode = 200;
+
+      // 支持断点续传：解析 Range 请求头
+      const rangeHeader = req.headers['range'];
+      if (rangeHeader) {
+        const match = String(rangeHeader).match(/^bytes=(\d+)-(\d*)$/);
+        if (match) {
+          startByte = parseInt(match[1], 10);
+          if (isNaN(startByte) || startByte < 0) {
+            startByte = 0;
+          }
+          if (startByte >= fileSize) {
+            res.writeHead(416, {
+              'Content-Range': `bytes */${fileSize}`,
+              'Access-Control-Allow-Origin': '*',
+            });
+            res.end();
+            return true;
+          }
+          statusCode = 206;
+          const endByte = fileSize - 1;
+          headers['Content-Range'] = `bytes ${startByte}-${endByte}/${fileSize}`;
+        }
+      }
+
+      headers['Content-Length'] = fileSize - startByte;
+      res.writeHead(statusCode, headers);
+      const inputStream = fs.createReadStream(share.filePath, { start: startByte });
       inputStream.pipe(createThrottle()).pipe(res);
       inputStream.on('error', (err) => {
         if (!res.headersSent) {
