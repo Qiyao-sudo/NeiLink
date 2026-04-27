@@ -131,14 +131,14 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
         <div>
           <div style={{ textAlign: 'center', marginBottom: 20 }}>
             <CheckCircleOutlined
-              style={{ fontSize: 48, color: '#52c41a', marginBottom: 12 }}
+              style={{ fontSize: 48, color: 'var(--color-success)', marginBottom: 12 }}
             />
-            <div style={{ fontSize: 16, fontWeight: 600, color: '#333' }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>
               {locale.shareConfig.shareSuccess}
             </div>
           </div>
 
-          <div style={{ background: '#f6ffed', borderRadius: 8, padding: 16, marginBottom: 16 }}>
+          <div style={{ background: 'var(--bg-tertiary)', borderLeft: '3px solid var(--color-success)', borderRadius: 8, padding: 16, marginBottom: 16 }}>
             <div style={{ marginBottom: 8 }}>
               <Text type="secondary">{locale.shareConfig.shareLink}：</Text>
               <Paragraph
@@ -232,7 +232,7 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
                 </Form.Item>
               )}
             </div>
-            <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4 }}>
               {locale.shareConfig.extractCodeHint}
             </div>
           </Form.Item>
