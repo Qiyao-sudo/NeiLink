@@ -29,6 +29,7 @@ export interface Locale {
     settings: string;
     log: string;
     stats: string;
+    about: string;
   };
   
   // 主页面
@@ -382,6 +383,23 @@ export interface Locale {
       second: string;
       remaining: string;
     };
+  };
+
+  // 关于页面
+  about: {
+    title: string;
+    currentVersion: string;
+    checkUpdate: string;
+    checking: string;
+    alreadyLatest: string;
+    newVersionFound: string;
+    downloadUpdate: string;
+    releaseNotes: string;
+    runtimeVersions: string;
+    electron: string;
+    chrome: string;
+    node: string;
+    checkError: string;
   };
 }
 

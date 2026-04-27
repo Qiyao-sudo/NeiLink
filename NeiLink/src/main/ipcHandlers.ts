@@ -13,6 +13,7 @@ import { SettingsManager } from './services/settings';
 import { ShareManager, CreateShareParams } from './services/shareManager';
 import * as hotspot from './services/hotspot';
 import * as httpServer from './services/httpServer';
+import * as updater from './services/updater';
 
 /**
  * 注册所有 IPC 处理器
@@ -487,6 +488,15 @@ export function registerIpcHandlers(
 
   // 注册网络变化事件推送
   networkMonitor.start();
+
+  // 应用版本
+  ipcMain.handle(IPC_CHANNELS.APP_GET_VERSION, () => {
+    return updater.getAppVersion();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.APP_CHECK_UPDATE, async () => {
+    return await updater.checkForUpdates();
+  });
 
   // 注册窗口状态变化事件推送
   mainWindow.on('maximize', () => {

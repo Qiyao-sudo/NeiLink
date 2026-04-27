@@ -30,6 +30,7 @@ export const zhCN: Locale = {
     settings: '设置',
     log: '日志',
     stats: '流量统计',
+    about: '关于',
   },
   
   // 主页面
@@ -383,5 +384,22 @@ export const zhCN: Locale = {
       second: '秒',
       remaining: '剩余 ',
     },
+  },
+
+  // 关于页面
+  about: {
+    title: '关于 NeiLink',
+    currentVersion: '当前版本',
+    checkUpdate: '检查更新',
+    checking: '正在检查...',
+    alreadyLatest: '已是最新版本',
+    newVersionFound: '发现新版本',
+    downloadUpdate: '前往下载',
+    releaseNotes: '更新内容',
+    runtimeVersions: '运行时版本',
+    electron: 'Electron',
+    chrome: 'Chrome',
+    node: 'Node.js',
+    checkError: '检查更新失败',
   },
 };

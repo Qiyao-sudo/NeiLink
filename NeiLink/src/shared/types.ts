@@ -149,6 +149,10 @@ export const IPC_CHANNELS = {
   USER_AVATAR_SET: 'user:avatar:set',
   USER_AVATAR_GET: 'user:avatar:get',
   USER_SETTINGS_ON_UPDATE: 'user:settings:on-update',
+
+  // 应用相关
+  APP_GET_VERSION: 'app:get-version',
+  APP_CHECK_UPDATE: 'app:check-update',
 } as const;
 
 // NeiLink API
@@ -166,6 +170,14 @@ export interface NeiLinkAPI {
     removeAllListeners: (channel: string) => void;
     invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
   };
+}
+
+export interface UpdateInfo {
+  hasUpdate: boolean;
+  currentVersion: string;
+  latestVersion: string;
+  downloadUrl: string;
+  releaseNotes: string;
 }
 
 declare global {

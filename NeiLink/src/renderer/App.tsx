@@ -7,6 +7,7 @@ import {
   FileTextOutlined,
   SettingOutlined,
   BarChartOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons';
 import logo from './assets/logo.png';
 import TopBar from './components/TopBar';
@@ -15,6 +16,7 @@ import ShareManagePage from './pages/ShareManagePage';
 import LogPage from './pages/LogPage';
 import SettingsPage from './pages/SettingsPage';
 import StatsPage from './pages/StatsPage';
+import AboutPage from './pages/AboutPage';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { SystemSettings } from '../shared/types';
@@ -50,6 +52,11 @@ const AppLayout: React.FC = () => {
       key: '/settings',
       icon: <SettingOutlined />,
       label: locale.pages.settings,
+    },
+    {
+      key: '/about',
+      icon: <InfoCircleOutlined />,
+      label: locale.pages.about,
     },
 
   ];
@@ -92,6 +99,7 @@ const AppLayout: React.FC = () => {
                 <Route path="/logs" element={<LogPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/stats" element={<StatsPage />} />
+              <Route path="/about" element={<AboutPage />} />
               </Routes>
             </div>
           </div>

@@ -30,6 +30,7 @@ export const enUS: Locale = {
     settings: 'Settings',
     log: 'Logs',
     stats: 'Statistics',
+    about: 'About',
   },
   
   // 主页面
@@ -383,5 +384,22 @@ export const enUS: Locale = {
       second: 's',
       remaining: 'Remaining ',
     },
+  },
+
+  // About page
+  about: {
+    title: 'About NeiLink',
+    currentVersion: 'Current Version',
+    checkUpdate: 'Check for Updates',
+    checking: 'Checking...',
+    alreadyLatest: 'Already up to date',
+    newVersionFound: 'New version available',
+    downloadUpdate: 'Download',
+    releaseNotes: 'Release Notes',
+    runtimeVersions: 'Runtime Versions',
+    electron: 'Electron',
+    chrome: 'Chrome',
+    node: 'Node.js',
+    checkError: 'Failed to check for updates',
   },
 };

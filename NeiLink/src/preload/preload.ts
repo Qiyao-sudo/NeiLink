@@ -44,6 +44,10 @@ const IPC_CHANNELS = {
   BANNED_IPS_GET: 'banned-ips:get',
   BANNED_IPS_UNBAN: 'banned-ips:unban',
   BANNED_IPS_UPDATE_DURATION: 'banned-ips:update-duration',
+
+  // 应用相关
+  APP_GET_VERSION: 'app:get-version',
+  APP_CHECK_UPDATE: 'app:check-update',
 };
 
 /**
@@ -84,6 +88,8 @@ const invokeChannels: string[] = [
   IPC_CHANNELS.BANNED_IPS_GET,
   IPC_CHANNELS.BANNED_IPS_UNBAN,
   IPC_CHANNELS.BANNED_IPS_UPDATE_DURATION,
+  IPC_CHANNELS.APP_GET_VERSION,
+  IPC_CHANNELS.APP_CHECK_UPDATE,
 ];
 
 /**
