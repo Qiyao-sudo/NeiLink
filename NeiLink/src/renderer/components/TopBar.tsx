@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Tag, Tooltip, Button } from 'antd';
+import { App, Tag, Tooltip, Button } from 'antd';
 import {
   MinusOutlined,
   BorderOutlined,
   CloseOutlined,
   CopyOutlined,
 } from '@ant-design/icons';
-import { message } from 'antd';
 import { NetworkInfo, IPC_CHANNELS } from '../../shared/types';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -18,6 +17,7 @@ const CustomRestoreIcon = () => (
 );
 
 const TopBar: React.FC = () => {
+  const { message } = App.useApp();
   const { locale } = useLanguage();
   const [networkInfo, setNetworkInfo] = useState<NetworkInfo>({
     type: 'none',

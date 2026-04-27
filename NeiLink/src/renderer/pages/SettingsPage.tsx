@@ -8,7 +8,7 @@ import {
   Button,
   Space,
   Typography,
-  message,
+  App,
   Divider,
   Table,
   Popconfirm,
@@ -92,6 +92,7 @@ const defaultSettings: AppSettings = {
 };
 
 const SettingsPage: React.FC = () => {
+  const { message } = App.useApp();
   const { locale, language, setLanguage } = useLanguage();
   const { theme, setTheme } = useTheme();
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);

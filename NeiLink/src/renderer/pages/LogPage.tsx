@@ -7,7 +7,7 @@ import {
   DatePicker,
   Tag,
   Typography,
-  message,
+  App,
   Tooltip,
 } from 'antd';
 import {
@@ -27,6 +27,7 @@ type LogTypeFilter = 'all' | 'share' | 'download' | 'error' | 'system';
 type TimeRange = 'today' | 'yesterday' | '7days' | '30days' | 'custom';
 
 const LogPage: React.FC = () => {
+  const { message } = App.useApp();
   const { locale } = useLanguage();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);

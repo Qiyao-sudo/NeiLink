@@ -5,7 +5,7 @@ import {
   Button,
   Input,
   Space,
-  message,
+  App,
   Modal,
   Form,
   Select,
@@ -54,6 +54,7 @@ interface NetworkInfo {
 }
 
 const ShareManagePage: React.FC = () => {
+  const { message } = App.useApp();
   const { locale } = useLanguage();
   const [tasks, setTasks] = useState<ShareTask[]>([]);
   const [loading, setLoading] = useState(false);

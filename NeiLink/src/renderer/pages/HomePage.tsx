@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Card, Button, Switch, Alert, Typography, Space, message, Select } from 'antd';
+import { App, Card, Button, Switch, Alert, Typography, Space, Select } from 'antd';
 import {
   WifiOutlined,
   ApiOutlined,
@@ -23,6 +23,7 @@ interface HotspotStatus {
 }
 
 const HomePage: React.FC = () => {
+  const { message } = App.useApp();
   const { locale } = useLanguage();
   const [networkStatus, setNetworkStatus] = useState<NetworkInfo>({
     type: 'none',

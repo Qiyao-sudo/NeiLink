@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Input, Button, message } from 'antd';
+import { App, Modal, Form, Input, Button } from 'antd';
 
 interface HotspotConfigModalProps {
   visible: boolean;
@@ -16,6 +16,7 @@ const HotspotConfigModal: React.FC<HotspotConfigModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
+  const { message } = App.useApp();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
 

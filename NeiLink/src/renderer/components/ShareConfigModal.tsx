@@ -9,7 +9,7 @@ import {
   Typography,
   Space,
   Alert,
-  message,
+  App,
 } from 'antd';
 import { CopyOutlined, LinkOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -55,6 +55,7 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
+  const { message } = App.useApp();
   const { locale } = useLanguage();
   const [form] = Form.useForm();
   const [useExtractionCode, setUseExtractionCode] = useState(defaultExtractCode);

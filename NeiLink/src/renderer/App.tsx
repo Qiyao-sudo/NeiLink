@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, ConfigProvider, theme as antTheme } from 'antd';
+import { App as AntdApp, Menu, ConfigProvider, theme as antTheme } from 'antd';
 import {
   HomeOutlined,
   ShareAltOutlined,
@@ -67,34 +67,36 @@ const AppLayout: React.FC = () => {
         },
       }}
     >
-      <div className="app-layout">
-        <div className="sidebar">
-          <div className="sidebar-logo">
-            <img src={logo} alt="NeiLink" style={{ width: 32, height: 32 }} />
-            <span>NeiLink</span>
+      <AntdApp>
+        <div className="app-layout">
+          <div className="sidebar">
+            <div className="sidebar-logo">
+              <img src={logo} alt="NeiLink" style={{ width: 32, height: 32 }} />
+              <span>NeiLink</span>
+            </div>
+            <Menu
+              className="sidebar-menu"
+              theme="dark"
+              mode="inline"
+              selectedKeys={[location.pathname]}
+              items={menuItems}
+              onClick={handleMenuClick}
+            />
           </div>
-          <Menu
-            className="sidebar-menu"
-            theme="dark"
-            mode="inline"
-            selectedKeys={[location.pathname]}
-            items={menuItems}
-            onClick={handleMenuClick}
-          />
-        </div>
-        <div className="main-content">
-          <TopBar />
-          <div className="content-area">
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/shares" element={<ShareManagePage />} />
-              <Route path="/logs" element={<LogPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/stats" element={<StatsPage />} />
-            </Routes>
+          <div className="main-content">
+            <TopBar />
+            <div className="content-area">
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/shares" element={<ShareManagePage />} />
+                <Route path="/logs" element={<LogPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/stats" element={<StatsPage />} />
+              </Routes>
+            </div>
           </div>
         </div>
-      </div>
+      </AntdApp>
     </ConfigProvider>
   );
 };
