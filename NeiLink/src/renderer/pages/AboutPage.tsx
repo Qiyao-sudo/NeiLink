@@ -5,6 +5,8 @@ import {
   DownloadOutlined,
   CheckCircleOutlined,
   InfoCircleOutlined,
+  GithubOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import { UpdateInfo } from '../../shared/types';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -13,8 +15,16 @@ import logo from '../assets/logo.png';
 const { Text, Title } = Typography;
 
 function renderMarkdown(md: string): string {
+  const saved: string[] = [];
+
+  // 保护已有 HTML <img> 标签，避免被转义
+  let html = md.replace(/<img\s[^>]*\/?>/gi, (m) => {
+    saved.push(m);
+    return `\x00IMG${saved.length - 1}\x00`;
+  });
+
   // 转义 HTML
-  let html = md
+  html = html
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
@@ -27,6 +37,9 @@ function renderMarkdown(md: string): string {
 
   // 粗体 (**...**)
   html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+  // 图片 ![alt](url)
+  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%" />');
 
   // 链接 [text](url)
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
@@ -53,6 +66,9 @@ function renderMarkdown(md: string): string {
   html = html.replace(/<p>\s*<\/p>/g, '');
   html = html.replace(/\n{2,}/g, '\n');
   html = html.replace(/\n/g, '');
+
+  // 还原受保护的 <img> 标签
+  html = html.replace(/\x00IMG(\d+)\x00/g, (_, i) => saved[parseInt(i)]);
 
   return html;
 }
@@ -106,7 +122,7 @@ const AboutPage: React.FC = () => {
 
       {/* 应用信息卡片 */}
       <Card style={{ marginBottom: 16 }}>
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
           <img
             src={logo}
             alt="NeiLink"
@@ -118,6 +134,31 @@ const AboutPage: React.FC = () => {
               {locale.about.currentVersion}: v{appVersion}
             </Text>
           )}
+        </div>
+
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 6,
+          marginBottom: 20,
+        }}>
+          <Space size={4}>
+            <UserOutlined style={{ color: 'var(--text-secondary, #666)' }} />
+            <Text type="secondary">{locale.about.author}:</Text>
+            <Text>Qiyao-sudo</Text>
+          </Space>
+          <Space size={4}>
+            <GithubOutlined style={{ color: 'var(--text-secondary, #666)' }} />
+            <Text type="secondary">{locale.about.repository}:</Text>
+            <a
+              href="https://github.com/Qiyao-sudo/NeiLink"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              github.com/Qiyao-sudo/NeiLink
+            </a>
+          </Space>
         </div>
 
         <div style={{ textAlign: 'center' }}>
@@ -133,25 +174,30 @@ const AboutPage: React.FC = () => {
           </Space>
 
           {updateInfo && (
-            <div style={{
-              marginTop: 16,
-              padding: 16,
-              background: updateInfo.hasUpdate ? 'var(--color-success-bg, #f6ffed)' : 'var(--bg-tertiary, #fafafa)',
-              borderRadius: 8,
-              border: `1px solid ${updateInfo.hasUpdate ? 'var(--color-success, #52c41a)' : 'var(--border-primary, #d9d9d9)'}`,
-            }}>
+            <div style={{ marginTop: 20 }}>
               {updateInfo.hasUpdate ? (
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
-                    <CheckCircleOutlined style={{ color: 'var(--color-success, #52c41a)', fontSize: 16 }} />
-                    <Text strong style={{ color: 'var(--color-success, #52c41a)' }}>
+                <>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    padding: '10px 16px',
+                    background: 'var(--color-success-bg, #f6ffed)',
+                    border: '1px solid var(--color-success, #52c41a)',
+                    borderLeft: '3px solid var(--color-success, #52c41a)',
+                    borderRadius: 6,
+                    marginBottom: 16,
+                  }}>
+                    <CheckCircleOutlined style={{ color: 'var(--color-success, #52c41a)', fontSize: 18 }} />
+                    <Text strong style={{ color: 'var(--color-success, #52c41a)', fontSize: 15 }}>
                       {locale.about.newVersionFound}: v{updateInfo.latestVersion}
                     </Text>
                   </div>
                   {updateInfo.releaseNotes && (
-                    <div style={{ marginTop: 12 }}>
-                      <Text type="secondary" style={{ display: 'block', marginBottom: 4 }}>
-                        {locale.about.releaseNotes}:
+                    <div style={{ marginBottom: 16 }}>
+                      <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>
+                        {locale.about.releaseNotes}
                       </Text>
                       <div
                         className="release-notes"
@@ -160,30 +206,44 @@ const AboutPage: React.FC = () => {
                           fontSize: 13,
                           color: 'var(--text-secondary, #666)',
                           background: 'var(--bg-primary, #fff)',
-                          padding: 12,
-                          borderRadius: 4,
+                          padding: '12px 16px',
+                          borderRadius: 8,
                           border: '1px solid var(--border-secondary, #f0f0f0)',
                           maxHeight: 240,
                           overflow: 'auto',
                           textAlign: 'left',
-                          lineHeight: 1.5,
+                          lineHeight: 1.6,
                         }}
                       />
                     </div>
                   )}
-                  <Button
-                    type="primary"
-                    icon={<DownloadOutlined />}
-                    onClick={handleDownload}
-                    style={{ marginTop: 12 }}
-                  >
-                    {locale.about.downloadUpdate}
-                  </Button>
-                </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <Button
+                      type="primary"
+                      icon={<DownloadOutlined />}
+                      onClick={handleDownload}
+                    >
+                      {locale.about.downloadUpdate}
+                    </Button>
+                  </div>
+                </>
               ) : (
-                <Tag icon={<CheckCircleOutlined />} color="green">
-                  {locale.about.alreadyLatest}
-                </Tag>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  padding: '10px 16px',
+                  background: 'var(--bg-tertiary, #fafafa)',
+                  border: '1px solid var(--border-primary, #d9d9d9)',
+                  borderLeft: '3px solid var(--color-success, #52c41a)',
+                  borderRadius: 6,
+                }}>
+                  <CheckCircleOutlined style={{ color: 'var(--color-success, #52c41a)', fontSize: 18 }} />
+                  <Text strong style={{ fontSize: 15 }}>
+                    {locale.about.alreadyLatest}
+                  </Text>
+                </div>
               )}
             </div>
           )}

@@ -401,5 +401,7 @@ export const enUS: Locale = {
     chrome: 'Chrome',
     node: 'Node.js',
     checkError: 'Failed to check for updates',
+    author: 'Author',
+    repository: 'Repository',
   },
 };

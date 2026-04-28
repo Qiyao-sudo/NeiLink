@@ -400,6 +400,8 @@ export interface Locale {
     chrome: string;
     node: string;
     checkError: string;
+    author: string;
+    repository: string;
   };
 }
 

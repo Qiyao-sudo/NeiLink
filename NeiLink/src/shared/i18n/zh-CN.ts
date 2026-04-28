@@ -401,5 +401,7 @@ export const zhCN: Locale = {
     chrome: 'Chrome',
     node: 'Node.js',
     checkError: '检查更新失败',
+    author: '作者',
+    repository: '代码仓库',
   },
 };
