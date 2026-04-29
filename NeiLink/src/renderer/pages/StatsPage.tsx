@@ -24,8 +24,7 @@ interface DownloadDetail {
 }
 
 function parseFileNameFromMessage(message: string): string {
-  // 从 "文件下载成功: <fileName> (下载码: ...)" 中提取文件名
-  const match = message.match(/文件下载成功:\s*(.+?)\s*\(下载码:/);
+  const match = message.match(/(?:文件下载成功|File downloaded):\s*(.+?)\s*\((?:下载码|code):/);
   return match ? match[1] : '';
 }
 

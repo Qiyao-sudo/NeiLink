@@ -41,7 +41,7 @@ export function registerIpcHandlers(
       return { success: true, data: networkInfo };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.log('error', '获取网络信息失败', message);
+      logger.log('error', '获取网络信息失败', { detail: message, messageKey: 'error.getNetworkInfo' });
       return { success: false, error: message };
     }
   });
@@ -60,7 +60,7 @@ export function registerIpcHandlers(
       return { success: true, data: { ip, adapterName } };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.log('error', '切换网络适配器失败', message);
+      logger.log('error', '切换网络适配器失败', { detail: message, messageKey: 'error.switchAdapter' });
       return { success: false, error: message };
     }
   });
@@ -74,7 +74,7 @@ export function registerIpcHandlers(
       return { success: true, data: share };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.log('error', '创建分享失败', message);
+      logger.log('error', '创建分享失败', { detail: message, messageKey: 'error.createShare' });
       return { success: false, error: message };
     }
   });
@@ -86,7 +86,7 @@ export function registerIpcHandlers(
       return { success: result };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.log('error', `取消分享失败: ${id}`, message);
+      logger.log('error', `取消分享失败: ${id}`, { detail: message, messageKey: 'error.cancelShare', messageParams: [id] });
       return { success: false, error: message };
     }
   });
@@ -98,7 +98,7 @@ export function registerIpcHandlers(
       return { success: true };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.log('error', '取消所有分享失败', message);
+      logger.log('error', '取消所有分享失败', { detail: message, messageKey: 'error.cancelAllShares' });
       return { success: false, error: message };
     }
   });
@@ -110,7 +110,7 @@ export function registerIpcHandlers(
       return { success: true, data: shares };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.log('error', '获取分享列表失败', message);
+      logger.log('error', '获取分享列表失败', { detail: message, messageKey: 'error.getShareList' });
       return { success: false, error: message };
     }
   });
@@ -125,7 +125,7 @@ export function registerIpcHandlers(
       return { success: false, error: '分享任务不存在' };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.log('error', `更新分享配置失败: ${id}`, message);
+      logger.log('error', `更新分享配置失败: ${id}`, { detail: message, messageKey: 'error.updateShareConfig', messageParams: [id] });
       return { success: false, error: message };
     }
   });
@@ -145,7 +145,7 @@ export function registerIpcHandlers(
       return { success: true, files: result.filePaths };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.log('error', '选择文件失败', message);
+      logger.log('error', '选择文件失败', { detail: message, messageKey: 'error.selectFile' });
       return { success: false, error: message };
     }
   });
@@ -163,7 +163,7 @@ export function registerIpcHandlers(
       return { success: true, folder: result.filePaths[0] };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.log('error', '选择文件夹失败', message);
+      logger.log('error', '选择文件夹失败', { detail: message, messageKey: 'error.selectFolder' });
       return { success: false, error: message };
     }
   });
@@ -176,7 +176,7 @@ export function registerIpcHandlers(
       return { success: true, path: filePath, isFolder };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.log('error', '获取拖拽文件路径失败', message);
+      logger.log('error', '获取拖拽文件路径失败', { detail: message, messageKey: 'error.getDropPath' });
       return { success: false, error: message };
     }
   });
@@ -190,7 +190,7 @@ export function registerIpcHandlers(
       return { success: true, data: settings };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.log('error', '获取设置失败', message);
+      logger.log('error', '获取设置失败', { detail: message, messageKey: 'error.getSettings' });
       return { success: false, error: message };
     }
   });
@@ -219,11 +219,11 @@ export function registerIpcHandlers(
         });
       }
 
-      logger.log('system', '设置已更新');
+      logger.log('system', '设置已更新', { messageKey: 'settings.updated' });
       return { success: true };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.log('error', '保存设置失败', message);
+      logger.log('error', '保存设置失败', { detail: message, messageKey: 'error.saveSettings' });
       return { success: false, error: message };
     }
   });
@@ -237,11 +237,11 @@ export function registerIpcHandlers(
       const fullSettings = await settingsManager.getSettings();
       shareManager.updateSettings(fullSettings);
 
-      logger.log('system', '设置已重置为默认值');
+      logger.log('system', '设置已重置为默认值', { messageKey: 'settings.reset' });
       return { success: true };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.log('error', '重置设置失败', message);
+      logger.log('error', '重置设置失败', { detail: message, messageKey: 'error.resetSettings' });
       return { success: false, error: message };
     }
   });
@@ -263,7 +263,7 @@ export function registerIpcHandlers(
   ipcMain.handle(IPC_CHANNELS.LOG_CLEAR, async () => {
     try {
       logger.clearLogs();
-      logger.log('system', '日志已清空');
+      logger.log('system', '日志已清空', { messageKey: 'log.cleared' });
       return { success: true };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -272,15 +272,15 @@ export function registerIpcHandlers(
   });
 
   // 导出日志
-  ipcMain.handle(IPC_CHANNELS.LOG_EXPORT, async () => {
+  ipcMain.handle(IPC_CHANNELS.LOG_EXPORT, async (_event, language?: string) => {
     try {
-      const exportPath = logger.exportLogs();
+      const exportPath = logger.exportLogs(language);
       // 在文件管理器中显示导出的文件
       await shell.showItemInFolder(exportPath);
       return { success: true, path: exportPath };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.log('error', '导出日志失败', message);
+      logger.log('error', '导出日志失败', { detail: message, messageKey: 'error.exportLogs' });
       return { success: false, error: message };
     }
   });
@@ -327,7 +327,7 @@ export function registerIpcHandlers(
       return { success: true };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.log('error', '配置热点失败', message);
+      logger.log('error', '配置热点失败', { detail: message, messageKey: 'error.configHotspot' });
       return { success: false, error: message };
     }
   });
@@ -425,7 +425,7 @@ export function registerIpcHandlers(
       return { success: true, data: bannedIPs };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.log('error', '获取封禁IP列表失败', message);
+      logger.log('error', '获取封禁IP列表失败', { detail: message, messageKey: 'error.getBannedIPs' });
       return { success: false, error: message };
     }
   });
@@ -434,13 +434,13 @@ export function registerIpcHandlers(
     try {
       const success = httpServer.unbanIP(ip);
       if (success) {
-        logger.log('system', `解封IP: ${ip}`);
+        logger.log('system', `解封IP: ${ip}`, { messageKey: 'bannedIP.unban', messageParams: [ip] });
         return { success: true };
       }
       return { success: false, error: 'IP未被封禁或不存在' };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.log('error', '解封IP失败', message);
+      logger.log('error', '解封IP失败', { detail: message, messageKey: 'error.unbanIP' });
       return { success: false, error: message };
     }
   });
@@ -449,13 +449,13 @@ export function registerIpcHandlers(
     try {
       const success = httpServer.updateBanDuration(ip, durationMinutes);
       if (success) {
-        logger.log('system', `更新封禁时长: ${ip} -> ${durationMinutes}分钟`);
+        logger.log('system', `更新封禁时长: ${ip} -> ${durationMinutes}分钟`, { messageKey: 'bannedIP.updateDuration', messageParams: [ip, String(durationMinutes)] });
         return { success: true };
       }
       return { success: false, error: 'IP未被封禁或不存在' };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.log('error', '更新封禁时长失败', message);
+      logger.log('error', '更新封禁时长失败', { detail: message, messageKey: 'error.updateBanDuration' });
       return { success: false, error: message };
     }
   });
@@ -478,8 +478,12 @@ export function registerIpcHandlers(
 
   // 注册新日志推送
   const originalLog = logger.log.bind(logger);
-  logger.log = (type: LogEntry['type'], message: string, detail?: string) => {
-    const entry = originalLog(type, message, detail);
+  logger.log = (
+    type: LogEntry['type'],
+    message: string,
+    opts?: { detail?: string; messageKey?: string; messageParams?: string[] }
+  ) => {
+    const entry = originalLog(type, message, opts);
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send(IPC_CHANNELS.LOG_ON_NEW, entry);
     }

@@ -234,7 +234,52 @@ export interface Locale {
     system: string;
     totalLogs: string;
   };
-  
+
+  // 日志消息（系统日志内容的多语言模板）
+  logMessages: {
+    'app.startup': string;
+    'network.change': string;
+    'log.cleanup.complete': string;
+    'log.cleanup.onStartup': string;
+    'services.init.complete': string;
+    'error.getNetworkInfo': string;
+    'error.switchAdapter': string;
+    'error.createShare': string;
+    'error.cancelShare': string;
+    'error.cancelAllShares': string;
+    'error.getShareList': string;
+    'error.updateShareConfig': string;
+    'error.selectFile': string;
+    'error.selectFolder': string;
+    'error.getDropPath': string;
+    'error.getSettings': string;
+    'error.saveSettings': string;
+    'error.resetSettings': string;
+    'error.exportLogs': string;
+    'error.configHotspot': string;
+    'error.getBannedIPs': string;
+    'error.unbanIP': string;
+    'error.updateBanDuration': string;
+    'error.readLogFile': string;
+    'error.cleanupLogs': string;
+    'error.createShareTask': string;
+    'error.cancelShareTask': string;
+    'settings.updated': string;
+    'settings.reset': string;
+    'log.cleared': string;
+    'bannedIP.unban': string;
+    'bannedIP.updateDuration': string;
+    'bannedIP.blocked': string;
+    'share.expired.maxDownloads': string;
+    'share.created': string;
+    'share.cancelled': string;
+    'share.configUpdated': string;
+    'share.expired.count': string;
+    'share.restored': string;
+    'share.destroyed': string;
+    'download.complete': string;
+  };
+
   // 热点配置
   hotspot: {
     title: string;

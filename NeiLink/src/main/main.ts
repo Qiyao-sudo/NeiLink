@@ -74,7 +74,10 @@ async function initializeServices(): Promise<void> {
 
   // 2. 初始化日志系统
   const logger = new Logger(settings.logStoragePath);
-  logger.log('system', 'NeiLink 应用启动', `版本: ${app.getVersion()}, 平台: ${process.platform}`);
+  logger.log('system', 'NeiLink 应用启动', {
+    detail: `版本: ${app.getVersion()}, 平台: ${process.platform}`,
+    messageKey: 'app.startup',
+  });
   
   // 设置 httpServer 的 logger
   setLogger(logger);
@@ -90,7 +93,10 @@ async function initializeServices(): Promise<void> {
 
   // 3. 初始化网络监控
   networkMonitor = new NetworkMonitor((info) => {
-    logger.log('system', '网络状态变化', `IP: ${info.ip}, 类型: ${info.type}, 在线: ${info.isOnline}`);
+    logger.log('system', '网络状态变化', {
+      detail: `IP: ${info.ip}, 类型: ${info.type}, 在线: ${info.isOnline}`,
+      messageKey: 'network.change',
+    });
     // 网络变化时推送通知到渲染进程
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send(IPC_CHANNELS.NETWORK_ON_CHANGE, info);
@@ -111,7 +117,10 @@ async function initializeServices(): Promise<void> {
     currentSettings.then((s) => {
       const removedCount = logger.cleanupOldLogs(s.logRetentionDays);
       if (removedCount > 0) {
-        logger.log('system', `日志清理完成`, `清理了 ${removedCount} 条过期日志`);
+        logger.log('system', '日志清理完成', {
+          detail: `清理了 ${removedCount} 条过期日志`,
+          messageKey: 'log.cleanup.complete',
+        });
       }
     });
   });
@@ -119,10 +128,13 @@ async function initializeServices(): Promise<void> {
   // 7. 启动时执行一次日志清理
   const removedCount = logger.cleanupOldLogs(settings.logRetentionDays);
   if (removedCount > 0) {
-    logger.log('system', `启动时清理过期日志`, `清理了 ${removedCount} 条过期日志`);
+    logger.log('system', '启动时清理过期日志', {
+      detail: `清理了 ${removedCount} 条过期日志`,
+      messageKey: 'log.cleanup.onStartup',
+    });
   }
 
-  logger.log('system', '所有服务初始化完成');
+  logger.log('system', '所有服务初始化完成', { messageKey: 'services.init.complete' });
 }
 
 /**

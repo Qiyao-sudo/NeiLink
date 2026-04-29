@@ -207,7 +207,7 @@ function checkRateLimit(ip: string, maxAttempts: number, banDuration: number): b
   if (record.attempts > maxAttempts) {
     record.banned = true;
     record.banExpiry = now + banDuration * 60 * 1000;
-    logger?.log('system', `封禁IP: ${ip}，每分钟尝试次数: ${record.attempts}，封禁时长: ${banDuration}分钟`);
+    logger?.log('system', `封禁IP: ${ip}，每分钟尝试次数: ${record.attempts}，封禁时长: ${banDuration}分钟`, { messageKey: 'bannedIP.blocked', messageParams: [ip, String(record.attempts), String(banDuration)] });
     return true;
   }
 
@@ -359,7 +359,11 @@ function handleDownloadAPI(
     logger?.log(
       'download',
       `文件下载成功: ${share.fileName} (下载码: ${fileCode})，下载IP: ${clientIP}`,
-      JSON.stringify({ fileSize: share.fileSize, shareId: share.id, fileName: share.fileName })
+      {
+        detail: JSON.stringify({ fileSize: share.fileSize, shareId: share.id, fileName: share.fileName }),
+        messageKey: 'download.complete',
+        messageParams: [share.fileName, fileCode, clientIP],
+      }
     );
     const cb = downloadCallbacks.get(fileCode);
     if (cb) cb(share.id);
@@ -634,7 +638,7 @@ export function unbanIP(ip: string): boolean {
     record.banExpiry = 0;
     record.attempts = 0;
     record.windowStart = Date.now();
-    logger?.log('system', `解封IP: ${ip}`);
+    logger?.log('system', `解封IP: ${ip}`, { messageKey: 'bannedIP.unban', messageParams: [ip] });
     return true;
   }
   return false;
@@ -644,7 +648,7 @@ export function updateBanDuration(ip: string, durationMinutes: number): boolean 
   const record = rateLimitRecords.get(ip);
   if (record && record.banned) {
     record.banExpiry = Date.now() + durationMinutes * 60 * 1000;
-    logger?.log('system', `更新封禁时长: ${ip} -> ${durationMinutes}分钟`);
+    logger?.log('system', `更新封禁时长: ${ip} -> ${durationMinutes}分钟`, { messageKey: 'bannedIP.updateDuration', messageParams: [ip, String(durationMinutes)] });
     return true;
   }
   return false;

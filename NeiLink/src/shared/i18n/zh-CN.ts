@@ -235,7 +235,56 @@ export const zhCN: Locale = {
     system: '系统',
     totalLogs: '共 {count} 条日志',
   },
-  
+
+  // 日志消息
+  logMessages: {
+    'app.startup': 'NeiLink 应用启动',
+    'network.change': '网络状态变化',
+    'log.cleanup.complete': '日志清理完成',
+    'log.cleanup.onStartup': '启动时清理过期日志',
+    'services.init.complete': '所有服务初始化完成',
+
+    'error.getNetworkInfo': '获取网络信息失败',
+    'error.switchAdapter': '切换网络适配器失败',
+    'error.createShare': '创建分享失败',
+    'error.cancelShare': '取消分享失败: {0}',
+    'error.cancelAllShares': '取消所有分享失败',
+    'error.getShareList': '获取分享列表失败',
+    'error.updateShareConfig': '更新分享配置失败: {0}',
+    'error.selectFile': '选择文件失败',
+    'error.selectFolder': '选择文件夹失败',
+    'error.getDropPath': '获取拖拽文件路径失败',
+    'error.getSettings': '获取设置失败',
+    'error.saveSettings': '保存设置失败',
+    'error.resetSettings': '重置设置失败',
+    'error.exportLogs': '导出日志失败',
+    'error.configHotspot': '配置热点失败',
+    'error.getBannedIPs': '获取封禁IP列表失败',
+    'error.unbanIP': '解封IP失败',
+    'error.updateBanDuration': '更新封禁时长失败',
+    'error.readLogFile': '读取日志文件失败',
+    'error.cleanupLogs': '清理过期日志失败',
+    'error.createShareTask': '创建分享任务失败: {0}',
+    'error.cancelShareTask': '取消分享任务失败: {0}',
+
+    'settings.updated': '设置已更新',
+    'settings.reset': '设置已重置为默认值',
+    'log.cleared': '日志已清空',
+    'bannedIP.unban': '解封IP: {0}',
+    'bannedIP.updateDuration': '更新封禁时长: {0} -> {1}分钟',
+    'bannedIP.blocked': '封禁IP: {0}，每分钟尝试次数: {1}，封禁时长: {2}分钟',
+
+    'share.expired.maxDownloads': '分享任务因达到最大下载次数而过期: {0} (ID: {1})',
+    'share.created': '创建分享任务: {0}',
+    'share.cancelled': '取消分享任务: {0}',
+    'share.configUpdated': '更新分享配置: {0}',
+    'share.expired.count': '{0} 个分享任务已过期',
+    'share.restored': '已恢复 {0} 个分享任务',
+    'share.destroyed': '应用关闭，已删除所有分享任务',
+
+    'download.complete': '文件下载成功: {0} (下载码: {1})，下载IP: {2}',
+  },
+
   // 热点配置
   hotspot: {
     title: '热点配置',

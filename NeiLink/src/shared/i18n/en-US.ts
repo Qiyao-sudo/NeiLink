@@ -235,7 +235,56 @@ export const enUS: Locale = {
     system: 'System',
     totalLogs: 'Total {count} logs',
   },
-  
+
+  // Log Messages
+  logMessages: {
+    'app.startup': 'NeiLink application started',
+    'network.change': 'Network status changed',
+    'log.cleanup.complete': 'Log cleanup completed',
+    'log.cleanup.onStartup': 'Cleaned expired logs on startup',
+    'services.init.complete': 'All services initialized',
+
+    'error.getNetworkInfo': 'Failed to get network info',
+    'error.switchAdapter': 'Failed to switch network adapter',
+    'error.createShare': 'Failed to create share',
+    'error.cancelShare': 'Failed to cancel share: {0}',
+    'error.cancelAllShares': 'Failed to cancel all shares',
+    'error.getShareList': 'Failed to get share list',
+    'error.updateShareConfig': 'Failed to update share config: {0}',
+    'error.selectFile': 'Failed to select file',
+    'error.selectFolder': 'Failed to select folder',
+    'error.getDropPath': 'Failed to get drop file path',
+    'error.getSettings': 'Failed to get settings',
+    'error.saveSettings': 'Failed to save settings',
+    'error.resetSettings': 'Failed to reset settings',
+    'error.exportLogs': 'Failed to export logs',
+    'error.configHotspot': 'Failed to configure hotspot',
+    'error.getBannedIPs': 'Failed to get banned IP list',
+    'error.unbanIP': 'Failed to unban IP',
+    'error.updateBanDuration': 'Failed to update ban duration',
+    'error.readLogFile': 'Failed to read log file',
+    'error.cleanupLogs': 'Failed to clean up expired logs',
+    'error.createShareTask': 'Failed to create share task: {0}',
+    'error.cancelShareTask': 'Failed to cancel share task: {0}',
+
+    'settings.updated': 'Settings updated',
+    'settings.reset': 'Settings reset to defaults',
+    'log.cleared': 'Logs cleared',
+    'bannedIP.unban': 'Unbanned IP: {0}',
+    'bannedIP.updateDuration': 'Updated ban duration: {0} -> {1}min',
+    'bannedIP.blocked': 'Banned IP: {0}, attempts/min: {1}, ban duration: {2}min',
+
+    'share.expired.maxDownloads': 'Share expired due to reaching max downloads: {0} (ID: {1})',
+    'share.created': 'Created share task: {0}',
+    'share.cancelled': 'Cancelled share task: {0}',
+    'share.configUpdated': 'Updated share config: {0}',
+    'share.expired.count': '{0} share task(s) expired',
+    'share.restored': 'Restored {0} share task(s)',
+    'share.destroyed': 'Application closed, all share tasks deleted',
+
+    'download.complete': 'File downloaded: {0} (code: {1}), IP: {2}',
+  },
+
   // 热点配置
   hotspot: {
     title: 'Hotspot Configuration',

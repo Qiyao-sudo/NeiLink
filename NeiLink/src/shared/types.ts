@@ -51,6 +51,8 @@ export interface LogEntry {
   type: 'share' | 'download' | 'error' | 'system';
   message: string;
   detail?: string;
+  messageKey?: string;
+  messageParams?: string[];
 }
 
 // 封禁IP信息

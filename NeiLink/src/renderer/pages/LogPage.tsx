@@ -18,6 +18,7 @@ import {
 } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 import { LogEntry } from '../../shared/types';
+import { translateLogMessage } from '../../shared/i18n';
 import { useLanguage } from '../contexts/LanguageContext';
 
 const { Text, Title } = Typography;
@@ -28,7 +29,7 @@ type TimeRange = 'today' | 'yesterday' | '7days' | '30days' | 'custom';
 
 const LogPage: React.FC = () => {
   const { message } = App.useApp();
-  const { locale } = useLanguage();
+  const { locale, language } = useLanguage();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [typeFilter, setTypeFilter] = useState<LogTypeFilter>('all');
@@ -79,7 +80,7 @@ const LogPage: React.FC = () => {
         setTotalCount(result.data.length);
       }
     } catch {
-      message.error('获取日志失败');
+      message.error(locale.notification.error);
     } finally {
       setLoading(false);
     }
@@ -92,21 +93,23 @@ const LogPage: React.FC = () => {
   const handleClearLogs = async () => {
     try {
       await window.neilink.ipc.invoke('log:clear');
-      message.success('过期日志已清理');
+      message.success(locale.log.clearLogs);
       fetchLogs();
     } catch {
-      message.error('清理日志失败');
+      message.error(locale.notification.error);
     }
   };
 
   const handleExportLogs = async () => {
     try {
-      const result = await window.neilink.ipc.invoke('log:export') as string;
-      if (result) {
-        message.success(`日志已导出至: ${result}`);
+      const result = await window.neilink.ipc.invoke('log:export', language) as any;
+      if (result && result.success) {
+        message.success(`日志已导出至: ${result.path}`);
+      } else {
+        message.error(locale.notification.error);
       }
     } catch {
-      message.error('导出日志失败');
+      message.error(locale.notification.error);
     }
   };
 
@@ -117,26 +120,37 @@ const LogPage: React.FC = () => {
     }
   };
 
-  const typeTagMap: Record<string, { color: string; label: string }> = {
-    share: { color: 'blue', label: '分享' },
-    download: { color: 'green', label: '下载' },
-    error: { color: 'red', label: '异常' },
-    system: { color: 'purple', label: '系统' },
+  const typeTagMap: Record<string, { color: string }> = {
+    share: { color: 'blue' },
+    download: { color: 'green' },
+    error: { color: 'red' },
+    system: { color: 'purple' },
+  };
+
+  const getTypeLabel = (type: string): string => {
+    const labels: Record<string, string> = {
+      share: locale.log.share,
+      download: locale.log.download,
+      error: locale.log.error,
+      system: locale.log.system,
+    };
+    return labels[type] || type;
   };
 
   const renderLogItem = (item: LogEntry) => {
-    const tagInfo = typeTagMap[item.type] || { color: 'default', label: item.type };
+    const tagInfo = typeTagMap[item.type] || { color: 'default' };
     const isError = item.type === 'error';
+    const displayMessage = translateLogMessage(item, locale);
 
     return (
       <div className={`log-item ${isError ? 'log-item-error' : ''}`}>
         <span className="log-time">{dayjs(item.timestamp).format('YYYY-MM-DD HH:mm:ss')}</span>
-        <span className={`log-type ${item.type}`}>{tagInfo.label}</span>
+        <span className={`log-type ${item.type}`}>{getTypeLabel(item.type)}</span>
         <span
           className="log-message"
           style={isError ? { color: 'var(--color-error)' } : undefined}
         >
-          {item.message}
+          {displayMessage}
         </span>
       </div>
     );

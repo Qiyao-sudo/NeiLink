@@ -8,6 +8,7 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import dayjs from 'dayjs';
 import { LogEntry } from '../../shared/types';
+import { getLocale, translateLogMessage } from '../../shared/i18n';
 
 export class Logger {
   private logFilePath: string;
@@ -37,13 +38,23 @@ export class Logger {
    * @param message 日志消息
    * @param detail 详细信息（可选）
    */
-  log(type: LogEntry['type'], message: string, detail?: string): LogEntry {
+  log(
+    type: LogEntry['type'],
+    message: string,
+    opts?: {
+      detail?: string;
+      messageKey?: string;
+      messageParams?: string[];
+    }
+  ): LogEntry {
     const entry: LogEntry = {
       id: crypto.randomUUID(),
       timestamp: Date.now(),
       type,
       message,
-      detail,
+      detail: opts?.detail,
+      messageKey: opts?.messageKey,
+      messageParams: opts?.messageParams,
     };
 
     // 追加写入日志文件（JSON Lines 格式，每行一个 JSON 对象）
@@ -90,7 +101,10 @@ export class Logger {
 
       return entries;
     } catch (err) {
-      this.log('error', '读取日志文件失败', err instanceof Error ? err.message : String(err));
+      this.log('error', '读取日志文件失败', {
+        detail: err instanceof Error ? err.message : String(err),
+        messageKey: 'error.readLogFile',
+      });
       return [];
     }
   }
@@ -106,8 +120,9 @@ export class Logger {
    * 导出日志为文本文件
    * @returns 导出文件的路径
    */
-  exportLogs(): string {
+  exportLogs(language?: string): string {
     const entries = this.getLogs();
+    const locale = getLocale(language || 'zh-CN');
 
     const exportDir = path.join(this.logDir, 'exports');
     if (!fs.existsSync(exportDir)) {
@@ -117,16 +132,21 @@ export class Logger {
     const timestamp = dayjs().format('YYYY-MM-DD_HH-mm-ss');
     const exportPath = path.join(exportDir, `neilink_log_${timestamp}.txt`);
 
-    let content = `NeiLink 日志导出\n`;
-    content += `导出时间: ${dayjs().format('YYYY-MM-DD HH:mm:ss')}\n`;
-    content += `日志条数: ${entries.length}\n`;
+    const headerExportTime = language === 'en-US' ? 'Export time' : '导出时间';
+    const headerLogCount = language === 'en-US' ? 'Log count' : '日志条数';
+    const headerDetail = language === 'en-US' ? 'Detail' : '详情';
+
+    let content = `NeiLink ${locale.log.title}\n`;
+    content += `${headerExportTime}: ${dayjs().format('YYYY-MM-DD HH:mm:ss')}\n`;
+    content += `${headerLogCount}: ${entries.length}\n`;
     content += `${'='.repeat(60)}\n\n`;
 
     for (const entry of entries) {
       const time = dayjs(entry.timestamp).format('YYYY-MM-DD HH:mm:ss');
-      content += `[${time}] [${entry.type.toUpperCase()}] ${entry.message}`;
+      const translatedMessage = translateLogMessage(entry, locale);
+      content += `[${time}] [${entry.type.toUpperCase()}] ${translatedMessage}`;
       if (entry.detail) {
-        content += `\n  详情: ${entry.detail}`;
+        content += `\n  ${headerDetail}: ${entry.detail}`;
       }
       content += '\n';
     }
@@ -158,7 +178,10 @@ export class Logger {
 
       return removedCount;
     } catch (err) {
-      this.log('error', '清理过期日志失败', err instanceof Error ? err.message : String(err));
+      this.log('error', '清理过期日志失败', {
+        detail: err instanceof Error ? err.message : String(err),
+        messageKey: 'error.cleanupLogs',
+      });
       return 0;
     }
   }

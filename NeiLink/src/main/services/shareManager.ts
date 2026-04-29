@@ -117,7 +117,7 @@ export class ShareManager {
     if (share.maxDownloads !== -1 && share.downloadCount >= share.maxDownloads) {
       share.status = 'expired';
       this.saveShares();
-      this.logger.log('system', `分享任务因达到最大下载次数而过期: ${share.fileName} (ID: ${shareId})`);
+      this.logger.log('system', `分享任务因达到最大下载次数而过期: ${share.fileName} (ID: ${shareId})`, { messageKey: 'share.expired.maxDownloads', messageParams: [share.fileName, shareId] });
       this.notifyShareUpdate();
     }
   }
@@ -208,14 +208,14 @@ export class ShareManager {
       this.saveShares();
 
       // 记录日志
-      this.logger.log('share', `创建分享任务: ${finalFileName}`, `ID: ${id}, 端口: ${port}, 大小: ${fileSize}`);
+      this.logger.log('share', `创建分享任务: ${finalFileName}`, { detail: `ID: ${id}, 端口: ${port}, 大小: ${fileSize}`, messageKey: 'share.created', messageParams: [finalFileName] });
 
       // 通知更新
       this.notifyShareUpdate();
 
       return shareConfig;
     } catch (err) {
-      this.logger.log('error', `创建分享任务失败: ${finalFileName}`, err instanceof Error ? err.message : String(err));
+      this.logger.log('error', `创建分享任务失败: ${finalFileName}`, { detail: err instanceof Error ? err.message : String(err), messageKey: 'error.createShareTask', messageParams: [finalFileName] });
       throw new Error(`创建分享失败: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
@@ -243,14 +243,14 @@ export class ShareManager {
       this.saveShares();
 
       // 记录日志
-      this.logger.log('share', `取消分享任务: ${share.fileName}`, `ID: ${id}`);
+      this.logger.log('share', `取消分享任务: ${share.fileName}`, { detail: `ID: ${id}`, messageKey: 'share.cancelled', messageParams: [share.fileName] });
 
       // 通知更新
       this.notifyShareUpdate();
 
       return true;
     } catch (err) {
-      this.logger.log('error', `取消分享任务失败: ${id}`, err instanceof Error ? err.message : String(err));
+      this.logger.log('error', `取消分享任务失败: ${id}`, { detail: err instanceof Error ? err.message : String(err), messageKey: 'error.cancelShareTask', messageParams: [id] });
       throw new Error(`取消分享失败: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
@@ -333,7 +333,7 @@ export class ShareManager {
     this.saveShares();
 
     // 记录日志
-    this.logger.log('share', `更新分享配置: ${share.fileName}`, `ID: ${id}`);
+    this.logger.log('share', `更新分享配置: ${share.fileName}`, { detail: `ID: ${id}`, messageKey: 'share.configUpdated', messageParams: [share.fileName] });
 
     // 通知更新
     this.notifyShareUpdate();
@@ -394,7 +394,7 @@ export class ShareManager {
     if (expiredCount > 0) {
       // 保存更新后的状态
       this.saveShares();
-      this.logger.log('system', `${expiredCount} 个分享任务已过期`);
+      this.logger.log('system', `${expiredCount} 个分享任务已过期`, { messageKey: 'share.expired.count', messageParams: [String(expiredCount)] });
       this.notifyShareUpdate();
     }
   }
@@ -520,7 +520,7 @@ export class ShareManager {
       }
 
       if (restoredCount > 0) {
-        this.logger.log('system', `已恢复 ${restoredCount} 个分享任务`);
+        this.logger.log('system', `已恢复 ${restoredCount} 个分享任务`, { messageKey: 'share.restored', messageParams: [String(restoredCount)] });
         // 通知前端更新分享列表
         this.notifyShareUpdate();
       }
@@ -565,7 +565,7 @@ export class ShareManager {
       } catch (err) {
         console.error('删除分享数据文件失败:', err);
       }
-      this.logger.log('system', '应用关闭，已删除所有分享任务');
+      this.logger.log('system', '应用关闭，已删除所有分享任务', { messageKey: 'share.destroyed' });
     } else {
       // 否则保存当前分享状态，下次启动时恢复
       this.saveShares();

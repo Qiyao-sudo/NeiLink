@@ -1,0 +1,120 @@
+name: Build and Pre-Release
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      main_version:
+        description: '主版本号(1.X)'
+        required: true
+        type: string
+      sub_version:
+        description: '次/完整版本号(1.X.X)'
+        required: true
+        type: string
+      current_tag:
+        description: '当前Git Tag名称(v1.X.X)'
+        required: true
+        type: string
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x64
+            platform: linux
+          - os: ubuntu-latest
+            arch: arm64
+            platform: linux
+          - os: windows-latest
+            arch: x64
+            platform: win
+          - os: windows-latest
+            arch: arm64
+            platform: win
+          - os: macos-15
+            arch: x64
+            platform: mac
+          - os: macos-15
+            arch: arm64
+            platform: mac
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.current_tag }}
+
+      - name: 安装Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 安装Linux ARM64交叉编译依赖
+        if: matrix.platform == 'linux' && matrix.arch == 'arm64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y binfmt-support qemu-user-static
+
+      - name: 安装项目依赖
+        working-directory: NeiLink
+        run: npm ci
+
+      - name: 构建应用
+        working-directory: NeiLink
+        run: npm run build
+
+      - name: 打包 ${{ matrix.platform }}-${{ matrix.arch }}
+        working-directory: NeiLink
+        run: npx electron-builder --${{ matrix.platform }} --${{ matrix.arch }}
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: neilink-${{ matrix.platform }}-${{ matrix.arch }}
+          path: NeiLink/release/*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.current_tag }}
+
+      - name: 下载所有构建产物
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: 读取更新日志
+        id: changelog
+        run: |
+          CHANGELOG_PATH="doc/Changelogs/${{ github.event.inputs.main_version }}/${{ github.event.inputs.sub_version }}/App.md"
+          if [ -f "$CHANGELOG_PATH" ]; then
+            {
+              echo 'body<<CHANGELOG_EOF'
+              cat "$CHANGELOG_PATH"
+              echo 'CHANGELOG_EOF'
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "body=No changelog found for ${{ github.event.inputs.sub_version }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 创建Pre-Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.current_tag }}
+          body: ${{ steps.changelog.outputs.body }}
+          prerelease: true
+          files: artifacts/*
