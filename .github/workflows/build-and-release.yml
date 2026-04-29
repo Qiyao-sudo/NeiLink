@@ -86,10 +86,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 检出代码
+      - name: 检出代码（拉全量历史+所有Tag）
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.current_tag }}
+          fetch-depth: 0
+          fetch-tags: true
+          ref: main
+
+      - name: 确保Tag存在（不存在则自动创建）
+        id: ensure_tag
+        run: |
+          CURRENT_TAG="${{ github.event.inputs.current_tag }}"
+          git fetch --tags origin
+
+          if git rev-parse "$CURRENT_TAG" >/dev/null 2>&1; then
+            echo "Tag $CURRENT_TAG 已存在"
+            echo "tag_created=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Tag $CURRENT_TAG 不存在，自动创建"
+            git tag "$CURRENT_TAG"
+            git push origin "$CURRENT_TAG"
+            echo "tag_created=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: 下载所有构建产物
         uses: actions/download-artifact@v4
