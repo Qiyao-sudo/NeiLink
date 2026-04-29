@@ -43,6 +43,5 @@ electron-builder.yaml
 webpack.config.js
 
 # Package manager
-package-lock.json
 yarn.lock
 pnpm-lock.yaml
