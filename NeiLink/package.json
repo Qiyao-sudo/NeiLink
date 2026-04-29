@@ -2,6 +2,8 @@
   "name": "neilink",
   "version": "1.4.0",
   "description": "NeiLink Desktop Application",
+  "homepage": "https://github.com/Qiyao-sudo/NeiLink",
+  "author": "Qiyao-sudo <g602793150@163.com>",
   "main": "dist/main/main.js",
   "scripts": {
     "dev": "concurrently \"webpack serve --config webpack.renderer.config.js\" \"wait-on http://localhost:3000 && electron .\"",
@@ -40,7 +42,8 @@
         "AppImage",
         "deb",
         "rpm"
-      ]
+      ],
+      "maintainer": "Qiyao-sudo"
     }
   },
   "dependencies": {
