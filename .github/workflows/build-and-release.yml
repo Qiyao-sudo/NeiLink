@@ -1,4 +1,4 @@
-name: Build and Pre-Release
+name: Build and Release
 
 permissions:
   contents: write
@@ -15,7 +15,7 @@ on:
         required: true
         type: string
       current_tag:
-        description: '当前Git Tag名称(v1.X.X)'
+        description: 'Git Tag名称(v1.X.X)'
         required: true
         type: string
 
@@ -49,8 +49,6 @@ jobs:
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.current_tag }}
 
       - name: 安装Node.js
         uses: actions/setup-node@v4
@@ -60,6 +58,7 @@ jobs:
       - name: 安装Linux ARM64交叉编译依赖
         if: matrix.platform == 'linux' && matrix.arch == 'arm64'
         run: |
+          set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y binfmt-support qemu-user-static
 
@@ -78,7 +77,7 @@ jobs:
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
         with:
-          name: neilink-${{ matrix.platform }}-${{ matrix.arch }}
+          name: neilink-${{ inputs.sub_version }}-${{ matrix.platform }}-${{ matrix.arch }}
           path: NeiLink/release/*
 
   release:
@@ -96,7 +95,8 @@ jobs:
       - name: 确保Tag存在（不存在则自动创建）
         id: ensure_tag
         run: |
-          CURRENT_TAG="${{ github.event.inputs.current_tag }}"
+          set -euo pipefail
+          CURRENT_TAG="${{ inputs.current_tag }}"
           git fetch --tags origin
 
           if git rev-parse "$CURRENT_TAG" >/dev/null 2>&1; then
@@ -118,7 +118,8 @@ jobs:
       - name: 读取更新日志
         id: changelog
         run: |
-          CHANGELOG_PATH="doc/Changelogs/${{ github.event.inputs.main_version }}/${{ github.event.inputs.sub_version }}/App.md"
+          set -euo pipefail
+          CHANGELOG_PATH="doc/Changelogs/${{ inputs.main_version }}/${{ inputs.sub_version }}/App.md"
           if [ -f "$CHANGELOG_PATH" ]; then
             {
               echo 'body<<CHANGELOG_EOF'
@@ -126,13 +127,14 @@ jobs:
               echo 'CHANGELOG_EOF'
             } >> "$GITHUB_OUTPUT"
           else
-            echo "body=No changelog found for ${{ github.event.inputs.sub_version }}" >> "$GITHUB_OUTPUT"
+            echo "body=No changelog found for ${{ inputs.sub_version }}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: 创建Pre-Release
+      - name: 创建Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.current_tag }}
+          tag_name: ${{ inputs.current_tag }}
           body: ${{ steps.changelog.outputs.body }}
-          prerelease: true
+          draft: false
+          prerelease: false
           files: artifacts/*
