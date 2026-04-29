@@ -137,15 +137,12 @@ export function decryptFile(inputPath: string, outputPath: string, key: string):
  *
  * @param key hex 格式的密钥字符串
  * @param iv 可选的自定义 IV（用于断点续传）
- * @returns { cipher: ReturnType<typeof crypto.createCipheriv>, iv: Buffer }
+ * @returns 包含 cipher 和 iv 的对象
  */
 export function createEncryptStream(
   key: string,
   iv?: Buffer
-): {
-  cipher: ReturnType<typeof crypto.createCipheriv>;
-  iv: Buffer;
-} {
+) {
   const keyBuffer = Buffer.from(key, 'hex');
   const finalIv = iv || crypto.randomBytes(16);
   const cipher = crypto.createCipheriv('aes-256-cbc', keyBuffer, finalIv);
