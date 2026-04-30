@@ -352,14 +352,24 @@ const ShareManagePage: React.FC = () => {
       width: 200,
       render: (text: string, record: any) => {
         const rawShare = rawSharesRef.current.find(s => s.id === record.id);
-        const currentLink = rawShare 
+        const currentLink = rawShare
           ? `http://${networkInfoRef.current.ip}:${rawShare.port}/${record.id}`
           : text;
+        const handleClick = () => {
+          navigator.clipboard.writeText(currentLink).then(() => {
+            message.success(locale.common.copied);
+          }).catch(() => {
+            message.error('复制失败');
+          });
+        };
         return (
-          <Tooltip title={currentLink}>
-            <Text copyable={{ text: currentLink }} style={{ fontSize: 12 }}>
+          <Tooltip title={`${locale.common.copy}: ${currentLink}`}>
+            <a
+              onClick={handleClick}
+              style={{ fontSize: 12, cursor: 'pointer', userSelect: 'none' }}
+            >
               {currentLink}
-            </Text>
+            </a>
           </Tooltip>
         );
       },
