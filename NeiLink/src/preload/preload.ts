@@ -48,6 +48,10 @@ const IPC_CHANNELS = {
   // 应用相关
   APP_GET_VERSION: 'app:get-version',
   APP_CHECK_UPDATE: 'app:check-update',
+
+  // 窗口关闭行为
+  WINDOW_CLOSE_ACTION: 'window:close-action',
+  WINDOW_NAVIGATE: 'window:navigate',
 };
 
 /**
@@ -90,6 +94,7 @@ const invokeChannels: string[] = [
   IPC_CHANNELS.BANNED_IPS_UPDATE_DURATION,
   IPC_CHANNELS.APP_GET_VERSION,
   IPC_CHANNELS.APP_CHECK_UPDATE,
+  IPC_CHANNELS.WINDOW_CLOSE_ACTION,
 ];
 
 /**
@@ -102,6 +107,7 @@ const onChannels: string[] = [
   IPC_CHANNELS.LOG_ON_NEW,
   IPC_CHANNELS.NOTIFICATION,
   IPC_CHANNELS.WINDOW_ON_STATE_CHANGE,
+  IPC_CHANNELS.WINDOW_NAVIGATE,
 ];
 
 contextBridge.exposeInMainWorld('neilink', {

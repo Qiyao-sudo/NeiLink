@@ -191,6 +191,11 @@ export interface Locale {
     themeLight: string;
     themeDark: string;
     themeAuto: string;
+    closeBehavior: string;
+    closeBehaviorHint: string;
+    closeBehaviorAsk: string;
+    closeBehaviorMinimize: string;
+    closeBehaviorExit: string;
   };
   
   // 流量统计
@@ -428,6 +433,22 @@ export interface Locale {
       second: string;
       remaining: string;
     };
+  };
+
+  // 系统托盘
+  tray: {
+    share: string;
+    settings: string;
+    exit: string;
+  };
+
+  // 关闭对话框
+  closeDialog: {
+    title: string;
+    message: string;
+    minimizeToTray: string;
+    exitApp: string;
+    dontAskAgain: string;
   };
 
   // 关于页面

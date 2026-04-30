@@ -47,6 +47,7 @@ interface AppSettings {
   defaultMaxDownloads: number;
   defaultMaxConcurrent: number;
   clearSharesOnExit: boolean;
+  closeBehavior: 'ask' | 'minimize' | 'exit';
   language: string;
   theme: 'light' | 'dark' | 'auto';
 
@@ -77,6 +78,7 @@ const defaultSettings: AppSettings = {
   defaultMaxDownloads: -1,
   defaultMaxConcurrent: -1,
   clearSharesOnExit: false,
+  closeBehavior: 'ask',
   language: 'zh-CN',
   theme: 'auto',
   port: 8080,
@@ -558,6 +560,23 @@ const SettingsPage: React.FC = () => {
           <Switch
             checked={settings.clearSharesOnExit}
             onChange={(val) => updateSetting('clearSharesOnExit', val)}
+          />
+        </div>
+
+        <div className="settings-item">
+          <div>
+            <div className="settings-label">{locale.settings.closeBehavior}</div>
+            <div className="settings-desc">{locale.settings.closeBehaviorHint}</div>
+          </div>
+          <Select
+            value={settings.closeBehavior}
+            onChange={(val) => updateSetting('closeBehavior', val)}
+            style={{ width: 200 }}
+            options={[
+              { value: 'ask', label: locale.settings.closeBehaviorAsk },
+              { value: 'minimize', label: locale.settings.closeBehaviorMinimize },
+              { value: 'exit', label: locale.settings.closeBehaviorExit },
+            ]}
           />
         </div>
 

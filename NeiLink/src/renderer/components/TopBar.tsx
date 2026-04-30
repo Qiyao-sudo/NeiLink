@@ -8,6 +8,7 @@ import {
 } from '@ant-design/icons';
 import { NetworkInfo, IPC_CHANNELS } from '../../shared/types';
 import { useLanguage } from '../contexts/LanguageContext';
+import CloseDialog from './CloseDialog';
 
 // 自定义堆叠方块图标
 const CustomRestoreIcon = () => (
@@ -28,6 +29,7 @@ const TopBar: React.FC = () => {
   });
 
   const [isMaximized, setIsMaximized] = useState(false);
+  const [closeDialogVisible, setCloseDialogVisible] = useState(false);
 
   const fetchNetworkStatus = async () => {
     try {
@@ -77,8 +79,26 @@ const TopBar: React.FC = () => {
     });
   };
 
-  const handleWindowAction = (action: 'minimize' | 'maximize' | 'close') => {
+  const handleWindowAction = async (action: 'minimize' | 'maximize' | 'close') => {
+    if (action === 'close') {
+      const result = await window.neilink.ipc.invoke('window:close') as any;
+      if (result?.success && result.action === 'ask') {
+        setCloseDialogVisible(true);
+      }
+      return;
+    }
     window.neilink.ipc.invoke(`window:${action}`);
+  };
+
+  const handleCloseDialog = async (action: 'minimize' | 'exit', dontAskAgain: boolean) => {
+    setCloseDialogVisible(false);
+    if (action === 'minimize') {
+      setTimeout(async () => {
+        await window.neilink.ipc.invoke(IPC_CHANNELS.WINDOW_CLOSE_ACTION, { action, dontAskAgain });
+      }, 200);
+    } else {
+      await window.neilink.ipc.invoke(IPC_CHANNELS.WINDOW_CLOSE_ACTION, { action, dontAskAgain });
+    }
   };
 
   const networkTypeText = () => {
@@ -139,6 +159,11 @@ const TopBar: React.FC = () => {
           style={{ width: 32, height: 32 }}
         />
       </div>
+      <CloseDialog
+        visible={closeDialogVisible}
+        onClose={handleCloseDialog}
+        onDismiss={() => setCloseDialogVisible(false)}
+      />
     </div>
   );
 };

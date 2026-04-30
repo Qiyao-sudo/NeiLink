@@ -27,6 +27,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   logRetentionDays: 30,
   logStoragePath: '', // 运行时由 app.getPath('userData') 填充
   clearSharesOnExit: false, // 默认不删除
+  closeBehavior: 'ask', // 默认每次都询问
   selectedAdapter: undefined, // 用户选择的网络适配器名称
   language: 'zh-CN', // 默认语言
   theme: 'auto', // 默认主题（跟随系统）

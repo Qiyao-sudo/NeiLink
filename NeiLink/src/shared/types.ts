@@ -83,6 +83,7 @@ export interface SystemSettings {
   logRetentionDays: number;
   logStoragePath: string;
   clearSharesOnExit: boolean; // 应用关闭时删除已分享的文件
+  closeBehavior: 'ask' | 'minimize' | 'exit'; // 关闭按钮行为
   selectedAdapter?: string; // 用户选择的网络适配器名称
   language: string; // 语言设置，如 'zh-CN', 'en-US'
   theme: 'light' | 'dark' | 'auto'; // 主题设置
@@ -155,6 +156,10 @@ export const IPC_CHANNELS = {
   // 应用相关
   APP_GET_VERSION: 'app:get-version',
   APP_CHECK_UPDATE: 'app:check-update',
+
+  // 窗口关闭行为
+  WINDOW_CLOSE_ACTION: 'window:close-action',
+  WINDOW_NAVIGATE: 'window:navigate',
 } as const;
 
 // NeiLink API

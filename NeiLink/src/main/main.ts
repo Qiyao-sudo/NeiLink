@@ -3,7 +3,7 @@
  * 初始化所有服务模块并启动应用
  */
 
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, Tray, Menu, nativeImage } from 'electron';
 import * as path from 'path';
 import * as cron from 'node-cron';
 import { IPC_CHANNELS } from '../shared/types';
@@ -15,6 +15,7 @@ import { registerIpcHandlers } from './ipcHandlers';
 import { setLogger, updateUserSettings } from './services/httpServer';
 
 let mainWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
 let shareManager: ShareManager | null = null;
 let networkMonitor: NetworkMonitor | null = null;
 
@@ -57,8 +58,62 @@ function createWindow(): void {
   }
 
   mainWindow.on('closed', () => {
+    if (tray) {
+      tray.destroy();
+      tray = null;
+    }
     mainWindow = null;
   });
+
+  // 创建系统托盘
+  const iconPath = path.join(__dirname, '..', '..', 'build', 'NeiLink.ico');
+  let trayIcon = nativeImage.createFromPath(iconPath);
+  if (trayIcon.isEmpty()) {
+    trayIcon = nativeImage.createEmpty();
+  }
+  tray = new Tray(trayIcon);
+  tray.setToolTip('NeiLink');
+
+  tray.on('click', () => {
+    if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: '分享',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+        }
+      },
+    },
+    {
+      label: '设置',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+          mainWindow.webContents.send(IPC_CHANNELS.WINDOW_NAVIGATE, '/settings');
+        }
+      },
+    },
+    { type: 'separator' },
+    {
+      label: '退出应用',
+      click: () => {
+        if (tray) {
+          tray.destroy();
+          tray = null;
+        }
+        app.quit();
+      },
+    },
+  ]);
+  tray.setContextMenu(contextMenu);
 }
 
 /**
