@@ -74,11 +74,114 @@ jobs:
         working-directory: NeiLink
         run: npx electron-builder --${{ matrix.platform }} --${{ matrix.arch }}
 
+      - name: 整理和压缩构建产物
+        working-directory: NeiLink/release
+        run: |
+          set -euo pipefail
+          V="${{ inputs.sub_version }}"
+          P="${{ matrix.platform }}"
+          A="${{ matrix.arch }}"
+
+          case "$P" in
+            win) PN="windows" ;;
+            linux) PN="linux" ;;
+            mac) PN="mac" ;;
+          esac
+
+          OUT="../NeiLink-${V}"
+
+          # ==================== Windows ====================
+          if [ "$P" = "win" ]; then
+            EXE=$(find . -maxdepth 2 -type f \( -name "NeiLink-${V}-${P}-${A}.exe" -o -name "NeiLink ${V}.exe" \) \
+              -not -name "*Setup*" -not -name "*.blockmap" 2>/dev/null | head -1)
+            if [ -n "$EXE" ]; then
+              DIR=$(dirname "$EXE"); BASE=$(basename "$EXE")
+              tar -czf "${OUT}-${PN}-${A}-executable.tar.gz" -C "$DIR" "$BASE"
+              echo "已压缩: ${BASE} -> ${OUT}-${PN}-${A}-executable.tar.gz"
+            else
+              echo "::warning::未找到 Windows 可执行文件(.exe)"
+            fi
+
+            UNP=$(find . -maxdepth 2 -type d -name "win-unpacked" 2>/dev/null | head -1)
+            if [ -n "$UNP" ]; then
+              DIR=$(dirname "$UNP"); BASE=$(basename "$UNP")
+              tar -czf "${OUT}-${PN}-${A}-unpacked.tar.gz" -C "$DIR" "$BASE"
+              echo "已压缩: ${BASE} -> ${OUT}-${PN}-${A}-unpacked.tar.gz"
+            else
+              echo "::warning::未找到 win-unpacked 目录"
+            fi
+          fi
+
+          # ==================== Linux ====================
+          if [ "$P" = "linux" ]; then
+            APPIMAGE=$(find . -maxdepth 2 -type f -name "*.AppImage" 2>/dev/null | head -1)
+            if [ -n "$APPIMAGE" ]; then
+              DIR=$(dirname "$APPIMAGE"); BASE=$(basename "$APPIMAGE")
+              tar -czf "${OUT}-${PN}-${A}-executable.tar.gz" -C "$DIR" "$BASE"
+              echo "已压缩: ${BASE} -> ${OUT}-${PN}-${A}-executable.tar.gz"
+            else
+              echo "::warning::未找到 AppImage 文件"
+            fi
+
+            DEB=$(find . -maxdepth 2 -type f -name "*.deb" 2>/dev/null | head -1)
+            if [ -n "$DEB" ]; then
+              DIR=$(dirname "$DEB"); BASE=$(basename "$DEB")
+              tar -czf "${OUT}-${PN}-Debian-${A}-installation.tar.gz" -C "$DIR" "$BASE"
+              echo "已压缩: ${BASE} -> ${OUT}-${PN}-Debian-${A}-installation.tar.gz"
+            else
+              echo "::warning::未找到 .deb 文件"
+            fi
+
+            RPM=$(find . -maxdepth 2 -type f -name "*.rpm" 2>/dev/null | head -1)
+            if [ -n "$RPM" ]; then
+              DIR=$(dirname "$RPM"); BASE=$(basename "$RPM")
+              tar -czf "${OUT}-${PN}-RedHat-${A}-installation.tar.gz" -C "$DIR" "$BASE"
+              echo "已压缩: ${BASE} -> ${OUT}-${PN}-RedHat-${A}-installation.tar.gz"
+            else
+              echo "::warning::未找到 .rpm 文件"
+            fi
+
+            UNP=$(find . -maxdepth 2 -type d -name "linux-unpacked" 2>/dev/null | head -1)
+            if [ -n "$UNP" ]; then
+              DIR=$(dirname "$UNP"); BASE=$(basename "$UNP")
+              tar -czf "${OUT}-${PN}-${A}-unpacked.tar.gz" -C "$DIR" "$BASE"
+              echo "已压缩: ${BASE} -> ${OUT}-${PN}-${A}-unpacked.tar.gz"
+            else
+              echo "::warning::未找到 linux-unpacked 目录"
+            fi
+          fi
+
+          # ==================== macOS ====================
+          if [ "$P" = "mac" ]; then
+            APP=$(find . -maxdepth 3 -type d -name "*.app" 2>/dev/null | head -1)
+            if [ -n "$APP" ]; then
+              DIR=$(dirname "$APP"); BASE=$(basename "$APP")
+              tar -czf "${OUT}-${PN}-${A}-executable.tar.gz" -C "$DIR" "$BASE"
+              echo "已压缩: ${BASE} -> ${OUT}-${PN}-${A}-executable.tar.gz"
+            else
+              echo "::warning::未找到 .app 应用包"
+            fi
+
+            DMG=$(find . -maxdepth 2 -type f -name "*.dmg" 2>/dev/null | head -1)
+            if [ -n "$DMG" ]; then
+              DIR=$(dirname "$DMG"); BASE=$(basename "$DMG")
+              tar -czf "${OUT}-${PN}-${A}-installation.tar.gz" -C "$DIR" "$BASE"
+              echo "已压缩: ${BASE} -> ${OUT}-${PN}-${A}-installation.tar.gz"
+            else
+              echo "::warning::未找到 .dmg 文件"
+            fi
+          fi
+
+          echo "压缩完成，生成文件列表："
+          ls -la ../NeiLink-*.tar.gz 2>/dev/null || echo "无压缩文件"
+        shell: bash
+
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
         with:
           name: neilink-${{ inputs.sub_version }}-${{ matrix.platform }}-${{ matrix.arch }}
-          path: NeiLink/release/*
+          path: NeiLink/NeiLink-*.tar.gz
+          if-no-files-found: warn
 
   release:
     needs: build
@@ -121,11 +224,10 @@ jobs:
           set -euo pipefail
           CHANGELOG_PATH="doc/Changelogs/${{ inputs.main_version }}/${{ inputs.sub_version }}/App.md"
           if [ -f "$CHANGELOG_PATH" ]; then
-            {
-              echo 'body<<CHANGELOG_EOF'
-              cat "$CHANGELOG_PATH"
-              echo 'CHANGELOG_EOF'
-            } >> "$GITHUB_OUTPUT"
+            body=$(cat "$CHANGELOG_PATH")
+            echo "body<<EOF" >> "$GITHUB_OUTPUT"
+            echo "$body" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
           else
             echo "body=No changelog found for ${{ inputs.sub_version }}" >> "$GITHUB_OUTPUT"
           fi
