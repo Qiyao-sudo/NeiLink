@@ -66,6 +66,10 @@ jobs:
         working-directory: NeiLink
         run: npm install
 
+      - name: 设置版本号
+        working-directory: NeiLink
+        run: node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json'));p.version='${{ inputs.sub_version }}';fs.writeFileSync('package.json',JSON.stringify(p,null,2));"
+
       - name: 构建应用
         working-directory: NeiLink
         run: npm run build
