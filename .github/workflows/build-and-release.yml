@@ -241,6 +241,5 @@ jobs:
         with:
           tag_name: ${{ inputs.current_tag }}
           body: ${{ steps.changelog.outputs.body }}
-          draft: false
-          prerelease: false
+          prerelease: true
           files: artifacts/*
