@@ -92,6 +92,16 @@ function createWindow(): void {
       },
     },
     {
+      label: '分享管理',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+          mainWindow.webContents.send(IPC_CHANNELS.WINDOW_NAVIGATE, '/shares');
+        }
+      },
+    },
+    {
       label: '设置',
       click: () => {
         if (mainWindow) {
