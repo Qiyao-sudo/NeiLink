@@ -29,7 +29,8 @@ export function registerIpcHandlers(
   logger: Logger,
   settingsManager: SettingsManager,
   shareManager: ShareManager,
-  networkMonitor: NetworkMonitor
+  networkMonitor: NetworkMonitor,
+  onLanguageChange?: (lang: string) => void
 ): void {
 
   // ==================== 网络相关 ====================
@@ -199,6 +200,11 @@ export function registerIpcHandlers(
   ipcMain.handle(IPC_CHANNELS.SETTINGS_SAVE, async (_event, settings: Partial<SystemSettings>) => {
     try {
       await settingsManager.saveSettings(settings);
+
+      // 托盘菜单语言同步
+      if (settings.language && onLanguageChange) {
+        onLanguageChange(settings.language);
+      }
 
       // 更新分享管理器的设置引用
       const fullSettings = await settingsManager.getSettings();
