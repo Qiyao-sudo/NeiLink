@@ -192,6 +192,11 @@ export const zhCN: Locale = {
     themeLight: '亮色',
     themeDark: '暗色',
     themeAuto: '自动（跟随系统）',
+    closeBehavior: '关闭主面板',
+    closeBehaviorHint: '点击关闭按钮时的行为',
+    closeBehaviorAsk: '每次都询问',
+    closeBehaviorMinimize: '最小化到托盘',
+    closeBehaviorExit: '直接退出程序',
   },
   
   // 流量统计
@@ -433,6 +438,22 @@ export const zhCN: Locale = {
       second: '秒',
       remaining: '剩余 ',
     },
+  },
+
+  // 系统托盘
+  tray: {
+    share: '分享',
+    settings: '设置',
+    exit: '退出应用',
+  },
+
+  // 关闭对话框
+  closeDialog: {
+    title: '关闭窗口',
+    message: '请选择关闭行为',
+    minimizeToTray: '最小化到托盘',
+    exitApp: '退出程序',
+    dontAskAgain: '不再提示',
   },
 
   // 关于页面

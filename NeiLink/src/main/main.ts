@@ -3,7 +3,7 @@
  * 初始化所有服务模块并启动应用
  */
 
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, Tray, Menu, nativeImage } from 'electron';
 import * as path from 'path';
 import * as cron from 'node-cron';
 import { IPC_CHANNELS } from '../shared/types';
@@ -15,8 +15,67 @@ import { registerIpcHandlers } from './ipcHandlers';
 import { setLogger, updateUserSettings } from './services/httpServer';
 
 let mainWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
+let settingsManager: SettingsManager | null = null;
 let shareManager: ShareManager | null = null;
 let networkMonitor: NetworkMonitor | null = null;
+
+function getTrayLabels(lang: string) {
+  if (lang === 'en-US') {
+    return { share: 'Share', shares: 'Share Management', settings: 'Settings', exit: 'Exit' };
+  }
+  return { share: '分享', shares: '分享管理', settings: '设置', exit: '退出应用' };
+}
+
+function rebuildTrayMenu(language?: string): void {
+  if (!tray) return;
+  const lang = language || 'zh-CN';
+  const labels = getTrayLabels(lang);
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: labels.share,
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+        }
+      },
+    },
+    {
+      label: labels.shares,
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+          mainWindow.webContents.send(IPC_CHANNELS.WINDOW_NAVIGATE, '/shares');
+        }
+      },
+    },
+    {
+      label: labels.settings,
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+          mainWindow.webContents.send(IPC_CHANNELS.WINDOW_NAVIGATE, '/settings');
+        }
+      },
+    },
+    { type: 'separator' },
+    {
+      label: labels.exit,
+      click: () => {
+        if (tray) {
+          tray.destroy();
+          tray = null;
+        }
+        app.quit();
+      },
+    },
+  ]);
+  tray.setContextMenu(contextMenu);
+}
 
 /**
  * 创建主窗口
@@ -57,8 +116,30 @@ function createWindow(): void {
   }
 
   mainWindow.on('closed', () => {
+    if (tray) {
+      tray.destroy();
+      tray = null;
+    }
     mainWindow = null;
   });
+
+  // 创建系统托盘
+  const iconPath = path.join(__dirname, '..', '..', 'build', 'NeiLink.ico');
+  let trayIcon = nativeImage.createFromPath(iconPath);
+  if (trayIcon.isEmpty()) {
+    trayIcon = nativeImage.createEmpty();
+  }
+  tray = new Tray(trayIcon);
+  tray.setToolTip('NeiLink');
+
+  tray.on('click', () => {
+    if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+
+  rebuildTrayMenu();
 }
 
 /**
@@ -68,9 +149,12 @@ async function initializeServices(): Promise<void> {
   const userDataPath = app.getPath('userData');
 
   // 1. 初始化设置管理器
-  const settingsManager = new SettingsManager(userDataPath);
+  settingsManager = new SettingsManager(userDataPath);
   await settingsManager.initialize();
   const settings = await settingsManager.getSettings();
+
+  // 托盘菜单语言同步
+  rebuildTrayMenu(settings.language);
 
   // 2. 初始化日志系统
   const logger = new Logger(settings.logStoragePath);
@@ -109,10 +193,11 @@ async function initializeServices(): Promise<void> {
   shareManager.startExpiryCheck();
 
   // 5. 注册 IPC 处理器
-  registerIpcHandlers(mainWindow!, logger, settingsManager, shareManager, networkMonitor);
+  registerIpcHandlers(mainWindow!, logger, settingsManager, shareManager, networkMonitor, (lang) => rebuildTrayMenu(lang));
 
   // 6. 启动日志清理定时任务（每天凌晨3点执行）
   cron.schedule('0 3 * * *', () => {
+    if (!settingsManager) return;
     const currentSettings = settingsManager.getSettings();
     currentSettings.then((s) => {
       const removedCount = logger.cleanupOldLogs(s.logRetentionDays);

@@ -29,7 +29,8 @@ export function registerIpcHandlers(
   logger: Logger,
   settingsManager: SettingsManager,
   shareManager: ShareManager,
-  networkMonitor: NetworkMonitor
+  networkMonitor: NetworkMonitor,
+  onLanguageChange?: (lang: string) => void
 ): void {
 
   // ==================== 网络相关 ====================
@@ -199,6 +200,11 @@ export function registerIpcHandlers(
   ipcMain.handle(IPC_CHANNELS.SETTINGS_SAVE, async (_event, settings: Partial<SystemSettings>) => {
     try {
       await settingsManager.saveSettings(settings);
+
+      // 托盘菜单语言同步
+      if (settings.language && onLanguageChange) {
+        onLanguageChange(settings.language);
+      }
 
       // 更新分享管理器的设置引用
       const fullSettings = await settingsManager.getSettings();
@@ -393,11 +399,42 @@ export function registerIpcHandlers(
   // 关闭窗口
   ipcMain.handle(IPC_CHANNELS.WINDOW_CLOSE, async () => {
     try {
-      if (mainWindow) {
-        mainWindow.close();
-        return { success: true };
+      if (!mainWindow) {
+        return { success: false, error: '窗口不存在' };
       }
-      return { success: false, error: '窗口不存在' };
+      const settings = await settingsManager.getSettings();
+      const behavior = settings.closeBehavior || 'ask';
+
+      if (behavior === 'minimize') {
+        mainWindow.hide();
+        return { success: true, action: 'minimize' };
+      }
+      if (behavior === 'exit') {
+        mainWindow.close();
+        return { success: true, action: 'exit' };
+      }
+      return { success: true, action: 'ask' };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, error: message };
+    }
+  });
+
+  // 关闭对话框确认
+  ipcMain.handle(IPC_CHANNELS.WINDOW_CLOSE_ACTION, async (_event, params: { action: 'minimize' | 'exit'; dontAskAgain: boolean }) => {
+    try {
+      if (!mainWindow) {
+        return { success: false, error: '窗口不存在' };
+      }
+      if (params.dontAskAgain) {
+        await settingsManager.saveSettings({ closeBehavior: params.action } as Partial<SystemSettings>);
+      }
+      if (params.action === 'minimize') {
+        mainWindow.hide();
+      } else {
+        mainWindow.close();
+      }
+      return { success: true };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       return { success: false, error: message };

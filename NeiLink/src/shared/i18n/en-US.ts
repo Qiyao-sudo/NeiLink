@@ -192,6 +192,11 @@ export const enUS: Locale = {
     themeLight: 'Light',
     themeDark: 'Dark',
     themeAuto: 'Auto (Follow System)',
+    closeBehavior: 'Close Behavior',
+    closeBehaviorHint: 'Action when clicking the close button',
+    closeBehaviorAsk: 'Ask every time',
+    closeBehaviorMinimize: 'Minimize to tray',
+    closeBehaviorExit: 'Exit application',
   },
   
   // 流量统计
@@ -433,6 +438,22 @@ export const enUS: Locale = {
       second: 's',
       remaining: 'Remaining ',
     },
+  },
+
+  // System Tray
+  tray: {
+    share: 'Share',
+    settings: 'Settings',
+    exit: 'Exit',
+  },
+
+  // Close Dialog
+  closeDialog: {
+    title: 'Close Window',
+    message: 'Choose close behavior',
+    minimizeToTray: 'Minimize to tray',
+    exitApp: 'Exit application',
+    dontAskAgain: "Don't ask again",
   },
 
   // About page

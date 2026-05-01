@@ -19,7 +19,7 @@ import StatsPage from './pages/StatsPage';
 import AboutPage from './pages/AboutPage';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
-import { SystemSettings } from '../shared/types';
+import { SystemSettings, IPC_CHANNELS } from '../shared/types';
 
 const AppLayout: React.FC = () => {
   const { locale } = useLanguage();
@@ -60,6 +60,15 @@ const AppLayout: React.FC = () => {
     },
 
   ];
+
+  useEffect(() => {
+    const unsubscribe = window.neilink.ipc.on(IPC_CHANNELS.WINDOW_NAVIGATE, (path: unknown) => {
+      if (typeof path === 'string') {
+        navigate(path);
+      }
+    });
+    return unsubscribe;
+  }, [navigate]);
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);
@@ -128,6 +137,7 @@ const App: React.FC = () => {
     logRetentionDays: 30,
     logStoragePath: '',
     clearSharesOnExit: false,
+    closeBehavior: 'ask',
     selectedAdapter: undefined,
     language: 'zh-CN',
     theme: 'auto',
