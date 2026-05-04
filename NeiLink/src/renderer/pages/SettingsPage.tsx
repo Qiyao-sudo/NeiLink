@@ -58,7 +58,6 @@ interface AppSettings {
   hotspotPasswordLength: number;
 
   // 安全设置
-  encryptionBits: 128 | 256;
   rateLimitEnabled: boolean;
   rateLimitMaxAttempts: number;
   rateLimitBanDuration: number;
@@ -85,7 +84,6 @@ const defaultSettings: AppSettings = {
   downloadSpeedLimit: 0,
   hotspotPrefix: 'NeiLink',
   hotspotPasswordLength: 8,
-  encryptionBits: 256,
   rateLimitEnabled: true,
   rateLimitMaxAttempts: 10,
   rateLimitBanDuration: 30,
@@ -678,22 +676,6 @@ const SettingsPage: React.FC = () => {
       {/* 安全设置 */}
       <div className="settings-section">
         <div className="settings-section-title">{locale.settings.security}</div>
-
-        <div className="settings-item">
-          <div>
-            <div className="settings-label">{locale.settings.encryptionBits}</div>
-            <div className="settings-desc">{locale.settings.encryptionBitsHint}</div>
-          </div>
-          <Select
-            value={settings.encryptionBits}
-            onChange={(val) => updateSetting('encryptionBits', val as 128 | 256)}
-            style={{ width: 140 }}
-            options={[
-              { value: 128, label: '128 位' },
-              { value: 256, label: '256 位' },
-            ]}
-          />
-        </div>
 
         <div className="settings-item">
           <div>

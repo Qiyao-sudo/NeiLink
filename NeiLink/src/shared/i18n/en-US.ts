@@ -145,8 +145,6 @@ export const enUS: Locale = {
     hotspotPrefixHint: 'SSID prefix when creating hotspot',
     hotspotPasswordLength: 'Hotspot Password Length',
     hotspotPasswordLengthHint: 'Password length when creating hotspot',
-    encryptionBits: 'Encryption Strength',
-    encryptionBitsHint: 'Key length for file encryption',
     downloadSpeedLimit: 'Download Speed Limit',
     downloadSpeedLimitHint: 'Limit the maximum download speed, 0 means unlimited',
     downloadSpeedLimitUnlimited: 'Unlimited',

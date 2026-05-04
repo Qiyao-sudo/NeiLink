@@ -19,7 +19,6 @@ const DEFAULT_SETTINGS: SystemSettings = {
   port: 8080,
   hotspotPrefix: 'NeiLink',
   hotspotPasswordLength: 8,
-  encryptionBits: 256,
   rateLimitEnabled: true,
   rateLimitMaxAttempts: 10,
   rateLimitBanDuration: 30, // 30分钟

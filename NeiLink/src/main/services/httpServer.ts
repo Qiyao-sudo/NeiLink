@@ -375,24 +375,7 @@ function handleDownloadAPI(
     'Content-Disposition': `attachment; filename="${encodeURIComponent(share.fileName)}"`,
   };
 
-  // 向后兼容：旧的预加密文件
-  if (share.encryptedFilePath && fs.existsSync(share.encryptedFilePath)) {
-    const ivBuffer = Buffer.alloc(16);
-    const fd = fs.openSync(share.encryptedFilePath, 'r');
-    fs.readSync(fd, ivBuffer, 0, 16, 0);
-    fs.closeSync(fd);
-
-    const keyBuffer = Buffer.from(share.encryptionKey!, 'hex');
-    headers['Content-Length'] = share.fileSize;
-    res.writeHead(200, headers);
-
-    const inputStream = fs.createReadStream(share.encryptedFilePath, { start: 16 });
-    const decipher = crypto.createDecipheriv('aes-256-cbc', keyBuffer, ivBuffer);
-    inputStream.pipe(decipher).pipe(createThrottle()).pipe(res);
-    return true;
-  }
-
-  // 新流式传输逻辑
+  // 流式传输逻辑
   try {
     if (share.isFolder) {
       res.writeHead(200, headers);

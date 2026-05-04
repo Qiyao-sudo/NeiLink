@@ -40,8 +40,7 @@ export interface ShareConfig {
   port: number;
   status: 'active' | 'cancelled' | 'expired';
   downloadCount: number;
-  encryptedFilePath?: string;
-  encryptionKey?: string;
+
 }
 
 // 日志条目
@@ -75,7 +74,6 @@ export interface SystemSettings {
   port: number;
   hotspotPrefix: string;
   hotspotPasswordLength: number;
-  encryptionBits: 128 | 256;
   downloadSpeedLimit: number; // KB/s，0 表示不限速
   rateLimitEnabled: boolean;
   rateLimitMaxAttempts: number;

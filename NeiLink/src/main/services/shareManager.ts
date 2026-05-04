@@ -8,7 +8,6 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import archiver from 'archiver';
 import { ShareConfig, SystemSettings } from '../../shared/types';
-import { generateKey, encryptFile } from './encryption';
 import { startGlobalServer, registerShare, unregisterShare, getGlobalServerPort } from './httpServer';
 import { Logger } from './logger';
 
@@ -171,9 +170,6 @@ export class ShareManager {
       }
     }
 
-    // 生成加密密钥（流式传输时使用）
-    const encryptionKey = generateKey(this.settings.encryptionBits);
-
     // 创建分享配置 - 如果是文件夹，文件名加上 .zip 后缀
     const finalFileName = isFolder ? `${fileName}.zip` : fileName;
     const shareConfig: ShareConfig = {
@@ -191,8 +187,6 @@ export class ShareManager {
       port,
       status: 'active',
       downloadCount: 0,
-      // 不再生成 encryptedFilePath，流式传输
-      encryptionKey,
     };
 
     try {

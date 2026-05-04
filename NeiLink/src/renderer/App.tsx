@@ -129,7 +129,6 @@ const App: React.FC = () => {
     port: 8080,
     hotspotPrefix: 'NeiLink',
     hotspotPasswordLength: 8,
-    encryptionBits: 256,
     downloadSpeedLimit: 0,
     rateLimitEnabled: true,
     rateLimitMaxAttempts: 10,

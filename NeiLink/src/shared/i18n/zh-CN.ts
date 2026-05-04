@@ -145,8 +145,6 @@ export const zhCN: Locale = {
     hotspotPrefixHint: '创建热点时的 SSID 前缀',
     hotspotPasswordLength: '热点密码长度',
     hotspotPasswordLengthHint: '创建热点时的密码长度',
-    encryptionBits: '加密强度',
-    encryptionBitsHint: '文件加密的密钥长度',
     downloadSpeedLimit: '下载限速',
     downloadSpeedLimitHint: '限制文件下载的最大速度，0 表示不限速',
     downloadSpeedLimitUnlimited: '不限速',

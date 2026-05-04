@@ -144,8 +144,6 @@ export interface Locale {
     hotspotPrefixHint: string;
     hotspotPasswordLength: string;
     hotspotPasswordLengthHint: string;
-    encryptionBits: string;
-    encryptionBitsHint: string;
     downloadSpeedLimit: string;
     downloadSpeedLimitHint: string;
     downloadSpeedLimitUnlimited: string;
