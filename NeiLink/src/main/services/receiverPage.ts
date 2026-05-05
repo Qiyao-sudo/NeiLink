@@ -1049,6 +1049,8 @@ export function generateReceiverHTML(shareInfo: ShareInfo, locale: Locale): stri
 
   // ===== 断点续传检查 =====
   function checkResumeDownload() {
+    // 文件夹下载不支持断点续传（ZIP 每次从头生成）
+    if (CONFIG.isFolder) return;
     try {
       var saved = localStorage.getItem(PROGRESS_KEY);
       if (saved) {
@@ -1116,21 +1118,19 @@ export function generateReceiverHTML(shareInfo: ShareInfo, locale: Locale): stri
     xhr.responseType = 'blob';
 
     xhr.onprogress = function(event) {
-      if (event.lengthComputable) {
         var loaded = startByte + event.loaded;
         var total;
-        // Range请求时，event.total 是剩余部分大小
         if (startByte > 0 && xhr.status === 206) {
           total = startByte + event.total;
-        } else {
+        } else if (event.total > 0) {
           total = event.total;
+        } else {
+          total = CONFIG.fileSize;
         }
         if (total <= 0) total = CONFIG.fileSize;
         updateProgress(loaded, total);
 
-        // 保存进度到 localStorage
         saveProgress(loaded, total);
-      }
     };
 
     xhr.onload = function() {
