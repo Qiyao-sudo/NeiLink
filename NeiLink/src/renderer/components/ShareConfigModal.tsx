@@ -39,6 +39,7 @@ export interface ShareFormConfig {
 
 export interface ShareResult {
   shareLink: string;
+  shareLinks: { ip: string; link: string }[];
   extractionCode: string;
   hotspotName: string;
   hotspotPassword: string;
@@ -104,9 +105,11 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
 
   const copyLink = () => {
     if (!shareResult) return;
-    const text = shareResult.extractionCode
-      ? `分享链接: ${shareResult.shareLink}\n提取码: ${shareResult.extractionCode}`
-      : `分享链接: ${shareResult.shareLink}`;
+    const lines = shareResult.shareLinks.map(({ ip, link }) => `[${ip}] ${link}`);
+    if (shareResult.extractionCode) {
+      lines.push(`${locale.shareConfig.extractCode}: ${shareResult.extractionCode}`);
+    }
+    const text = lines.join('\n');
     navigator.clipboard.writeText(text).then(() => {
       message.success('分享信息已复制到剪贴板');
     }).catch(() => {
@@ -140,17 +143,19 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
           </div>
 
           <div style={{ background: 'var(--bg-tertiary)', borderLeft: '3px solid var(--color-success)', borderRadius: 8, padding: 16, marginBottom: 16 }}>
-            <div style={{ marginBottom: 8 }}>
-              <Text type="secondary">{locale.shareConfig.shareLink}：</Text>
-              <Paragraph
-                copyable={{ text: shareResult.shareLink }}
-                style={{ margin: 0, wordBreak: 'break-all' }}
-              >
-                {shareResult.shareLink}
-              </Paragraph>
-            </div>
+            {shareResult.shareLinks.map(({ ip, link }) => (
+              <div key={ip} style={{ marginBottom: 8 }}>
+                <Text type="secondary" style={{ fontSize: 11 }}>{ip}</Text>
+                <Paragraph
+                  copyable={{ text: link }}
+                  style={{ margin: '2px 0 0 0', wordBreak: 'break-all' }}
+                >
+                  {link}
+                </Paragraph>
+              </div>
+            ))}
             {shareResult.extractionCode && (
-              <div>
+              <div style={{ marginTop: 8 }}>
                 <Text type="secondary">{locale.shareConfig.extractCode}：</Text>
                 <Text strong style={{ fontSize: 16, letterSpacing: 2 }}>
                   {shareResult.extractionCode}

@@ -162,7 +162,7 @@ export const zhCN: Locale = {
     clearSharesOnExit: '关闭时删除分享',
     clearSharesOnExitHint: '应用关闭时删除所有已分享的文件',
     selectedAdapter: '网络适配器',
-    selectedAdapterHint: '选择用于分享的网络适配器',
+    selectedAdapterHint: '选择一个或多个用于分享的网络适配器，未选择时自动检测',
     userName: '用户名称',
     userNameHint: '显示在分享页面的用户名称',
     userAvatar: '用户头像',
@@ -307,7 +307,9 @@ export const zhCN: Locale = {
     ethernet: '以太网',
     noNetwork: '未检测到网络',
     adapter: '网络适配器',
+    adapters: '网络适配器',
     localIP: '本地 IP',
+    localIPs: '本地 IP 地址',
   },
   
   // 通知

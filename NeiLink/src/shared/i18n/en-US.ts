@@ -162,7 +162,7 @@ export const enUS: Locale = {
     clearSharesOnExit: 'Clear Shares on Exit',
     clearSharesOnExitHint: 'Delete all shared files when application closes',
     selectedAdapter: 'Network Adapter',
-    selectedAdapterHint: 'Select network adapter for sharing',
+    selectedAdapterHint: 'Select one or more network adapters for sharing. Auto-detect when none selected.',
     userName: 'User Name',
     userNameHint: 'User name displayed on share pages',
     userAvatar: 'User Avatar',
@@ -307,7 +307,9 @@ export const enUS: Locale = {
     ethernet: 'Ethernet',
     noNetwork: 'No Network Detected',
     adapter: 'Network Adapter',
+    adapters: 'Network Adapters',
     localIP: 'Local IP',
+    localIPs: 'Local IP Addresses',
   },
   
   // 通知

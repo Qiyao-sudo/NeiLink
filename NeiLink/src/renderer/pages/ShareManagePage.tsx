@@ -31,6 +31,7 @@ interface ShareTask {
   id: string;
   fileName: string;
   shareLink: string;
+  shareLinks: { ip: string; link: string }[];
   extractCode: string;
   expiry: string;
   remainingDownloads: number;
@@ -50,6 +51,7 @@ interface EditConfigForm {
 interface NetworkInfo {
   isOnline: boolean;
   ip: string;
+  ips: string[];
   type: 'wifi' | 'ethernet' | 'none';
 }
 
@@ -66,13 +68,14 @@ const ShareManagePage: React.FC = () => {
   const networkInfoRef = useRef<NetworkInfo>({
     isOnline: false,
     ip: '127.0.0.1',
+    ips: [],
     type: 'none',
   });
   const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const expiryTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const rawSharesRef = useRef<ShareConfig[]>([]);
 
-  const updateShareLinks = useCallback((rawShares: ShareConfig[], currentIp: string) => {
+  const updateShareLinks = useCallback((rawShares: ShareConfig[], currentIps: string[]) => {
     const convertedTasks = rawShares.map((share) => {
       let expiry: string;
       if (share.status === 'expired') {
@@ -106,7 +109,11 @@ const ShareManagePage: React.FC = () => {
       return {
         id: share.id,
         fileName: share.fileName,
-        shareLink: `http://${currentIp}:${share.port}/${share.id}`,
+        shareLink: `http://${currentIps[0] || '127.0.0.1'}:${share.port}/${share.id}`,
+        shareLinks: currentIps.map(ip => ({
+          ip,
+          link: `http://${ip}:${share.port}/${share.id}`,
+        })),
         extractCode: share.extractCode || '',
         expiry,
         remainingDownloads: share.maxDownloads === -1 ? -1 : share.maxDownloads - share.downloadCount,
@@ -126,7 +133,7 @@ const ShareManagePage: React.FC = () => {
       const result = await window.neilink.ipc.invoke('share:get-all') as any;
       if (result && result.success && Array.isArray(result.data)) {
         rawSharesRef.current = result.data;
-        updateShareLinks(result.data, networkInfoRef.current.ip);
+        updateShareLinks(result.data, networkInfoRef.current.ips);
       }
     } catch {
       message.error('获取分享列表失败');
@@ -139,11 +146,12 @@ const ShareManagePage: React.FC = () => {
     try {
       const result = await window.neilink.ipc.invoke('network:get-info') as any;
       if (result?.success && result.data) {
-        const newIp = result.data.ip || '127.0.0.1';
-        const oldIp = networkInfoRef.current.ip;
+        const newIps = result.data.ips || [];
+        const oldIps = networkInfoRef.current.ips;
         networkInfoRef.current = result.data;
-        if (newIp !== oldIp && rawSharesRef.current.length > 0) {
-          updateShareLinks(rawSharesRef.current, newIp);
+        const ipsChanged = newIps.length !== oldIps.length || newIps.some((ip: string, i: number) => ip !== oldIps[i]);
+        if (ipsChanged && rawSharesRef.current.length > 0) {
+          updateShareLinks(rawSharesRef.current, newIps);
         }
       }
     } catch (error) {
@@ -157,18 +165,18 @@ const ShareManagePage: React.FC = () => {
     refreshTimer.current = setInterval(fetchTasks, 10000);
     expiryTimer.current = setInterval(() => {
       if (rawSharesRef.current.length > 0) {
-        updateShareLinks(rawSharesRef.current, networkInfoRef.current.ip);
+        updateShareLinks(rawSharesRef.current, networkInfoRef.current.ips);
       }
     }, 1000);
-    
+
     const unsubscribeNetwork = window.neilink.ipc.on('network:on-change', () => {
       fetchNetworkInfo();
     });
-    
+
     const unsubscribeShareUpdate = window.neilink.ipc.on('share:on-update', (...args: unknown[]) => {
       const shares = args[0] as ShareConfig[];
       rawSharesRef.current = shares;
-      updateShareLinks(shares, networkInfoRef.current.ip);
+      updateShareLinks(shares, networkInfoRef.current.ips);
     });
     
     return () => {
@@ -188,13 +196,11 @@ const ShareManagePage: React.FC = () => {
   };
 
   const handleCopyLink = (record: ShareTask) => {
-    const rawShare = rawSharesRef.current.find(s => s.id === record.id);
-    const currentLink = rawShare 
-      ? `http://${networkInfoRef.current.ip}:${rawShare.port}/${record.id}`
-      : record.shareLink;
-    const text = record.extractCode
-      ? `分享链接: ${currentLink}\n提取码: ${record.extractCode}`
-      : `分享链接: ${currentLink}`;
+    const lines = record.shareLinks.map(({ ip, link }) => `[${ip}] ${link}`);
+    if (record.extractCode) {
+      lines.push(`提取码: ${record.extractCode}`);
+    }
+    const text = lines.join('\n');
     navigator.clipboard.writeText(text).then(() => {
       message.success('分享信息已复制');
     }).catch(() => {
@@ -348,31 +354,28 @@ const ShareManagePage: React.FC = () => {
       title: locale.shareManage.shareLink,
       dataIndex: 'shareLink',
       key: 'shareLink',
-      ellipsis: true,
-      width: 200,
-      render: (text: string, record: any) => {
-        const rawShare = rawSharesRef.current.find(s => s.id === record.id);
-        const currentLink = rawShare
-          ? `http://${networkInfoRef.current.ip}:${rawShare.port}/${record.id}`
-          : text;
-        const handleClick = () => {
-          navigator.clipboard.writeText(currentLink).then(() => {
-            message.success(locale.common.copied);
-          }).catch(() => {
-            message.error('复制失败');
-          });
-        };
-        return (
-          <Tooltip title={`${locale.common.copy}: ${currentLink}`}>
-            <a
-              onClick={handleClick}
-              style={{ fontSize: 12, cursor: 'pointer', userSelect: 'none' }}
-            >
-              {currentLink}
-            </a>
-          </Tooltip>
-        );
-      },
+      width: 220,
+      render: (_text: string, record: ShareTask) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {record.shareLinks.map(({ ip, link }) => (
+            <Tooltip title={`[${ip}] ${locale.common.copy}`} key={ip}>
+              <a
+                onClick={() => {
+                  navigator.clipboard.writeText(link).then(() => {
+                    message.success(locale.common.copied);
+                  }).catch(() => {
+                    message.error('复制失败');
+                  });
+                }}
+                style={{ fontSize: 11, cursor: 'pointer', color: '#1890ff' }}
+              >
+                <Text type="secondary" style={{ fontSize: 10 }}>{ip}: </Text>
+                {link}
+              </a>
+            </Tooltip>
+          ))}
+        </div>
+      ),
     },
     {
       title: locale.shareManage.extractCode,

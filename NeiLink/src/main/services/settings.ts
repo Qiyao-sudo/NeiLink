@@ -27,7 +27,8 @@ const DEFAULT_SETTINGS: SystemSettings = {
   logStoragePath: '', // 运行时由 app.getPath('userData') 填充
   clearSharesOnExit: false, // 默认不删除
   closeBehavior: 'ask', // 默认每次都询问
-  selectedAdapter: undefined, // 用户选择的网络适配器名称
+  selectedAdapter: undefined, // @deprecated 用户选择的网络适配器名称
+  selectedAdapters: [], // 用户选择的网络适配器名称列表
   language: 'zh-CN', // 默认语言
   theme: 'auto', // 默认主题（跟随系统）
   // 用户设置
@@ -104,6 +105,13 @@ export class SettingsManager {
         // 确保主题设置存在
         if (!this.settings.theme) {
           this.settings.theme = 'auto';
+        }
+        // 迁移旧的单选 selectedAdapter 到多选 selectedAdapters
+        if (this.settings.selectedAdapter && (!this.settings.selectedAdapters || this.settings.selectedAdapters.length === 0)) {
+          this.settings.selectedAdapters = [this.settings.selectedAdapter];
+        }
+        if (!this.settings.selectedAdapters) {
+          this.settings.selectedAdapters = [];
         }
       } else {
         // 首次运行，保存默认设置

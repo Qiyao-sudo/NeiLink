@@ -302,7 +302,9 @@ export interface Locale {
     ethernet: string;
     noNetwork: string;
     adapter: string;
+    adapters: string;
     localIP: string;
+    localIPs: string;
   };
   
   // 通知
