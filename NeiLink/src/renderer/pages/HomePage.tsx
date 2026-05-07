@@ -49,6 +49,7 @@ const HomePage: React.FC = () => {
     defaultExpiry: '24h',
     defaultMaxDownloads: -1,
     defaultMaxConcurrent: -1,
+    defaultEncrypt: false,
   });
   const dropRef = useRef<HTMLDivElement>(null);
 
@@ -96,6 +97,7 @@ const HomePage: React.FC = () => {
           defaultExpiry: (settings.defaultExpiry as string) || '24h',
           defaultMaxDownloads: settings.defaultMaxDownloads as number ?? -1,
           defaultMaxConcurrent: settings.defaultMaxConcurrent as number ?? -1,
+          defaultEncrypt: settings.defaultEncrypt as boolean ?? false,
         });
       }
     } catch {
@@ -211,6 +213,7 @@ const HomePage: React.FC = () => {
         expiryTime,
         maxDownloads: config.maxDownloads,
         maxConcurrent: config.maxConcurrentDownloads,
+        encryptEnabled: config.encryptEnabled,
       };
       
       const result = await window.neilink.ipc.invoke('share:create', shareParams) as any;
@@ -448,6 +451,7 @@ const HomePage: React.FC = () => {
         defaultExpiry={defaultSettings.defaultExpiry}
         defaultMaxDownloads={defaultSettings.defaultMaxDownloads}
         defaultMaxConcurrent={defaultSettings.defaultMaxConcurrent}
+        defaultEncrypt={defaultSettings.defaultEncrypt}
         onConfirm={handleShareConfirm}
         onCancel={() => setShareModalVisible(false)}
       />

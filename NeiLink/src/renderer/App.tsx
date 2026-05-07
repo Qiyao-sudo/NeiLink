@@ -133,6 +133,7 @@ const App: React.FC = () => {
     rateLimitEnabled: true,
     rateLimitMaxAttempts: 10,
     rateLimitBanDuration: 30,
+    defaultEncrypt: false,
     logRetentionDays: 30,
     logStoragePath: '',
     clearSharesOnExit: false,

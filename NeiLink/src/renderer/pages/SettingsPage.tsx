@@ -61,6 +61,7 @@ interface AppSettings {
   rateLimitEnabled: boolean;
   rateLimitMaxAttempts: number;
   rateLimitBanDuration: number;
+  defaultEncrypt: boolean;
 
   // 日志设置
   logRetentionDays: number;
@@ -87,6 +88,7 @@ const defaultSettings: AppSettings = {
   rateLimitEnabled: true,
   rateLimitMaxAttempts: 10,
   rateLimitBanDuration: 30,
+  defaultEncrypt: false,
   logRetentionDays: 30,
   logStoragePath: '',
 };
@@ -744,6 +746,17 @@ const SettingsPage: React.FC = () => {
             </div>
           </>
         )}
+
+        <div className="settings-item">
+          <div>
+            <div className="settings-label">{locale.settings.defaultEncrypt}</div>
+            <div className="settings-desc">{locale.settings.defaultEncryptHint}</div>
+          </div>
+          <Switch
+            checked={settings.defaultEncrypt}
+            onChange={(val) => updateSetting('defaultEncrypt', val)}
+          />
+        </div>
       </div>
 
       {/* 封禁IP管理 */}

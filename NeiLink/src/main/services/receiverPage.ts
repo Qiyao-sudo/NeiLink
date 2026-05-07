@@ -18,6 +18,7 @@ export interface ShareInfo {
   shareId?: string;
   userAvatar?: string;
   userName?: string;
+  encryptEnabled?: boolean;
 }
 
 /**
@@ -98,6 +99,7 @@ export function generateReceiverHTML(shareInfo: ShareInfo, locale: Locale): stri
     shareId,
     userAvatar,
     userName,
+    encryptEnabled,
   } = shareInfo;
 
   const formattedSize = formatFileSize(fileSize);
@@ -824,7 +826,8 @@ export function generateReceiverHTML(shareInfo: ShareInfo, locale: Locale): stri
     remainingDownloads: ${remainingDownloads !== undefined ? remainingDownloads : -1},
     isFolder: ${!!isFolder},
     userAvatar: ${JSON.stringify(userAvatar)},
-    userName: ${JSON.stringify(userName)}
+    userName: ${JSON.stringify(userName)},
+    encryptEnabled: ${!!encryptEnabled}
   };
 
   // ===== DOM 元素 =====
@@ -884,6 +887,7 @@ export function generateReceiverHTML(shareInfo: ShareInfo, locale: Locale): stri
         if (data.isFolder !== undefined) CONFIG.isFolder = data.isFolder;
         if (data.userAvatar) CONFIG.userAvatar = data.userAvatar;
         if (data.userName) CONFIG.userName = data.userName;
+        if (data.encryptEnabled !== undefined) CONFIG.encryptEnabled = data.encryptEnabled;
 
         // 更新页面显示
         var displayName = document.getElementById('display-file-name');
@@ -1050,7 +1054,8 @@ export function generateReceiverHTML(shareInfo: ShareInfo, locale: Locale): stri
   // ===== 断点续传检查 =====
   function checkResumeDownload() {
     // 文件夹下载不支持断点续传（ZIP 每次从头生成）
-    if (CONFIG.isFolder) return;
+    // 加密文件也不支持断点续传
+    if (CONFIG.isFolder || CONFIG.encryptEnabled) return;
     try {
       var saved = localStorage.getItem(PROGRESS_KEY);
       if (saved) {
@@ -1072,6 +1077,11 @@ export function generateReceiverHTML(shareInfo: ShareInfo, locale: Locale): stri
   });
 
   resumeBtn.addEventListener('click', function() {
+    // 加密文件不支持断点续传，直接从 0 开始
+    if (CONFIG.encryptEnabled) {
+      startDownload(0);
+      return;
+    }
     try {
       var saved = localStorage.getItem(PROGRESS_KEY);
       if (saved) {
@@ -1096,6 +1106,14 @@ export function generateReceiverHTML(shareInfo: ShareInfo, locale: Locale): stri
     if (isDownloading) return;
     isDownloading = true;
 
+    // 加密文件不支持断点续传，强制从 0 开始
+    if (CONFIG.encryptEnabled) {
+      startByte = 0;
+      try {
+        localStorage.removeItem(PROGRESS_KEY);
+      } catch (e) {}
+    }
+
     // 更新UI状态
     downloadBtn.disabled = true;
     downloadBtn.innerHTML = '<span class="loading-spinner"></span> ' + __.downloading;
@@ -1112,7 +1130,7 @@ export function generateReceiverHTML(shareInfo: ShareInfo, locale: Locale): stri
     currentXhr = xhr;
 
     xhr.open('GET', '/api/download/' + CONFIG.shareId);
-    if (startByte > 0) {
+    if (startByte > 0 && !CONFIG.encryptEnabled) {
       xhr.setRequestHeader('Range', 'bytes=' + startByte + '-');
     }
     xhr.responseType = 'blob';
@@ -1257,6 +1275,8 @@ export function generateReceiverHTML(shareInfo: ShareInfo, locale: Locale): stri
 
   // ===== localStorage 进度管理 =====
   function saveProgress(downloaded, total) {
+    // 加密文件不保存下载进度
+    if (CONFIG.encryptEnabled) return;
     try {
       localStorage.setItem(PROGRESS_KEY, JSON.stringify({
         downloadedBytes: downloaded,

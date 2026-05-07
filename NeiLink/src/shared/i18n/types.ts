@@ -73,6 +73,9 @@ export interface Locale {
     shareLink: string;
     hour: string;
     day: string;
+    encryptEnabled: string;
+    encryptEnabledHint: string;
+    encrypted: string;
   };
   
   // 分享管理
@@ -194,6 +197,8 @@ export interface Locale {
     closeBehaviorAsk: string;
     closeBehaviorMinimize: string;
     closeBehaviorExit: string;
+    defaultEncrypt: string;
+    defaultEncryptHint: string;
   };
   
   // 流量统计

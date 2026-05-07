@@ -42,7 +42,9 @@ export interface ShareConfig {
   port: number;
   status: 'active' | 'cancelled' | 'expired';
   downloadCount: number;
-
+  encryptEnabled?: boolean;
+  encryptKey?: string; // hex密钥，仅存储在发送端本地
+  encryptOriginalPath?: string; // 加密前原始文件路径
 }
 
 // 日志条目
@@ -80,6 +82,7 @@ export interface SystemSettings {
   rateLimitEnabled: boolean;
   rateLimitMaxAttempts: number;
   rateLimitBanDuration: number; // 分钟
+  defaultEncrypt: boolean;
   logRetentionDays: number;
   logStoragePath: string;
   clearSharesOnExit: boolean; // 应用关闭时删除已分享的文件

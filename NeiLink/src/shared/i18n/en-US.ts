@@ -74,6 +74,9 @@ export const enUS: Locale = {
     shareLink: 'Share Link',
     hour: 'hour',
     day: 'day',
+    encryptEnabled: 'File Encryption',
+    encryptEnabledHint: 'Protect file with AES-256-CBC encryption.',
+    encrypted: 'Encrypted',
   },
   
   // 分享管理
@@ -195,6 +198,8 @@ export const enUS: Locale = {
     closeBehaviorAsk: 'Ask every time',
     closeBehaviorMinimize: 'Minimize to tray',
     closeBehaviorExit: 'Exit application',
+    defaultEncrypt: 'Default Encryption',
+    defaultEncryptHint: 'Enable file encryption by default when creating shares',
   },
   
   // 流量统计

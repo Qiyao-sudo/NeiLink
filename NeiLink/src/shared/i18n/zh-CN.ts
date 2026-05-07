@@ -74,6 +74,9 @@ export const zhCN: Locale = {
     shareLink: '分享链接',
     hour: '小时',
     day: '天',
+    encryptEnabled: '文件加密',
+    encryptEnabledHint: '使用 AES-256-CBC 加密保护文件，密钥仅存储在本地',
+    encrypted: '已加密',
   },
   
   // 分享管理
@@ -195,6 +198,8 @@ export const zhCN: Locale = {
     closeBehaviorAsk: '每次都询问',
     closeBehaviorMinimize: '最小化到托盘',
     closeBehaviorExit: '直接退出程序',
+    defaultEncrypt: '默认加密',
+    defaultEncryptHint: '创建分享时默认启用文件加密',
   },
   
   // 流量统计

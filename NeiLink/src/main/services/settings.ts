@@ -22,6 +22,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   rateLimitEnabled: true,
   rateLimitMaxAttempts: 10,
   rateLimitBanDuration: 30, // 30分钟
+  defaultEncrypt: false,
   downloadSpeedLimit: 0, // 0 表示不限速
   logRetentionDays: 30,
   logStoragePath: '', // 运行时由 app.getPath('userData') 填充
