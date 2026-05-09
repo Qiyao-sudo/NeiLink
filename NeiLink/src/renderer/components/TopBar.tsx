@@ -23,9 +23,11 @@ const TopBar: React.FC = () => {
   const [networkInfo, setNetworkInfo] = useState<NetworkInfo>({
     type: 'none',
     ip: '0.0.0.0',
+    ips: [],
     isOnline: false,
     adapters: [],
     selectedAdapter: undefined,
+    selectedAdapters: [],
   });
 
   const [isMaximized, setIsMaximized] = useState(false);
@@ -71,8 +73,8 @@ const TopBar: React.FC = () => {
     };
   }, []);
 
-  const copyIP = () => {
-    navigator.clipboard.writeText(networkInfo.ip).then(() => {
+  const copyIP = (ip: string) => {
+    navigator.clipboard.writeText(ip).then(() => {
       message.success(locale.common.copied);
     }).catch(() => {
       message.error(locale.error.networkError);
@@ -123,17 +125,35 @@ const TopBar: React.FC = () => {
             ({networkTypeText()})
           </span>
         </div>
-        <Tooltip title={locale.common.copy}>
-          <Tag
-            icon={<CopyOutlined />}
-            color="blue"
-            className="no-drag"
-            style={{ cursor: 'pointer' }}
-            onClick={copyIP}
-          >
-            {networkInfo.ip}
-          </Tag>
-        </Tooltip>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          {networkInfo.ips.length > 0 ? (
+            networkInfo.ips.map((ip) => (
+              <Tooltip title={locale.common.copy} key={ip}>
+                <Tag
+                  icon={<CopyOutlined />}
+                  color="blue"
+                  className="no-drag"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => copyIP(ip)}
+                >
+                  {ip}
+                </Tag>
+              </Tooltip>
+            ))
+          ) : (
+            <Tooltip title={locale.common.copy}>
+              <Tag
+                icon={<CopyOutlined />}
+                color="blue"
+                className="no-drag"
+                style={{ cursor: 'pointer' }}
+                onClick={() => copyIP(networkInfo.ip)}
+              >
+                {networkInfo.ip}
+              </Tag>
+            </Tooltip>
+          )}
+        </div>
       </div>
       <div className="top-bar-right">
         <Button

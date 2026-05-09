@@ -7,12 +7,13 @@ import * as http from 'http';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import { Transform, TransformCallback } from 'stream';
+import { Transform, TransformCallback, pipeline } from 'stream';
 import archiver from 'archiver';
 import { ShareConfig, SystemSettings } from '../../shared/types';
 import { Logger } from './logger';
 import { generateReceiverHTML, generateFileCodeInputHTML, sendErrorPage, ShareInfo } from './receiverPage';
 import { getLocale } from '../../shared/i18n';
+import { createDecryptTransform } from './encryption';
 
 // =============================================================================
 // 类型定义
@@ -76,6 +77,7 @@ function toShareInfo(shareConfig: ShareConfig): ShareInfo {
     shareId: shareConfig.id,
     userAvatar: userSettings.userAvatar,
     userName: userSettings.userName,
+    encryptEnabled: shareConfig.encryptEnabled,
   };
 }
 
@@ -288,6 +290,7 @@ function handleShareInfoAPI(req: http.IncomingMessage, res: http.ServerResponse)
     createdAt: share.createdAt,
     userAvatar: userSettings.userAvatar,
     userName: userSettings.userName,
+    encryptEnabled: share.encryptEnabled,
   });
   return true;
 }
@@ -375,26 +378,56 @@ function handleDownloadAPI(
     'Content-Disposition': `attachment; filename="${encodeURIComponent(share.fileName)}"`,
   };
 
-  // 向后兼容：旧的预加密文件
-  if (share.encryptedFilePath && fs.existsSync(share.encryptedFilePath)) {
-    const ivBuffer = Buffer.alloc(16);
-    const fd = fs.openSync(share.encryptedFilePath, 'r');
-    fs.readSync(fd, ivBuffer, 0, 16, 0);
-    fs.closeSync(fd);
-
-    const keyBuffer = Buffer.from(share.encryptionKey!, 'hex');
-    headers['Content-Length'] = share.fileSize;
-    res.writeHead(200, headers);
-
-    const inputStream = fs.createReadStream(share.encryptedFilePath, { start: 16 });
-    const decipher = crypto.createDecipheriv('aes-256-cbc', keyBuffer, ivBuffer);
-    inputStream.pipe(decipher).pipe(createThrottle()).pipe(res);
-    return true;
-  }
-
-  // 新流式传输逻辑
+  // 流式传输逻辑
   try {
-    if (share.isFolder) {
+    if (share.encryptEnabled && share.encryptKey) {
+      if (!fs.existsSync(share.filePath)) {
+        sendErrorPage(res, 404, locale.receiver.error.fileNotExist, locale.receiver.error.fileNotExistMsg, undefined, locale);
+        return true;
+      }
+
+      headers['Accept-Ranges'] = 'none';
+      // 不要设置 Content-Length 为 undefined，直接省略该字段
+      res.writeHead(200, headers);
+
+      console.log('Starting encrypted file download:', {
+        shareId: share.id,
+        fileName: share.fileName,
+        filePath: share.filePath,
+        encryptEnabled: share.encryptEnabled,
+        encryptKeyLength: share.encryptKey?.length
+      });
+      
+      const inputStream = fs.createReadStream(share.filePath);
+      
+      inputStream.on('error', (err) => {
+        console.error('Input stream error:', err);
+        logger?.log('error', `读取加密文件失败: ${share.fileName}`, { detail: err.message, messageKey: 'error.downloadEncrypted', messageParams: [share.fileName] });
+      });
+      
+      let decryptTransform: Transform;
+      try {
+        decryptTransform = createDecryptTransform(share.encryptKey!);
+      } catch (err) {
+        console.error('Failed to create decrypt transform:', err);
+        if (!res.headersSent) {
+          sendErrorPage(res, 500, locale.receiver.error.serverError, locale.receiver.error.transferFailed, undefined, locale);
+        }
+        logger?.log('error', `创建解密流失败: ${share.fileName}`, { detail: err instanceof Error ? err.message : String(err), messageKey: 'error.downloadEncrypted', messageParams: [share.fileName] });
+        return true;
+      }
+      
+      const throttle = createThrottle();
+
+      pipeline(inputStream, decryptTransform, throttle, res, (err) => {
+        if (err) {
+          console.error('Encrypted file pipeline error:', err);
+          logger?.log('error', `加密文件传输失败: ${share.fileName}`, { detail: err.message, messageKey: 'error.downloadEncrypted', messageParams: [share.fileName] });
+        } else {
+          console.log('Encrypted file pipeline completed successfully');
+        }
+      });
+    } else if (share.isFolder) {
       res.writeHead(200, headers);
       const archive = archiver('zip', { zlib: { level: 1 } });
       const folderName = path.basename(share.filePath);

@@ -7,7 +7,7 @@ import { ipcMain, dialog, BrowserWindow, shell } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import { IPC_CHANNELS, ShareConfig, SystemSettings, LogEntry } from '../shared/types';
-import { getNetworkInfo, isPortAvailable, findAvailablePort, NetworkMonitor, getIPByAdapterName, setSelectedAdapterName } from './services/network';
+import { getNetworkInfo, isPortAvailable, findAvailablePort, NetworkMonitor, getIPByAdapterName, setSelectedAdapterNames } from './services/network';
 import { Logger } from './services/logger';
 import { SettingsManager } from './services/settings';
 import { ShareManager, CreateShareParams } from './services/shareManager';
@@ -54,11 +54,31 @@ export function registerIpcHandlers(
       if (!ip) {
         return { success: false, error: '适配器不存在或无可用IP地址' };
       }
-      
+
       // 存储用户选择的适配器名称
-      setSelectedAdapterName(adapterName);
-      
+      setSelectedAdapterNames([adapterName]);
+
       return { success: true, data: { ip, adapterName } };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.log('error', '切换网络适配器失败', { detail: message, messageKey: 'error.switchAdapter' });
+      return { success: false, error: message };
+    }
+  });
+
+  // 多选网络适配器
+  ipcMain.handle(IPC_CHANNELS.NETWORK_SELECT_ADAPTERS, async (_event, adapterNames: string[]) => {
+    try {
+      const ips: string[] = [];
+      for (const name of adapterNames) {
+        const ip = getIPByAdapterName(name);
+        if (!ip) {
+          return { success: false, error: `适配器 ${name} 不存在或无可用IP地址` };
+        }
+        ips.push(ip);
+      }
+      setSelectedAdapterNames(adapterNames);
+      return { success: true, data: { ips, adapterNames } };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.log('error', '切换网络适配器失败', { detail: message, messageKey: 'error.switchAdapter' });

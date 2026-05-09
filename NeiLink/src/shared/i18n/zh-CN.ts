@@ -74,6 +74,9 @@ export const zhCN: Locale = {
     shareLink: '分享链接',
     hour: '小时',
     day: '天',
+    encryptEnabled: '文件加密',
+    encryptEnabledHint: '使用 AES-256-CBC 加密保护文件，密钥仅存储在本地',
+    encrypted: '已加密',
   },
   
   // 分享管理
@@ -145,8 +148,6 @@ export const zhCN: Locale = {
     hotspotPrefixHint: '创建热点时的 SSID 前缀',
     hotspotPasswordLength: '热点密码长度',
     hotspotPasswordLengthHint: '创建热点时的密码长度',
-    encryptionBits: '加密强度',
-    encryptionBitsHint: '文件加密的密钥长度',
     downloadSpeedLimit: '下载限速',
     downloadSpeedLimitHint: '限制文件下载的最大速度，0 表示不限速',
     downloadSpeedLimitUnlimited: '不限速',
@@ -164,7 +165,7 @@ export const zhCN: Locale = {
     clearSharesOnExit: '关闭时删除分享',
     clearSharesOnExitHint: '应用关闭时删除所有已分享的文件',
     selectedAdapter: '网络适配器',
-    selectedAdapterHint: '选择用于分享的网络适配器',
+    selectedAdapterHint: '选择一个或多个用于分享的网络适配器，未选择时自动检测',
     userName: '用户名称',
     userNameHint: '显示在分享页面的用户名称',
     userAvatar: '用户头像',
@@ -197,6 +198,8 @@ export const zhCN: Locale = {
     closeBehaviorAsk: '每次都询问',
     closeBehaviorMinimize: '最小化到托盘',
     closeBehaviorExit: '直接退出程序',
+    defaultEncrypt: '默认加密',
+    defaultEncryptHint: '创建分享时默认启用文件加密',
   },
   
   // 流量统计
@@ -309,7 +312,9 @@ export const zhCN: Locale = {
     ethernet: '以太网',
     noNetwork: '未检测到网络',
     adapter: '网络适配器',
+    adapters: '网络适配器',
     localIP: '本地 IP',
+    localIPs: '本地 IP 地址',
   },
   
   // 通知

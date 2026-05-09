@@ -58,10 +58,10 @@ interface AppSettings {
   hotspotPasswordLength: number;
 
   // 安全设置
-  encryptionBits: 128 | 256;
   rateLimitEnabled: boolean;
   rateLimitMaxAttempts: number;
   rateLimitBanDuration: number;
+  defaultEncrypt: boolean;
 
   // 日志设置
   logRetentionDays: number;
@@ -85,10 +85,10 @@ const defaultSettings: AppSettings = {
   downloadSpeedLimit: 0,
   hotspotPrefix: 'NeiLink',
   hotspotPasswordLength: 8,
-  encryptionBits: 256,
   rateLimitEnabled: true,
   rateLimitMaxAttempts: 10,
   rateLimitBanDuration: 30,
+  defaultEncrypt: false,
   logRetentionDays: 30,
   logStoragePath: '',
 };
@@ -103,9 +103,11 @@ const SettingsPage: React.FC = () => {
   const [networkInfo, setNetworkInfo] = useState<NetworkInfo>({
     type: 'none',
     ip: '0.0.0.0',
+    ips: [],
     isOnline: false,
     adapters: [],
     selectedAdapter: undefined,
+    selectedAdapters: [],
   });
   const [bannedIPs, setBannedIPs] = useState<BannedIPInfo[]>([]);
   const [bannedIPsLoading, setBannedIPsLoading] = useState(false);
@@ -153,7 +155,19 @@ const SettingsPage: React.FC = () => {
     try {
       const result = await window.neilink.ipc.invoke('network:get-info') as any;
       if (result?.success && result.data) {
-        setNetworkInfo(result.data as NetworkInfo);
+        const newData = result.data as NetworkInfo;
+        setNetworkInfo(prev => {
+          if (
+            prev.ip === newData.ip &&
+            prev.type === newData.type &&
+            prev.isOnline === newData.isOnline &&
+            JSON.stringify(prev.ips) === JSON.stringify(newData.ips) &&
+            JSON.stringify(prev.selectedAdapters) === JSON.stringify(newData.selectedAdapters)
+          ) {
+            return prev;
+          }
+          return newData;
+        });
       }
     } catch {
       // 忽略网络信息获取失败的情况
@@ -267,13 +281,19 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const handleAdapterChange = async (adapterName: string) => {
+  const handleAdapterChange = async (adapterNames: string[]) => {
     try {
-      const result = await window.neilink.ipc.invoke('network:select-adapter', adapterName) as any;
-      if (result?.success) {
-        message.success('网络适配器已切换');
-        // 重新获取网络信息
+      const result = await window.neilink.ipc.invoke('network:select-adapters', adapterNames) as any;
+      if (result?.success && result.data) {
+        setNetworkInfo(prev => ({
+          ...prev,
+          ips: result.data.ips,
+          ip: result.data.ips[0] || prev.ip,
+          selectedAdapter: result.data.adapterNames[0],
+          selectedAdapters: result.data.adapterNames,
+        }));
         await fetchNetworkInfo();
+        message.success('网络适配器已切换');
       } else {
         message.error(result?.error || '切换适配器失败');
       }
@@ -592,15 +612,20 @@ const SettingsPage: React.FC = () => {
             <div className="settings-desc">{locale.settings.selectedAdapterHint}</div>
           </div>
           <Select
-            value={networkInfo.selectedAdapter}
+            mode="multiple"
+            value={networkInfo.selectedAdapters}
             onChange={handleAdapterChange}
             style={{ width: 300 }}
-            options={networkInfo.adapters.map(adapter => ({
-              label: `${adapter.name} (${adapter.ip})`,
-              value: adapter.name,
-            }))}
+            maxTagCount="responsive"
+            options={networkInfo.adapters.map(adapter => {
+              const shortName = adapter.name.length > 20 ? adapter.name.slice(0, 20) + '…' : adapter.name;
+              return {
+                label: `${shortName} (${adapter.ip})`,
+                value: adapter.name,
+              };
+            })}
             placeholder={locale.settings.selectedAdapterHint}
-            disabled={networkInfo.adapters.length <= 1}
+            disabled={networkInfo.adapters.length === 0}
           />
         </div>
         <div className="settings-item">
@@ -681,22 +706,6 @@ const SettingsPage: React.FC = () => {
 
         <div className="settings-item">
           <div>
-            <div className="settings-label">{locale.settings.encryptionBits}</div>
-            <div className="settings-desc">{locale.settings.encryptionBitsHint}</div>
-          </div>
-          <Select
-            value={settings.encryptionBits}
-            onChange={(val) => updateSetting('encryptionBits', val as 128 | 256)}
-            style={{ width: 140 }}
-            options={[
-              { value: 128, label: '128 位' },
-              { value: 256, label: '256 位' },
-            ]}
-          />
-        </div>
-
-        <div className="settings-item">
-          <div>
             <div className="settings-label">{locale.settings.rateLimitEnabled}</div>
             <div className="settings-desc">{locale.settings.rateLimitEnabledHint}</div>
           </div>
@@ -737,6 +746,17 @@ const SettingsPage: React.FC = () => {
             </div>
           </>
         )}
+
+        <div className="settings-item">
+          <div>
+            <div className="settings-label">{locale.settings.defaultEncrypt}</div>
+            <div className="settings-desc">{locale.settings.defaultEncryptHint}</div>
+          </div>
+          <Switch
+            checked={settings.defaultEncrypt}
+            onChange={(val) => updateSetting('defaultEncrypt', val)}
+          />
+        </div>
       </div>
 
       {/* 封禁IP管理 */}

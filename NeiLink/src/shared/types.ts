@@ -18,10 +18,12 @@ export interface NetworkAdapter {
 export interface NetworkInfo {
   type: NetworkType;
   ip: string;
+  ips: string[]; // 所有选中适配器的 IP 地址
   ssid?: string;
   isOnline: boolean;
   adapters: NetworkAdapter[]; // 所有可用的网络适配器
-  selectedAdapter?: string; // 当前选中的适配器名称
+  selectedAdapter?: string; // @deprecated 当前选中的适配器名称
+  selectedAdapters: string[]; // 当前选中的适配器名称列表
 }
 
 // 分享任务配置
@@ -40,8 +42,9 @@ export interface ShareConfig {
   port: number;
   status: 'active' | 'cancelled' | 'expired';
   downloadCount: number;
-  encryptedFilePath?: string;
-  encryptionKey?: string;
+  encryptEnabled?: boolean;
+  encryptKey?: string; // hex密钥，仅存储在发送端本地
+  encryptOriginalPath?: string; // 加密前原始文件路径
 }
 
 // 日志条目
@@ -75,16 +78,17 @@ export interface SystemSettings {
   port: number;
   hotspotPrefix: string;
   hotspotPasswordLength: number;
-  encryptionBits: 128 | 256;
   downloadSpeedLimit: number; // KB/s，0 表示不限速
   rateLimitEnabled: boolean;
   rateLimitMaxAttempts: number;
   rateLimitBanDuration: number; // 分钟
+  defaultEncrypt: boolean;
   logRetentionDays: number;
   logStoragePath: string;
   clearSharesOnExit: boolean; // 应用关闭时删除已分享的文件
   closeBehavior: 'ask' | 'minimize' | 'exit'; // 关闭按钮行为
-  selectedAdapter?: string; // 用户选择的网络适配器名称
+  selectedAdapter?: string; // @deprecated 用户选择的网络适配器名称
+  selectedAdapters?: string[]; // 用户选择的网络适配器名称列表
   language: string; // 语言设置，如 'zh-CN', 'en-US'
   theme: 'light' | 'dark' | 'auto'; // 主题设置
   // 用户设置
@@ -97,6 +101,7 @@ export const IPC_CHANNELS = {
   // 网络相关
   NETWORK_GET_INFO: 'network:get-info',
   NETWORK_ON_CHANGE: 'network:on-change',
+  NETWORK_SELECT_ADAPTERS: 'network:select-adapters',
 
   // 分享相关
   SHARE_CREATE: 'share:create',

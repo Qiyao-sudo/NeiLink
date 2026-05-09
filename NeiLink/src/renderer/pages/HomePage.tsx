@@ -28,9 +28,11 @@ const HomePage: React.FC = () => {
   const [networkStatus, setNetworkStatus] = useState<NetworkInfo>({
     type: 'none',
     ip: '0.0.0.0',
+    ips: [],
     isOnline: false,
     adapters: [],
     selectedAdapter: undefined,
+    selectedAdapters: [],
   });
   const [hotspotInfo, setHotspotInfo] = useState<HotspotStatus>({
     enabled: false,
@@ -47,6 +49,7 @@ const HomePage: React.FC = () => {
     defaultExpiry: '24h',
     defaultMaxDownloads: -1,
     defaultMaxConcurrent: -1,
+    defaultEncrypt: false,
   });
   const dropRef = useRef<HTMLDivElement>(null);
 
@@ -54,7 +57,19 @@ const HomePage: React.FC = () => {
     try {
       const result = await window.neilink.ipc.invoke('network:get-info') as any;
       if (result?.success && result.data) {
-        setNetworkStatus(result.data as NetworkInfo);
+        const newData = result.data as NetworkInfo;
+        setNetworkStatus(prev => {
+          if (
+            prev.ip === newData.ip &&
+            prev.type === newData.type &&
+            prev.isOnline === newData.isOnline &&
+            JSON.stringify(prev.ips) === JSON.stringify(newData.ips) &&
+            JSON.stringify(prev.selectedAdapters) === JSON.stringify(newData.selectedAdapters)
+          ) {
+            return prev;
+          }
+          return newData;
+        });
       }
     } catch {
       // 静默处理
@@ -82,6 +97,7 @@ const HomePage: React.FC = () => {
           defaultExpiry: (settings.defaultExpiry as string) || '24h',
           defaultMaxDownloads: settings.defaultMaxDownloads as number ?? -1,
           defaultMaxConcurrent: settings.defaultMaxConcurrent as number ?? -1,
+          defaultEncrypt: settings.defaultEncrypt as boolean ?? false,
         });
       }
     } catch {
@@ -197,6 +213,7 @@ const HomePage: React.FC = () => {
         expiryTime,
         maxDownloads: config.maxDownloads,
         maxConcurrent: config.maxConcurrentDownloads,
+        encryptEnabled: config.encryptEnabled,
       };
       
       const result = await window.neilink.ipc.invoke('share:create', shareParams) as any;
@@ -205,6 +222,10 @@ const HomePage: React.FC = () => {
         message.success('分享创建成功');
         return {
           shareLink: `http://${networkStatus.ip}:${shareConfig.port}/${shareConfig.id}`,
+          shareLinks: networkStatus.ips.map(ip => ({
+            ip,
+            link: `http://${ip}:${shareConfig.port}/${shareConfig.id}`,
+          })),
           extractionCode: shareConfig.extractCode || '',
           hotspotName: hotspotInfo.ssid || '',
           hotspotPassword: hotspotInfo.password || '',
@@ -262,24 +283,22 @@ const HomePage: React.FC = () => {
     });
   };
 
-  const handleAdapterChange = async (value: string) => {
+  const handleAdapterChange = async (values: string[]) => {
     try {
-      const result = await window.neilink.ipc.invoke('network:select-adapter', value) as any;
+      const result = await window.neilink.ipc.invoke('network:select-adapters', values) as any;
       if (result?.success && result.data) {
-        // 更新网络状态
         setNetworkStatus(prev => ({
           ...prev,
-          ip: result.data.ip,
-          selectedAdapter: result.data.adapterName,
-          // 重新获取完整的网络状态
+          ips: result.data.ips,
+          ip: result.data.ips[0] || prev.ip,
+          selectedAdapter: result.data.adapterNames[0],
+          selectedAdapters: result.data.adapterNames,
         }));
-        // 重新获取网络状态以更新所有信息
-        fetchNetworkStatus();
         message.success('适配器已切换');
       } else {
         message.error(result?.error || '切换适配器失败');
       }
-    } catch (error) {
+    } catch {
       message.error('切换适配器失败');
     }
   };
@@ -304,28 +323,37 @@ const HomePage: React.FC = () => {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
             {networkStatus.adapters.length > 1 && (
-              <div style={{ minWidth: 200 }}>
-                <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>{locale.network.adapter}</div>
+              <div style={{ minWidth: 220 }}>
+                <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>{locale.network.adapters}</div>
                 <Select
+                  mode="multiple"
                   style={{ width: '100%' }}
-                  value={networkStatus.selectedAdapter}
+                  value={networkStatus.selectedAdapters}
                   onChange={handleAdapterChange}
-                  options={networkStatus.adapters.map(adapter => ({
-                    label: `${adapter.name} (${adapter.ip})`,
-                    value: adapter.name,
-                  }))}
+                  maxTagCount="responsive"
+                  options={networkStatus.adapters.map(adapter => {
+                    const shortName = adapter.name.length > 20 ? adapter.name.slice(0, 20) + '…' : adapter.name;
+                    return {
+                      label: `${shortName} (${adapter.ip})`,
+                      value: adapter.name,
+                    };
+                  })}
                 />
               </div>
             )}
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>{locale.network.localIP}</div>
-              <Text
-                copyable={{ tooltips: [locale.common.copy, locale.common.copied] }}
-                style={{ fontSize: 16, fontWeight: 600 }}
-                onClick={copyIP}
-              >
-                {networkStatus.ip}
-              </Text>
+              <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>{locale.network.localIPs}</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                {networkStatus.ips.map((ip) => (
+                  <Text
+                    key={ip}
+                    copyable={{ tooltips: [locale.common.copy, locale.common.copied] }}
+                    style={{ fontSize: 14, fontWeight: 600 }}
+                  >
+                    {ip}
+                  </Text>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -423,6 +451,7 @@ const HomePage: React.FC = () => {
         defaultExpiry={defaultSettings.defaultExpiry}
         defaultMaxDownloads={defaultSettings.defaultMaxDownloads}
         defaultMaxConcurrent={defaultSettings.defaultMaxConcurrent}
+        defaultEncrypt={defaultSettings.defaultEncrypt}
         onConfirm={handleShareConfirm}
         onCancel={() => setShareModalVisible(false)}
       />

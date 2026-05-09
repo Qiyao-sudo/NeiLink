@@ -8,9 +8,9 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import archiver from 'archiver';
 import { ShareConfig, SystemSettings } from '../../shared/types';
-import { generateKey, encryptFile } from './encryption';
 import { startGlobalServer, registerShare, unregisterShare, getGlobalServerPort } from './httpServer';
 import { Logger } from './logger';
+import { generateKey, encryptFile } from './encryption';
 
 /** 创建分享任务的参数 */
 export interface CreateShareParams {
@@ -22,6 +22,7 @@ export interface CreateShareParams {
   maxDownloads?: number;
   maxConcurrent?: number;
   uploaderName?: string;
+  encryptEnabled?: boolean;
 }
 
 /** 分享更新回调 */
@@ -171,9 +172,6 @@ export class ShareManager {
       }
     }
 
-    // 生成加密密钥（流式传输时使用）
-    const encryptionKey = generateKey(this.settings.encryptionBits);
-
     // 创建分享配置 - 如果是文件夹，文件名加上 .zip 后缀
     const finalFileName = isFolder ? `${fileName}.zip` : fileName;
     const shareConfig: ShareConfig = {
@@ -191,11 +189,37 @@ export class ShareManager {
       port,
       status: 'active',
       downloadCount: 0,
-      // 不再生成 encryptedFilePath，流式传输
-      encryptionKey,
+      encryptEnabled: params.encryptEnabled ?? this.settings.defaultEncrypt,
     };
 
     try {
+      if (shareConfig.encryptEnabled) {
+        const encryptKey = generateKey(256);
+        shareConfig.encryptKey = encryptKey;
+        shareConfig.encryptOriginalPath = filePath;
+
+        let sourcePath = filePath;
+
+        if (isFolder) {
+          const zipPath = path.join(this.tempDir, `${id}.zip`);
+          await this.zipFolder(filePath, zipPath);
+          sourcePath = zipPath;
+        }
+
+        const encPath = path.join(this.tempDir, `${id}.enc`);
+        await encryptFile(sourcePath, encPath, encryptKey);
+        shareConfig.filePath = encPath;
+        shareConfig.fileSize = fs.statSync(encPath).size;
+
+        if (isFolder && sourcePath !== filePath) {
+          try {
+            fs.unlinkSync(sourcePath);
+          } catch { /* ignore */ }
+        }
+
+        this.logger.log('share', `文件已加密: ${finalFileName}`, { detail: `ID: ${id}`, messageKey: 'share.created', messageParams: [finalFileName] });
+      }
+
       // 直接注册分享到全局服务器（零预加密等待！）
       registerShare(shareConfig, (shareId) => {
         this.handleDownloadComplete(shareId);
@@ -499,11 +523,39 @@ export class ShareManager {
       
       let restoredCount = 0;
       for (const share of sharesData) {
-        // 检查原始文件是否存在
-        const originalFileExists = fs.existsSync(share.filePath);
-        
+        let fileExists: boolean;
+
+        if (share.encryptEnabled && share.encryptKey && share.encryptOriginalPath) {
+          fileExists = fs.existsSync(share.filePath);
+
+          if (!fileExists && fs.existsSync(share.encryptOriginalPath)) {
+            try {
+              let sourcePath = share.encryptOriginalPath;
+              if (share.isFolder) {
+                const zipPath = path.join(this.tempDir, `${share.id}.zip`);
+                await this.zipFolder(share.encryptOriginalPath, zipPath);
+                sourcePath = zipPath;
+              }
+              const encPath = path.join(this.tempDir, `${share.id}.enc`);
+              await encryptFile(sourcePath, encPath, share.encryptKey);
+              share.filePath = encPath;
+              share.fileSize = fs.statSync(encPath).size;
+              if (share.isFolder && sourcePath !== share.encryptOriginalPath) {
+                try { fs.unlinkSync(sourcePath); } catch { /* ignore */ }
+              }
+              fileExists = true;
+              this.logger.log('system', `已重新加密恢复的分享: ${share.fileName}`, { messageKey: 'share.restored', messageParams: [share.fileName] });
+            } catch (err) {
+              console.error(`重新加密恢复的分享失败: ${share.fileName}`, err);
+              fileExists = false;
+            }
+          }
+        } else {
+          fileExists = fs.existsSync(share.filePath);
+        }
+
         // 只要原始文件存在就恢复（支持新旧分享任务
-        if (originalFileExists) {
+        if (fileExists) {
           // 确保端口一致
           share.port = port;
           

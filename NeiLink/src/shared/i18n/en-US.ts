@@ -74,6 +74,9 @@ export const enUS: Locale = {
     shareLink: 'Share Link',
     hour: 'hour',
     day: 'day',
+    encryptEnabled: 'File Encryption',
+    encryptEnabledHint: 'Protect file with AES-256-CBC encryption.',
+    encrypted: 'Encrypted',
   },
   
   // 分享管理
@@ -145,8 +148,6 @@ export const enUS: Locale = {
     hotspotPrefixHint: 'SSID prefix when creating hotspot',
     hotspotPasswordLength: 'Hotspot Password Length',
     hotspotPasswordLengthHint: 'Password length when creating hotspot',
-    encryptionBits: 'Encryption Strength',
-    encryptionBitsHint: 'Key length for file encryption',
     downloadSpeedLimit: 'Download Speed Limit',
     downloadSpeedLimitHint: 'Limit the maximum download speed, 0 means unlimited',
     downloadSpeedLimitUnlimited: 'Unlimited',
@@ -164,7 +165,7 @@ export const enUS: Locale = {
     clearSharesOnExit: 'Clear Shares on Exit',
     clearSharesOnExitHint: 'Delete all shared files when application closes',
     selectedAdapter: 'Network Adapter',
-    selectedAdapterHint: 'Select network adapter for sharing',
+    selectedAdapterHint: 'Select one or more network adapters for sharing. Auto-detect when none selected.',
     userName: 'User Name',
     userNameHint: 'User name displayed on share pages',
     userAvatar: 'User Avatar',
@@ -197,6 +198,8 @@ export const enUS: Locale = {
     closeBehaviorAsk: 'Ask every time',
     closeBehaviorMinimize: 'Minimize to tray',
     closeBehaviorExit: 'Exit application',
+    defaultEncrypt: 'Default Encryption',
+    defaultEncryptHint: 'Enable file encryption by default when creating shares',
   },
   
   // 流量统计
@@ -309,7 +312,9 @@ export const enUS: Locale = {
     ethernet: 'Ethernet',
     noNetwork: 'No Network Detected',
     adapter: 'Network Adapter',
+    adapters: 'Network Adapters',
     localIP: 'Local IP',
+    localIPs: 'Local IP Addresses',
   },
   
   // 通知

@@ -8,8 +8,8 @@ import * as net from 'net';
 import { NetworkInfo, NetworkType, NetworkAdapter } from '../../shared/types';
 import { SettingsManager } from './settings';
 
-// 存储用户选择的网络适配器名称
-let selectedAdapterName: string | undefined = undefined;
+// 存储用户选择的网络适配器名称列表
+let selectedAdapterNames: string[] = [];
 let settingsManagerRef: SettingsManager | undefined = undefined;
 
 /**
@@ -19,19 +19,22 @@ export async function initializeNetwork(settingsManager: SettingsManager): Promi
   settingsManagerRef = settingsManager;
   // 从设置中加载用户选择的适配器
   const settings = await settingsManager.getSettings();
-  if (settings.selectedAdapter) {
-    selectedAdapterName = settings.selectedAdapter;
+  if (settings.selectedAdapters && settings.selectedAdapters.length > 0) {
+    selectedAdapterNames = settings.selectedAdapters;
+  } else if (settings.selectedAdapter) {
+    // 迁移旧的单选适配器设置
+    selectedAdapterNames = [settings.selectedAdapter];
   }
 }
 
 /**
- * 设置选中的网络适配器名称
+ * 设置选中的网络适配器名称列表
  */
-export function setSelectedAdapterName(adapterName: string | undefined): void {
-  selectedAdapterName = adapterName;
+export function setSelectedAdapterNames(adapterNames: string[]): void {
+  selectedAdapterNames = [...adapterNames];
   // 保存到设置中
   if (settingsManagerRef) {
-    settingsManagerRef.saveSettings({ selectedAdapter: adapterName });
+    settingsManagerRef.saveSettings({ selectedAdapters: adapterNames, selectedAdapter: adapterNames[0] });
   }
 }
 
@@ -39,9 +42,9 @@ export function setSelectedAdapterName(adapterName: string | undefined): void {
  * 获取局域网IP地址（优先返回IPv4非回环地址）
  */
 export function getLocalIP(): string {
-  // 如果用户已选择适配器，优先使用该适配器的IP地址
-  if (selectedAdapterName) {
-    const ip = getIPByAdapterName(selectedAdapterName);
+  // 如果用户已选择适配器，优先使用第一个适配器的IP地址
+  if (selectedAdapterNames.length > 0) {
+    const ip = getIPByAdapterName(selectedAdapterNames[0]);
     if (ip) {
       return ip;
     }
@@ -69,12 +72,25 @@ export function getLocalIP(): string {
 }
 
 /**
+ * 获取所有选中适配器的IP地址列表
+ */
+export function getLocalIPs(): string[] {
+  if (selectedAdapterNames.length > 0) {
+    return selectedAdapterNames
+      .map(name => getIPByAdapterName(name))
+      .filter((ip): ip is string => ip !== null);
+  }
+  // 未选择适配器时，返回自动检测的IP
+  return [getLocalIP()];
+}
+
+/**
  * 推断网络类型
  */
 function detectNetworkType(): NetworkType {
-  // 如果用户已选择适配器，优先使用该适配器检测网络类型
-  if (selectedAdapterName) {
-    return detectAdapterType(selectedAdapterName);
+  // 如果用户已选择适配器，优先使用第一个适配器检测网络类型
+  if (selectedAdapterNames.length > 0) {
+    return detectAdapterType(selectedAdapterNames[0]);
   }
 
   // 获取当前的IP地址
@@ -171,31 +187,26 @@ export function getIPByAdapterName(adapterName: string): string | null {
  */
 export function getNetworkInfo(): NetworkInfo {
   const ip = getLocalIP();
+  const ips = getLocalIPs();
   const type = detectNetworkType();
   const adapters = getAllAdapters();
-  
+
   // 网络状态判断：如果有有效的IP地址且不是回环地址，则认为网络是连接的
   const isOnline = ip !== '127.0.0.1' && adapters.length > 0;
-  
-  // 使用用户选择的适配器名称，如果没有选择则根据IP地址查找
-  let currentSelectedAdapter = selectedAdapterName;
-  if (!currentSelectedAdapter) {
-    for (const adapter of adapters) {
-      if (adapter.ip === ip) {
-        currentSelectedAdapter = adapter.name;
-        break;
-      }
-    }
-  }
+
+  // 使用用户选择的适配器名称列表，未选择时返回空数组
+  const currentSelectedAdapters = selectedAdapterNames;
 
   return {
     type,
     ip,
+    ips,
     isOnline,
     // SSID 在桌面端难以直接获取，留空由上层处理
     ssid: undefined,
     adapters,
-    selectedAdapter: currentSelectedAdapter
+    selectedAdapter: currentSelectedAdapters[0],
+    selectedAdapters: currentSelectedAdapters,
   };
 }
 
@@ -247,6 +258,14 @@ export function getHostname(): string {
 }
 
 /**
+ * 比较两个字符串数组是否内容相同
+ */
+function arraysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((v, i) => v === b[i]);
+}
+
+/**
  * 网络变化监控器
  * 使用轮询方式检测网络状态变化
  */
@@ -286,7 +305,8 @@ export class NetworkMonitor {
         currentInfo.ip !== this.lastNetworkInfo.ip ||
         currentInfo.type !== this.lastNetworkInfo.type ||
         currentInfo.isOnline !== this.lastNetworkInfo.isOnline ||
-        currentInfo.selectedAdapter !== this.lastNetworkInfo.selectedAdapter
+        !arraysEqual(currentInfo.ips, this.lastNetworkInfo.ips) ||
+        !arraysEqual(currentInfo.selectedAdapters, this.lastNetworkInfo.selectedAdapters)
       ) {
         this.lastNetworkInfo = currentInfo;
         this.callback(currentInfo);

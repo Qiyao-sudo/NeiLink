@@ -73,6 +73,9 @@ export interface Locale {
     shareLink: string;
     hour: string;
     day: string;
+    encryptEnabled: string;
+    encryptEnabledHint: string;
+    encrypted: string;
   };
   
   // 分享管理
@@ -144,8 +147,6 @@ export interface Locale {
     hotspotPrefixHint: string;
     hotspotPasswordLength: string;
     hotspotPasswordLengthHint: string;
-    encryptionBits: string;
-    encryptionBitsHint: string;
     downloadSpeedLimit: string;
     downloadSpeedLimitHint: string;
     downloadSpeedLimitUnlimited: string;
@@ -196,6 +197,8 @@ export interface Locale {
     closeBehaviorAsk: string;
     closeBehaviorMinimize: string;
     closeBehaviorExit: string;
+    defaultEncrypt: string;
+    defaultEncryptHint: string;
   };
   
   // 流量统计
@@ -304,7 +307,9 @@ export interface Locale {
     ethernet: string;
     noNetwork: string;
     adapter: string;
+    adapters: string;
     localIP: string;
+    localIPs: string;
   };
   
   // 通知

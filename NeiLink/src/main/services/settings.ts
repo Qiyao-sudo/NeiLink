@@ -19,16 +19,17 @@ const DEFAULT_SETTINGS: SystemSettings = {
   port: 8080,
   hotspotPrefix: 'NeiLink',
   hotspotPasswordLength: 8,
-  encryptionBits: 256,
   rateLimitEnabled: true,
   rateLimitMaxAttempts: 10,
   rateLimitBanDuration: 30, // 30分钟
+  defaultEncrypt: false,
   downloadSpeedLimit: 0, // 0 表示不限速
   logRetentionDays: 30,
   logStoragePath: '', // 运行时由 app.getPath('userData') 填充
   clearSharesOnExit: false, // 默认不删除
   closeBehavior: 'ask', // 默认每次都询问
-  selectedAdapter: undefined, // 用户选择的网络适配器名称
+  selectedAdapter: undefined, // @deprecated 用户选择的网络适配器名称
+  selectedAdapters: [], // 用户选择的网络适配器名称列表
   language: 'zh-CN', // 默认语言
   theme: 'auto', // 默认主题（跟随系统）
   // 用户设置
@@ -105,6 +106,13 @@ export class SettingsManager {
         // 确保主题设置存在
         if (!this.settings.theme) {
           this.settings.theme = 'auto';
+        }
+        // 迁移旧的单选 selectedAdapter 到多选 selectedAdapters
+        if (this.settings.selectedAdapter && (!this.settings.selectedAdapters || this.settings.selectedAdapters.length === 0)) {
+          this.settings.selectedAdapters = [this.settings.selectedAdapter];
+        }
+        if (!this.settings.selectedAdapters) {
+          this.settings.selectedAdapters = [];
         }
       } else {
         // 首次运行，保存默认设置

@@ -1,150 +1,191 @@
-/**
- * AES 加密解密模块
- * 使用 Node.js 内置 crypto 模块实现文件加密解密
- */
-
 import * as crypto from 'crypto';
 import * as fs from 'fs';
+import { Transform, TransformCallback } from 'stream';
 
-/**
- * 生成随机加密密钥
- * @param bits 密钥位数，支持 128 或 256
- * @returns hex 格式的密钥字符串
- */
-export function generateKey(bits: 128 | 256 = 256): string {
-  const keyLength = bits / 8; // 128位=16字节, 256位=32字节
+export function generateKey(bits: number = 256): string {
+  const keyLength = bits / 8;
   return crypto.randomBytes(keyLength).toString('hex');
 }
 
-/**
- * 使用 AES-256-CBC 加密文件（流式处理，支持大文件）
- * 文件格式: [IV(16字节)][加密数据]
- *
- * @param inputPath 原始文件路径
- * @param outputPath 加密后文件输出路径
- * @param key hex 格式的密钥字符串
- */
 export function encryptFile(inputPath: string, outputPath: string, key: string): Promise<void> {
   return new Promise((resolve, reject) => {
     try {
-      // 从 hex 字符串创建密钥 Buffer
       const keyBuffer = Buffer.from(key, 'hex');
-
-      // 生成随机 IV（16字节）
       const iv = crypto.randomBytes(16);
-
-      // 创建加密器
       const cipher = crypto.createCipheriv('aes-256-cbc', keyBuffer, iv);
 
-      // 创建写入流
-      const outputStream = fs.createWriteStream(outputPath);
+      const readStream = fs.createReadStream(inputPath);
+      const writeStream = fs.createWriteStream(outputPath);
 
-      // 先写入 IV
-      outputStream.write(iv);
+      writeStream.write(iv);
 
-      // 创建读取流并通过加密器管道传输
-      const inputStream = fs.createReadStream(inputPath);
+      readStream.on('error', (err) => {
+        reject(new Error(`读取文件失败: ${err.message}`));
+      });
 
-      inputStream
-        .pipe(cipher)
-        .pipe(outputStream);
+      writeStream.on('error', (err) => {
+        reject(new Error(`写入加密文件失败: ${err.message}`));
+      });
 
-      outputStream.on('finish', () => {
+      writeStream.on('finish', () => {
         resolve();
       });
 
-      outputStream.on('error', (err) => {
-        reject(new Error(`加密文件写入失败: ${err.message}`));
-      });
-
-      inputStream.on('error', (err) => {
-        reject(new Error(`加密文件读取失败: ${err.message}`));
-      });
+      readStream.pipe(cipher).pipe(writeStream);
     } catch (err) {
-      reject(new Error(`加密失败: ${err instanceof Error ? err.message : String(err)}`));
+      reject(new Error(`加密初始化失败: ${err instanceof Error ? err.message : String(err)}`));
     }
   });
 }
 
-/**
- * 使用 AES-256-CBC 解密文件（流式处理，支持大文件）
- * 文件格式: [IV(16字节)][加密数据]
- *
- * @param inputPath 加密文件路径
- * @param outputPath 解密后文件输出路径
- * @param key hex 格式的密钥字符串
- */
 export function decryptFile(inputPath: string, outputPath: string, key: string): Promise<void> {
   return new Promise((resolve, reject) => {
     try {
-      // 从 hex 字符串创建密钥 Buffer
       const keyBuffer = Buffer.from(key, 'hex');
+      const readStream = fs.createReadStream(inputPath);
 
-      // 创建读取流
-      const inputStream = fs.createReadStream(inputPath);
+      let iv: Buffer | null = null;
 
-      // 读取前 16 字节作为 IV
-      inputStream.once('readable', () => {
-        try {
-          const iv = inputStream.read(16);
-
-          if (!iv || iv.length !== 16) {
-            inputStream.destroy();
-            reject(new Error('无效的加密文件格式：无法读取IV'));
+      const onReadable = () => {
+        if (iv === null) {
+          iv = readStream.read(16) as Buffer | null;
+          if (!iv) {
             return;
           }
+          if (iv.length < 16) {
+            readStream.destroy();
+            reject(new Error('加密文件格式错误：无法读取IV'));
+            return;
+          }
+          readStream.removeListener('readable', onReadable);
 
-          // 创建解密器
-          const decipher = crypto.createDecipheriv('aes-256-cbc', keyBuffer, iv);
+          try {
+            const decipher = crypto.createDecipheriv('aes-256-cbc', keyBuffer, iv);
+            const writeStream = fs.createWriteStream(outputPath);
 
-          // 创建写入流
-          const outputStream = fs.createWriteStream(outputPath);
+            readStream.on('error', (err) => {
+              reject(new Error(`读取加密文件失败: ${err.message}`));
+            });
 
-          // 将剩余数据通过解密器管道传输
-          inputStream
-            .pipe(decipher)
-            .pipe(outputStream);
+            writeStream.on('error', (err) => {
+              reject(new Error(`写入解密文件失败: ${err.message}`));
+            });
 
-          outputStream.on('finish', () => {
-            resolve();
-          });
+            writeStream.on('finish', () => {
+              resolve();
+            });
 
-          outputStream.on('error', (err) => {
-            reject(new Error(`解密文件写入失败: ${err.message}`));
-          });
-
-          decipher.on('error', (err) => {
-            reject(new Error(`解密失败（密钥可能不正确）: ${err.message}`));
-          });
-        } catch (err) {
-          inputStream.destroy();
-          reject(new Error(`解密初始化失败: ${err instanceof Error ? err.message : String(err)}`));
+            readStream.pipe(decipher).pipe(writeStream);
+          } catch (err) {
+            reject(new Error(`解密初始化失败: ${err instanceof Error ? err.message : String(err)}`));
+          }
         }
-      });
+      };
 
-      inputStream.on('error', (err) => {
-        reject(new Error(`解密文件读取失败: ${err.message}`));
+      readStream.on('readable', onReadable);
+
+      readStream.on('error', (err) => {
+        reject(new Error(`读取加密文件失败: ${err.message}`));
       });
     } catch (err) {
-      reject(new Error(`解密失败: ${err instanceof Error ? err.message : String(err)}`));
+      reject(new Error(`解密初始化失败: ${err instanceof Error ? err.message : String(err)}`));
     }
   });
 }
 
-/**
- * 创建加密流（用于实时传输，不落地本地文件）
- * 返回加密器和使用的 IV
- *
- * @param key hex 格式的密钥字符串
- * @param iv 可选的自定义 IV（用于断点续传）
- * @returns 包含 cipher 和 iv 的对象
- */
-export function createEncryptStream(
-  key: string,
-  iv?: Buffer
-) {
-  const keyBuffer = Buffer.from(key, 'hex');
-  const finalIv = iv || crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv('aes-256-cbc', keyBuffer, finalIv);
-  return { cipher, iv: finalIv };
+class DecryptTransform extends Transform {
+  private keyBuffer: Buffer;
+  private decipher: ReturnType<typeof crypto.createDecipheriv> | null = null;
+  private ivBuffer: Buffer;
+  private ivCollected: boolean = false;
+  private ivOffset: number = 0;
+
+  constructor(key: string) {
+    super();
+    try {
+      this.keyBuffer = Buffer.from(key, 'hex');
+      if (this.keyBuffer.length !== 32) {
+        throw new Error(`密钥长度错误: 期望32字节, 实际${this.keyBuffer.length}字节`);
+      }
+    } catch (err) {
+      throw new Error(`密钥格式错误: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    this.ivBuffer = Buffer.alloc(16);
+  }
+
+  _transform(chunk: Buffer, _encoding: BufferEncoding, callback: TransformCallback): void {
+    try {
+      if (!this.ivCollected) {
+        const remaining = 16 - this.ivOffset;
+        if (chunk.length >= remaining) {
+          chunk.copy(this.ivBuffer, this.ivOffset, 0, remaining);
+          this.ivOffset = 16;
+          this.ivCollected = true;
+          
+          try {
+            this.decipher = crypto.createDecipheriv('aes-256-cbc', this.keyBuffer, this.ivBuffer);
+          } catch (err) {
+            callback(new Error(`解密器初始化失败: ${err instanceof Error ? err.message : String(err)}`));
+            return;
+          }
+
+          const rest = chunk.subarray(remaining);
+          if (rest.length > 0 && this.decipher) {
+            try {
+              this.push(this.decipher.update(rest));
+            } catch (err) {
+              callback(new Error(`解密数据失败: ${err instanceof Error ? err.message : String(err)}`));
+              return;
+            }
+          }
+          callback();
+        } else {
+          chunk.copy(this.ivBuffer, this.ivOffset);
+          this.ivOffset += chunk.length;
+          callback();
+        }
+      } else {
+        if (!this.decipher) {
+          callback(new Error('解密器未初始化'));
+          return;
+        }
+        try {
+          this.push(this.decipher.update(chunk));
+          callback();
+        } catch (err) {
+          callback(new Error(`解密数据失败: ${err instanceof Error ? err.message : String(err)}`));
+        }
+      }
+    } catch (err) {
+      callback(err instanceof Error ? err : new Error(String(err)));
+    }
+  }
+
+  _flush(callback: TransformCallback): void {
+    try {
+      if (!this.ivCollected) {
+        callback(new Error('加密文件格式错误: 文件太短，无法读取IV'));
+        return;
+      }
+      if (this.decipher) {
+        try {
+          const final = this.decipher.final();
+          if (final.length > 0) {
+            this.push(final);
+          }
+          callback();
+        } catch (err) {
+          callback(new Error(`解密最终块失败: ${err instanceof Error ? err.message : String(err)} (可能是密钥错误或文件损坏)`));
+        }
+      } else {
+        callback(new Error('解密器未初始化'));
+      }
+    } catch (err) {
+      callback(err instanceof Error ? err : new Error(String(err)));
+    }
+  }
+}
+
+export function createDecryptTransform(key: string): Transform {
+  return new DecryptTransform(key);
 }
