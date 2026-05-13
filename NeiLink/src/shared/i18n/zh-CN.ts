@@ -290,7 +290,10 @@ export const zhCN: Locale = {
     'share.restored': '已恢复 {0} 个分享任务',
     'share.destroyed': '应用关闭，已删除所有分享任务',
 
-    'download.complete': '文件下载成功: {0} (下载码: {1})，下载IP: {2}',
+    'download.complete': '文件下载成功: {0} (下载码: {1}), 下载IP: {2}',
+    'network.adapter.disabled': '适配器禁用: {0}',
+    'network.adapter.enabled': '适配器启用: {0}',
+    'network.adapters.updated': '适配器选择已更新，当前选择: {0}',
   },
 
   // 热点配置

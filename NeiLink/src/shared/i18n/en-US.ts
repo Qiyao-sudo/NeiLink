@@ -291,6 +291,9 @@ export const enUS: Locale = {
     'share.destroyed': 'Application closed, all share tasks deleted',
 
     'download.complete': 'File downloaded: {0} (code: {1}), IP: {2}',
+    'network.adapter.disabled': 'Adapter disabled: {0}',
+    'network.adapter.enabled': 'Adapter enabled: {0}',
+    'network.adapters.updated': 'Adapter selection updated, current: {0}',
   },
 
   // 热点配置

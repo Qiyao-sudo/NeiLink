@@ -6,7 +6,7 @@
   "author": "Qiyao-sudo <g602793150@163.com>",
   "main": "dist/main/main.js",
   "scripts": {
-    "dev": "concurrently \"webpack serve --config webpack.renderer.config.js\" \"wait-on http://localhost:3000 && electron .\"",
+    "dev": "concurrently --kill-others \"webpack serve --config webpack.renderer.config.js\" \"wait-on http://localhost:3000 && electron .\"",
     "build": "webpack --config webpack.renderer.config.js --mode production && tsc -p tsconfig.main.json && node copy-assets.js",
     "package": "npm run build && electron-builder",
     "package:win": "npm run build && electron-builder --win",

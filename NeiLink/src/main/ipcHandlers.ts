@@ -70,15 +70,32 @@ export function registerIpcHandlers(
   ipcMain.handle(IPC_CHANNELS.NETWORK_SELECT_ADAPTERS, async (_event, adapterNames: string[]) => {
     try {
       const ips: string[] = [];
+      const validAdapterNames: string[] = [];
+      
+      // 过滤掉不可用的适配器
       for (const name of adapterNames) {
         const ip = getIPByAdapterName(name);
-        if (!ip) {
-          return { success: false, error: `适配器 ${name} 不存在或无可用IP地址` };
+        if (ip) {
+          ips.push(ip);
+          validAdapterNames.push(name);
         }
-        ips.push(ip);
       }
-      setSelectedAdapterNames(adapterNames);
-      return { success: true, data: { ips, adapterNames } };
+      
+      // 如果所有适配器都不可用，则使用自动选择
+      if (validAdapterNames.length === 0) {
+        setSelectedAdapterNames([]);
+        const networkInfo = getNetworkInfo();
+        return { 
+          success: true, 
+          data: { 
+            ips: networkInfo.ips, 
+            adapterNames: networkInfo.selectedAdapters 
+          } 
+        };
+      }
+      
+      setSelectedAdapterNames(validAdapterNames);
+      return { success: true, data: { ips, adapterNames: validAdapterNames } };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.log('error', '切换网络适配器失败', { detail: message, messageKey: 'error.switchAdapter' });

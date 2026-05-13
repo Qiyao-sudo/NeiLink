@@ -173,14 +173,10 @@ async function initializeServices(): Promise<void> {
   });
 
   // 2.5 初始化网络模块，加载用户选择的适配器
-  await initializeNetwork(settingsManager);
+  await initializeNetwork(settingsManager, logger);
 
   // 3. 初始化网络监控
   networkMonitor = new NetworkMonitor((info) => {
-    logger.log('system', '网络状态变化', {
-      detail: `IP: ${info.ip}, 类型: ${info.type}, 在线: ${info.isOnline}`,
-      messageKey: 'network.change',
-    });
     // 网络变化时推送通知到渲染进程
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send(IPC_CHANNELS.NETWORK_ON_CHANGE, info);

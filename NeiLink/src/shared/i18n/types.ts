@@ -286,6 +286,9 @@ export interface Locale {
     'share.restored': string;
     'share.destroyed': string;
     'download.complete': string;
+    'network.adapter.disabled': string;
+    'network.adapter.enabled': string;
+    'network.adapters.updated': string;
   };
 
   // 热点配置
