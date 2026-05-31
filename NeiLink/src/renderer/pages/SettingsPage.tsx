@@ -54,8 +54,9 @@ interface AppSettings {
   // 网络设置
   port: number;
   downloadSpeedLimit: number;
-  hotspotPrefix: string;
-  hotspotPasswordLength: number;
+  hotspotSsid: string;
+  hotspotPassword: string;
+  hotspotRandomPassword: boolean;
 
   // 安全设置
   rateLimitEnabled: boolean;
@@ -83,8 +84,9 @@ const defaultSettings: AppSettings = {
   theme: 'auto',
   port: 8080,
   downloadSpeedLimit: 0,
-  hotspotPrefix: 'NeiLink',
-  hotspotPasswordLength: 8,
+  hotspotSsid: 'NeiLink',
+  hotspotPassword: '',
+  hotspotRandomPassword: true,
   rateLimitEnabled: true,
   rateLimitMaxAttempts: 10,
   rateLimitBanDuration: 30,
@@ -121,7 +123,6 @@ const SettingsPage: React.FC = () => {
       const result = await window.neilink.ipc.invoke('settings:get') as any;
       if (result?.success && result.data && typeof result.data === 'object') {
         let convertedData = { ...result.data };
-        // 兼容旧版本，将数值类型的 defaultExpiry 转换为字符串
         if (typeof convertedData.defaultExpiry === 'number') {
           const numVal = convertedData.defaultExpiry as number;
           if (numVal === -1) {
@@ -136,6 +137,16 @@ const SettingsPage: React.FC = () => {
             convertedData.defaultExpiry = '7d';
           } else {
             convertedData.defaultExpiry = '30d';
+          }
+        }
+        const hotspotResult = await window.neilink.ipc.invoke('hotspot:status') as any;
+        if (hotspotResult?.success && hotspotResult.data) {
+          const hotspotStatus = hotspotResult.data;
+          if (hotspotStatus.ssid) {
+            convertedData.hotspotSsid = hotspotStatus.ssid;
+          }
+          if (hotspotStatus.password && !convertedData.hotspotRandomPassword) {
+            convertedData.hotspotPassword = hotspotStatus.password;
           }
         }
         const finalSettings = { ...defaultSettings, ...convertedData };
@@ -189,8 +200,21 @@ const SettingsPage: React.FC = () => {
       setSaving(true);
       const result = await window.neilink.ipc.invoke('settings:save', settings) as any;
       if (result?.success) {
+        await window.neilink.ipc.invoke('hotspot:config', {
+          ssid: settings.hotspotSsid,
+          password: settings.hotspotPassword,
+          randomPassword: settings.hotspotRandomPassword,
+        });
+        const statusResult = await window.neilink.ipc.invoke('hotspot:status') as any;
+        if (statusResult?.success && statusResult.data?.enabled) {
+          await window.neilink.ipc.invoke('hotspot:stop');
+          await window.neilink.ipc.invoke('hotspot:start', {
+            ssid: settings.hotspotSsid,
+            password: settings.hotspotRandomPassword ? undefined : settings.hotspotPassword,
+            randomPassword: settings.hotspotRandomPassword,
+          });
+        }
         message.success('配置已保存');
-        // 保存成功后更新初始设置引用
         initialSettingsRef.current = { ...settings };
         setHasUnsavedChanges(false);
       } else {
@@ -673,31 +697,44 @@ const SettingsPage: React.FC = () => {
 
         <div className="settings-item">
           <div>
-            <div className="settings-label">{locale.settings.hotspotPrefix}</div>
-            <div className="settings-desc">{locale.settings.hotspotPrefixHint}</div>
+            <div className="settings-label">{locale.settings.hotspotSsid}</div>
+            <div className="settings-desc">{locale.settings.hotspotSsidHint}</div>
           </div>
           <Input
-            value={settings.hotspotPrefix}
-            onChange={(e) => updateSetting('hotspotPrefix', e.target.value)}
+            value={settings.hotspotSsid}
+            onChange={(e) => updateSetting('hotspotSsid', e.target.value)}
             placeholder="NeiLink"
-            maxLength={20}
+            maxLength={32}
             style={{ width: 200 }}
           />
         </div>
 
         <div className="settings-item">
           <div>
-            <div className="settings-label">{locale.settings.hotspotPasswordLength}</div>
-            <div className="settings-desc">{locale.settings.hotspotPasswordLengthHint} (8-63)</div>
+            <div className="settings-label">{locale.settings.hotspotRandomPassword}</div>
+            <div className="settings-desc">{locale.settings.hotspotRandomPasswordHint}</div>
           </div>
-          <InputNumber
-            value={settings.hotspotPasswordLength}
-            onChange={(val) => val && updateSetting('hotspotPasswordLength', val)}
-            min={8}
-            max={63}
-            style={{ width: 120 }}
+          <Switch
+            checked={settings.hotspotRandomPassword}
+            onChange={(val) => updateSetting('hotspotRandomPassword', val)}
           />
         </div>
+
+        {!settings.hotspotRandomPassword && (
+          <div className="settings-item">
+            <div>
+              <div className="settings-label">{locale.settings.hotspotCustomPassword}</div>
+              <div className="settings-desc">{locale.settings.hotspotCustomPasswordHint}</div>
+            </div>
+            <Input.Password
+              value={settings.hotspotPassword}
+              onChange={(e) => updateSetting('hotspotPassword', e.target.value)}
+              placeholder={locale.settings.hotspotCustomPasswordPlaceholder}
+              maxLength={63}
+              style={{ width: 200 }}
+            />
+          </div>
+        )}
       </div>
 
       {/* 安全设置 */}

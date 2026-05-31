@@ -13,6 +13,7 @@ import { SettingsManager } from './services/settings';
 import { ShareManager } from './services/shareManager';
 import { registerIpcHandlers } from './ipcHandlers';
 import { setLogger, updateUserSettings } from './services/httpServer';
+import { initializeHotspot } from './services/hotspot';
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -174,6 +175,9 @@ async function initializeServices(): Promise<void> {
 
   // 2.5 初始化网络模块，加载用户选择的适配器
   await initializeNetwork(settingsManager, logger);
+
+  // 2.6 初始化热点模块
+  initializeHotspot(logger);
 
   // 3. 初始化网络监控
   networkMonitor = new NetworkMonitor((info) => {

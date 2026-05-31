@@ -143,10 +143,13 @@ export interface Locale {
     portHint: string;
     language: string;
     languageHint: string;
-    hotspotPrefix: string;
-    hotspotPrefixHint: string;
-    hotspotPasswordLength: string;
-    hotspotPasswordLengthHint: string;
+    hotspotSsid: string;
+    hotspotSsidHint: string;
+    hotspotRandomPassword: string;
+    hotspotRandomPasswordHint: string;
+    hotspotCustomPassword: string;
+    hotspotCustomPasswordHint: string;
+    hotspotCustomPasswordPlaceholder: string;
     downloadSpeedLimit: string;
     downloadSpeedLimitHint: string;
     downloadSpeedLimitUnlimited: string;
@@ -289,6 +292,11 @@ export interface Locale {
     'network.adapter.disabled': string;
     'network.adapter.enabled': string;
     'network.adapters.updated': string;
+    'hotspot.started': string;
+    'hotspot.stopped': string;
+    'hotspot.startFailed': string;
+    'hotspot.stopFailed': string;
+    'hotspot.configured': string;
   };
 
   // 热点配置
@@ -301,6 +309,27 @@ export interface Locale {
     status: string;
     statusRunning: string;
     statusStopped: string;
+    on: string;
+    off: string;
+    clientsCount: string;
+    toastStarted: string;
+    toastStopped: string;
+    toastStartFailed: string;
+    toastStopFailed: string;
+    toastError: string;
+    toastConfigFailed: string;
+    toastConfigSuccess: string;
+    modalTitle: string;
+    nameLabel: string;
+    namePlaceholder: string;
+    passwordLabel: string;
+    passwordPlaceholder: string;
+    save: string;
+    cancel: string;
+    loadingStart: string;
+    loadingStop: string;
+    randomPassword: string;
+    randomPasswordDesc: string;
   };
   
   // 网络相关

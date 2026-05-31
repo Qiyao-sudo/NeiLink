@@ -331,8 +331,16 @@ export function registerIpcHandlers(
   // ==================== 热点相关 ====================
 
   // 启动热点
-  ipcMain.handle(IPC_CHANNELS.HOTSPOT_START, async (_event, config?: { ssid: string; password: string }) => {
+  ipcMain.handle(IPC_CHANNELS.HOTSPOT_START, async (_event, config?: { ssid: string; password: string; randomPassword?: boolean }) => {
     try {
+      if (!config) {
+        const settings = await settingsManager.getSettings();
+        config = {
+          ssid: settings.hotspotSsid || 'NeiLink',
+          password: settings.hotspotPassword,
+          randomPassword: settings.hotspotRandomPassword,
+        };
+      }
       const status = await hotspot.startHotspot(config);
       return { success: true, data: status };
     } catch (err) {
@@ -364,9 +372,16 @@ export function registerIpcHandlers(
   });
 
   // 配置热点
-  ipcMain.handle(IPC_CHANNELS.HOTSPOT_CONFIG, async (_event, config: { ssid: string; password: string }) => {
+  ipcMain.handle(IPC_CHANNELS.HOTSPOT_CONFIG, async (_event, config: { ssid?: string; name?: string; password: string; randomPassword?: boolean }) => {
     try {
-      await hotspot.configureHotspot(config);
+      const ssid = config.ssid || config.name || 'NeiLink';
+      const hotspotConfig = { ssid, password: config.password, randomPassword: config.randomPassword };
+      await hotspot.configureHotspot(hotspotConfig);
+      await settingsManager.saveSettings({
+        hotspotSsid: ssid,
+        hotspotPassword: config.password,
+        hotspotRandomPassword: config.randomPassword ?? true,
+      });
       return { success: true };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

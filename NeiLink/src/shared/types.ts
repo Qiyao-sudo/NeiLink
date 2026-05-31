@@ -76,8 +76,9 @@ export interface SystemSettings {
   defaultMaxDownloads: number;
   defaultMaxConcurrent: number;
   port: number;
-  hotspotPrefix: string;
-  hotspotPasswordLength: number;
+  hotspotSsid: string;
+  hotspotPassword: string;
+  hotspotRandomPassword: boolean;
   downloadSpeedLimit: number; // KB/s，0 表示不限速
   rateLimitEnabled: boolean;
   rateLimitMaxAttempts: number;

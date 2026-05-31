@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { App, Modal, Form, Input, Button } from 'antd';
+import { Modal, Form, Input, Button, Switch, Typography } from 'antd';
+import { useLanguage } from '../contexts/LanguageContext';
+
+const { Text } = Typography;
 
 interface HotspotConfigModalProps {
   visible: boolean;
   currentName: string;
   currentPassword: string;
-  onConfirm: (name: string, password: string) => Promise<boolean>;
+  randomPasswordEnabled: boolean;
+  onConfirm: (name: string, password: string, randomPassword: boolean) => Promise<boolean>;
   onCancel: () => void;
 }
 
@@ -13,12 +17,14 @@ const HotspotConfigModal: React.FC<HotspotConfigModalProps> = ({
   visible,
   currentName,
   currentPassword,
+  randomPasswordEnabled,
   onConfirm,
   onCancel,
 }) => {
-  const { message } = App.useApp();
+  const { locale } = useLanguage();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [useRandomPassword, setUseRandomPassword] = useState(randomPasswordEnabled);
 
   useEffect(() => {
     if (visible) {
@@ -26,19 +32,17 @@ const HotspotConfigModal: React.FC<HotspotConfigModalProps> = ({
         hotspotName: currentName,
         hotspotPassword: currentPassword,
       });
+      setUseRandomPassword(randomPasswordEnabled);
     }
-  }, [visible, currentName, currentPassword, form]);
+  }, [visible, currentName, currentPassword, randomPasswordEnabled, form]);
 
   const handleConfirm = async () => {
     try {
       const values = await form.validateFields();
       setLoading(true);
-      const success = await onConfirm(values.hotspotName, values.hotspotPassword);
-      if (success) {
-        message.success('热点配置已更新');
-      }
+      await onConfirm(values.hotspotName, values.hotspotPassword, useRandomPassword);
     } catch {
-      // 表单验证失败
+      // form validation failed
     } finally {
       setLoading(false);
     }
@@ -46,7 +50,7 @@ const HotspotConfigModal: React.FC<HotspotConfigModalProps> = ({
 
   return (
     <Modal
-      title="修改热点配置"
+      title={locale.hotspot.modalTitle}
       open={visible}
       onCancel={onCancel}
       footer={null}
@@ -63,32 +67,45 @@ const HotspotConfigModal: React.FC<HotspotConfigModalProps> = ({
       >
         <Form.Item
           name="hotspotName"
-          label="热点名称"
+          label={locale.hotspot.nameLabel}
           rules={[
-            { required: true, message: '请输入热点名称' },
-            { min: 1, max: 32, message: '热点名称长度为1-32个字符' },
+            { required: true, message: locale.hotspot.namePlaceholder },
+            { min: 1, max: 32, message: locale.hotspot.namePlaceholder },
           ]}
         >
-          <Input placeholder="请输入热点名称" maxLength={32} />
+          <Input placeholder={locale.hotspot.namePlaceholder} maxLength={32} />
         </Form.Item>
 
-        <Form.Item
-          name="hotspotPassword"
-          label="热点密码"
-          rules={[
-            { required: true, message: '请输入热点密码' },
-            { min: 8, max: 63, message: '密码长度为8-63个字符' },
-          ]}
-        >
-          <Input.Password placeholder="请输入热点密码（8-63位）" maxLength={63} />
+        <Form.Item label={locale.hotspot.randomPassword}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Switch
+              checked={useRandomPassword}
+              onChange={setUseRandomPassword}
+              size="small"
+            />
+            <Text type="secondary" style={{ fontSize: 12 }}>{locale.hotspot.randomPasswordDesc}</Text>
+          </div>
         </Form.Item>
+
+        {!useRandomPassword && (
+          <Form.Item
+            name="hotspotPassword"
+            label={locale.hotspot.passwordLabel}
+            rules={[
+              { required: true, message: locale.hotspot.passwordPlaceholder },
+              { min: 8, max: 63, message: locale.hotspot.passwordPlaceholder },
+            ]}
+          >
+            <Input.Password placeholder={locale.hotspot.passwordPlaceholder} maxLength={63} />
+          </Form.Item>
+        )}
 
         <div style={{ textAlign: 'right' }}>
           <Button onClick={onCancel} style={{ marginRight: 8 }}>
-            取消
+            {locale.hotspot.cancel}
           </Button>
           <Button type="primary" loading={loading} onClick={handleConfirm}>
-            保存
+            {locale.hotspot.save}
           </Button>
         </div>
       </Form>
