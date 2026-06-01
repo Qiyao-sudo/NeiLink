@@ -125,7 +125,7 @@ function createWindow(): void {
   });
 
   // 创建系统托盘
-  const iconPath = path.join(__dirname, '..', '..', 'build', 'NeiLink.ico');
+  const iconPath = path.join(__dirname, 'assets', 'NeiLink.ico');
   let trayIcon = nativeImage.createFromPath(iconPath);
   if (trayIcon.isEmpty()) {
     trayIcon = nativeImage.createEmpty();
