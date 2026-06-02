@@ -19,11 +19,6 @@ const FloatWindow: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const handleMouseDown = (e: MouseEvent) => {
-      draggingRef.current = true;
-      lastPosRef.current = { x: e.screenX, y: e.screenY };
-    };
-
     const handleMouseMove = (e: MouseEvent) => {
       if (!draggingRef.current) return;
       const dx = e.screenX - lastPosRef.current.x;
@@ -38,15 +33,18 @@ const FloatWindow: React.FC = () => {
       draggingRef.current = false;
     };
 
-    document.addEventListener('mousedown', handleMouseDown);
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
 
     return () => {
-      document.removeEventListener('mousedown', handleMouseDown);
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
     };
+  }, []);
+
+  const handleIconMouseDown = useCallback((e: React.MouseEvent) => {
+    draggingRef.current = true;
+    lastPosRef.current = { x: e.screenX, y: e.screenY };
   }, []);
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -93,6 +91,8 @@ const FloatWindow: React.FC = () => {
 
   if (!visible) return null;
 
+  const iconSize = dragActive ? 64 : 56;
+
   return (
     <div
       style={{
@@ -101,26 +101,24 @@ const FloatWindow: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'rgba(0,0,0,0.001)',
       }}
     >
       <div
         style={{
-          width: 56,
-          height: 56,
+          width: iconSize,
+          height: iconSize,
           borderRadius: '50%',
-          overflow: 'hidden',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          cursor: 'pointer',
+          cursor: 'move',
           transition: 'all 0.2s ease',
           boxShadow: dragActive
             ? '0 0 20px rgba(24, 144, 255, 0.5)'
             : '0 2px 8px rgba(0, 0, 0, 0.3)',
-          transform: dragActive ? 'scale(1.15)' : 'scale(1)',
         }}
         title="拖拽文件/文件夹到此处分享"
+        onMouseDown={handleIconMouseDown}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
@@ -130,7 +128,13 @@ const FloatWindow: React.FC = () => {
           src={logo}
           alt="NeiLink"
           draggable={false}
-          style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }}
+          style={{
+            width: '100%',
+            height: '100%',
+            borderRadius: '50%',
+            objectFit: 'cover',
+            pointerEvents: 'none',
+          }}
         />
       </div>
     </div>

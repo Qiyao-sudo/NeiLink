@@ -3,7 +3,7 @@
  * 注册所有 IPC 通信通道的处理函数
  */
 
-import { ipcMain, dialog, BrowserWindow, shell } from 'electron';
+import { ipcMain, dialog, BrowserWindow, shell, app } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import { IPC_CHANNELS, ShareConfig, SystemSettings, LogEntry } from '../shared/types';
@@ -485,6 +485,9 @@ export function registerIpcHandlers(
         mainWindow.hide();
       } else {
         mainWindow.close();
+        setTimeout(() => {
+          app.exit(0);
+        }, 500);
       }
       return { success: true };
     } catch (err) {
@@ -609,7 +612,12 @@ export function registerIpcHandlers(
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.show();
       mainWindow.focus();
-      mainWindow.webContents.send(IPC_CHANNELS.FLOAT_OPEN_SHARE, data);
+      mainWindow.webContents.send(IPC_CHANNELS.WINDOW_NAVIGATE, '/');
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send(IPC_CHANNELS.FLOAT_OPEN_SHARE, data);
+        }
+      }, 200);
     }
     return { success: true };
   });

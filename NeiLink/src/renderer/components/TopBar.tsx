@@ -73,6 +73,15 @@ const TopBar: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const cleanup = window.neilink.ipc.on(IPC_CHANNELS.WINDOW_CLOSE_ACTION, (action: unknown) => {
+      if (action === 'ask') {
+        setCloseDialogVisible(true);
+      }
+    });
+    return () => { if (typeof cleanup === 'function') cleanup(); };
+  }, []);
+
   const copyIP = (ip: string) => {
     navigator.clipboard.writeText(ip).then(() => {
       message.success(locale.common.copied);

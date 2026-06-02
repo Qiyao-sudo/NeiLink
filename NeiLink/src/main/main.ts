@@ -117,6 +117,24 @@ function createWindow(): void {
     mainWindow.loadFile(indexPath);
   }
 
+  mainWindow.on('close', async (e) => {
+    if (!settingsManager) return;
+
+    const settings = await settingsManager.getSettings();
+    const behavior = settings.closeBehavior || 'ask';
+
+    if (behavior === 'minimize') {
+      e.preventDefault();
+      mainWindow?.hide();
+    } else if (behavior === 'ask') {
+      e.preventDefault();
+      if (mainWindow?.isMinimized()) mainWindow.restore();
+      mainWindow?.show();
+      mainWindow?.focus();
+      mainWindow?.webContents.send(IPC_CHANNELS.WINDOW_CLOSE_ACTION, 'ask');
+    }
+  });
+
   mainWindow.on('closed', () => {
     if (tray) {
       tray.destroy();
@@ -151,8 +169,8 @@ function createFloatWindow(): void {
   const isDev = !app.isPackaged;
 
   floatWindow = new BrowserWindow({
-    width: 100,
-    height: 100,
+    width: 84,
+    height: 84,
     resizable: false,
     frame: false,
     transparent: true,
