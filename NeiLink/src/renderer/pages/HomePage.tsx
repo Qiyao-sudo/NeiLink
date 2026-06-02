@@ -125,6 +125,17 @@ const HomePage: React.FC = () => {
     return () => clearInterval(interval);
   }, [fetchNetworkStatus, fetchHotspotStatus, fetchDefaultSettings]);
 
+  useEffect(() => {
+    const cleanup = window.neilink.ipc.on('float:open-share', (data: any) => {
+      setSelectedFilePath(data.path);
+      setSelectedIsFolder(data.isFolder);
+      setShareModalVisible(true);
+    });
+    return () => {
+      if (typeof cleanup === 'function') cleanup();
+    };
+  }, []);
+
   // 拖拽处理
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();

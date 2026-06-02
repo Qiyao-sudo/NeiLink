@@ -167,6 +167,8 @@ export const zhCN: Locale = {
     logStoragePathHint: '系统日志的存储位置',
     clearSharesOnExit: '关闭时删除分享',
     clearSharesOnExitHint: '应用关闭时删除所有已分享的文件',
+    floatWindow: '桌面悬浮窗',
+    floatWindowHint: '在桌面显示悬浮窗，拖拽文件或文件夹即可快速分享',
     selectedAdapter: '网络适配器',
     selectedAdapterHint: '选择一个或多个用于分享的网络适配器，未选择时自动检测',
     userName: '用户名称',

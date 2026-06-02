@@ -167,6 +167,8 @@ export const enUS: Locale = {
     logStoragePathHint: 'Where system logs are stored',
     clearSharesOnExit: 'Clear Shares on Exit',
     clearSharesOnExitHint: 'Delete all shared files when application closes',
+    floatWindow: 'Desktop Float Window',
+    floatWindowHint: 'Show a floating window on desktop for quick drag-and-drop sharing',
     selectedAdapter: 'Network Adapter',
     selectedAdapterHint: 'Select one or more network adapters for sharing. Auto-detect when none selected.',
     userName: 'User Name',

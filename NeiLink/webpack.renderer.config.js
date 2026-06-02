@@ -5,10 +5,13 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
 
 module.exports = {
   mode: isDevelopment ? 'development' : 'production',
-  entry: './src/renderer/index.tsx',
+  entry: {
+    main: './src/renderer/index.tsx',
+    float: './src/renderer/float/index.tsx',
+  },
   output: {
     path: path.resolve(__dirname, 'dist/renderer'),
-    filename: 'bundle.js',
+    filename: '[name].js',
     clean: true,
   },
   resolve: {
@@ -47,12 +50,23 @@ module.exports = {
     new HtmlWebpackPlugin({
       template: './src/renderer/index.html',
       filename: 'index.html',
+      chunks: ['main'],
+    }),
+    new HtmlWebpackPlugin({
+      template: './src/renderer/float/index.html',
+      filename: 'float.html',
+      chunks: ['float'],
     }),
   ],
   devServer: {
     port: 3000,
     hot: true,
-    historyApiFallback: true,
+    historyApiFallback: {
+      rewrites: [
+        { from: /^\/float/, to: '/float.html' },
+        { from: /./, to: '/index.html' },
+      ],
+    },
     static: {
       directory: path.join(__dirname, 'dist/renderer'),
     },

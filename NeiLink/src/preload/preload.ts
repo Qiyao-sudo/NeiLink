@@ -34,13 +34,22 @@ const IPC_CHANNELS = {
   HOTSPOT_CONFIG: 'hotspot:config',
   PORT_CHECK: 'port:check',
   PORT_FIND_AVAILABLE: 'port:find-available',
-  NOTIFICATION: 'notification',
-  WINDOW_MINIMIZE: 'window:minimize',
+    NOTIFICATION: 'notification',
+    // 窗口控制
+    WINDOW_MINIMIZE: 'window:minimize',
   WINDOW_MAXIMIZE: 'window:maximize',
   WINDOW_CLOSE: 'window:close',
   WINDOW_IS_MAXIMIZED: 'window:is-maximized',
   WINDOW_ON_STATE_CHANGE: 'window:on-state-change',
-  
+
+  // 悬浮窗控制
+  FLOAT_FILE_DROPPED: 'float:file-dropped',
+  FLOAT_CLOSE: 'float:close',
+  FLOAT_SET_VISIBLE: 'float:set-visible',
+  FLOAT_OPEN_SHARE: 'float:open-share',
+  FLOAT_TOGGLE: 'float:toggle',
+  FLOAT_MOVE: 'float:move',
+
   // 封禁IP管理
   BANNED_IPS_GET: 'banned-ips:get',
   BANNED_IPS_UNBAN: 'banned-ips:unban',
@@ -98,6 +107,9 @@ const invokeChannels: string[] = [
   IPC_CHANNELS.APP_GET_VERSION,
   IPC_CHANNELS.APP_CHECK_UPDATE,
   IPC_CHANNELS.WINDOW_CLOSE_ACTION,
+  IPC_CHANNELS.FLOAT_FILE_DROPPED,
+  IPC_CHANNELS.FLOAT_CLOSE,
+  IPC_CHANNELS.FLOAT_TOGGLE,
 ];
 
 /**
@@ -111,6 +123,8 @@ const onChannels: string[] = [
   IPC_CHANNELS.NOTIFICATION,
   IPC_CHANNELS.WINDOW_ON_STATE_CHANGE,
   IPC_CHANNELS.WINDOW_NAVIGATE,
+  IPC_CHANNELS.FLOAT_SET_VISIBLE,
+  IPC_CHANNELS.FLOAT_OPEN_SHARE,
 ];
 
 contextBridge.exposeInMainWorld('neilink', {

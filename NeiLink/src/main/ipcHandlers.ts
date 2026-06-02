@@ -602,4 +602,23 @@ export function registerIpcHandlers(
       mainWindow.webContents.send(IPC_CHANNELS.WINDOW_ON_STATE_CHANGE, { isMaximized: false });
     }
   });
+
+  // ==================== 悬浮窗相关 ====================
+
+  ipcMain.handle(IPC_CHANNELS.FLOAT_FILE_DROPPED, async (_event, data: { path: string; isFolder: boolean }) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      mainWindow.focus();
+      mainWindow.webContents.send(IPC_CHANNELS.FLOAT_OPEN_SHARE, data);
+    }
+    return { success: true };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.FLOAT_CLOSE, async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win && !win.isDestroyed()) {
+      win.close();
+    }
+    return { success: true };
+  });
 }

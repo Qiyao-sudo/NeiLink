@@ -130,6 +130,7 @@ const App: React.FC = () => {
     hotspotSsid: 'NeiLink',
     hotspotPassword: '',
     hotspotRandomPassword: true,
+    floatWindowEnabled: true,
     downloadSpeedLimit: 0,
     rateLimitEnabled: true,
     rateLimitMaxAttempts: 10,

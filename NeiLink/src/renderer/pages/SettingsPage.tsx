@@ -57,6 +57,7 @@ interface AppSettings {
   hotspotSsid: string;
   hotspotPassword: string;
   hotspotRandomPassword: boolean;
+  floatWindowEnabled: boolean;
 
   // 安全设置
   rateLimitEnabled: boolean;
@@ -87,6 +88,7 @@ const defaultSettings: AppSettings = {
   hotspotSsid: 'NeiLink',
   hotspotPassword: '',
   hotspotRandomPassword: true,
+  floatWindowEnabled: true,
   rateLimitEnabled: true,
   rateLimitMaxAttempts: 10,
   rateLimitBanDuration: 30,
@@ -604,6 +606,20 @@ const SettingsPage: React.FC = () => {
           <Switch
             checked={settings.clearSharesOnExit}
             onChange={(val) => updateSetting('clearSharesOnExit', val)}
+          />
+        </div>
+
+        <div className="settings-item">
+          <div>
+            <div className="settings-label">{locale.settings.floatWindow}</div>
+            <div className="settings-desc">{locale.settings.floatWindowHint}</div>
+          </div>
+          <Switch
+            checked={settings.floatWindowEnabled}
+            onChange={(val) => {
+              updateSetting('floatWindowEnabled', val);
+              window.neilink.ipc.invoke('float:toggle', val);
+            }}
           />
         </div>
 

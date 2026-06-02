@@ -166,6 +166,8 @@ export interface Locale {
     logStoragePathHint: string;
     clearSharesOnExit: string;
     clearSharesOnExitHint: string;
+    floatWindow: string;
+    floatWindowHint: string;
     selectedAdapter: string;
     selectedAdapterHint: string;
     userName: string;

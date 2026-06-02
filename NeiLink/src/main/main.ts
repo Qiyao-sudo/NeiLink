@@ -3,7 +3,7 @@
  * 初始化所有服务模块并启动应用
  */
 
-import { app, BrowserWindow, Tray, Menu, nativeImage } from 'electron';
+import { app, BrowserWindow, Tray, Menu, nativeImage, screen, ipcMain } from 'electron';
 import * as path from 'path';
 import * as cron from 'node-cron';
 import { IPC_CHANNELS } from '../shared/types';
@@ -16,6 +16,7 @@ import { setLogger, updateUserSettings } from './services/httpServer';
 import { initializeHotspot } from './services/hotspot';
 
 let mainWindow: BrowserWindow | null = null;
+let floatWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let settingsManager: SettingsManager | null = null;
 let shareManager: ShareManager | null = null;
@@ -144,6 +145,56 @@ function createWindow(): void {
 }
 
 /**
+ * 创建桌面悬浮窗
+ */
+function createFloatWindow(): void {
+  const isDev = !app.isPackaged;
+
+  floatWindow = new BrowserWindow({
+    width: 100,
+    height: 100,
+    resizable: false,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    hasShadow: false,
+    webPreferences: {
+      preload: path.join(__dirname, '..', 'preload', 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  floatWindow.setVisibleOnAllWorkspaces(true);
+  floatWindow.setAlwaysOnTop(true, 'floating');
+
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width } = primaryDisplay.workAreaSize;
+  floatWindow.setPosition(width - 100, 100);
+
+  if (isDev) {
+    floatWindow.loadURL('http://localhost:3000/float');
+  } else {
+    floatWindow.loadFile(path.join(__dirname, '..', 'renderer', 'float.html'));
+  }
+
+  floatWindow.on('closed', () => {
+    floatWindow = null;
+  });
+}
+
+/**
+ * 关闭悬浮窗
+ */
+function closeFloatWindow(): void {
+  if (floatWindow && !floatWindow.isDestroyed()) {
+    floatWindow.close();
+    floatWindow = null;
+  }
+}
+
+/**
  * 初始化所有服务模块
  */
 async function initializeServices(): Promise<void> {
@@ -194,6 +245,24 @@ async function initializeServices(): Promise<void> {
 
   // 5. 注册 IPC 处理器
   registerIpcHandlers(mainWindow!, logger, settingsManager, shareManager, networkMonitor, (lang) => rebuildTrayMenu(lang));
+
+  ipcMain.handle(IPC_CHANNELS.FLOAT_TOGGLE, async (_event, enabled: boolean) => {
+    if (enabled) {
+      if (!floatWindow || floatWindow.isDestroyed()) {
+        createFloatWindow();
+      }
+    } else {
+      closeFloatWindow();
+    }
+    return { success: true };
+  });
+
+  ipcMain.on(IPC_CHANNELS.FLOAT_MOVE, (_event, { dx, dy }: { dx: number; dy: number }) => {
+    if (floatWindow && !floatWindow.isDestroyed()) {
+      const [x, y] = floatWindow.getPosition();
+      floatWindow.setPosition(Math.round(x + dx), Math.round(y + dy));
+    }
+  });
 
   // 6. 启动日志清理定时任务（每天凌晨3点执行）
   cron.schedule('0 3 * * *', () => {
@@ -255,7 +324,12 @@ if (!gotTheLock) {
   app.whenReady().then(async () => {
     try {
       createWindow();
-      await initializeServices();
+    await initializeServices();
+
+    const settings = await settingsManager!.getSettings();
+    if (settings.floatWindowEnabled !== false) {
+      createFloatWindow();
+    }
     } catch (err) {
       console.error('应用初始化失败:', err);
     }

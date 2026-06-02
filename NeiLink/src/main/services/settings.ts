@@ -20,6 +20,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   hotspotSsid: 'NeiLink',
   hotspotPassword: '',
   hotspotRandomPassword: true,
+  floatWindowEnabled: true,
   rateLimitEnabled: true,
   rateLimitMaxAttempts: 10,
   rateLimitBanDuration: 30, // 30分钟
