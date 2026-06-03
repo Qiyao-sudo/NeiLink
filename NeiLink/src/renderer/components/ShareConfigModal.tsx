@@ -11,7 +11,7 @@ import {
   Alert,
   App,
 } from 'antd';
-import { CopyOutlined, LinkOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { CopyOutlined, LinkOutlined, CheckCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useLanguage } from '../contexts/LanguageContext';
 
 const { Text, Paragraph } = Typography;
@@ -66,6 +66,15 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
   const [useEncryption, setUseEncryption] = useState(defaultEncrypt);
   const [loading, setLoading] = useState(false);
   const [shareResult, setShareResult] = useState<ShareResult | null>(null);
+
+  const generateRandomCode = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    let code = '';
+    for (let i = 0; i < 4; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    form.setFieldValue('extractionCode', code);
+  };
 
   const fileName = filePath ? filePath.split(/[\\/]/).pop() || filePath : '';
 
@@ -224,6 +233,7 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
                 onChange={setUseExtractionCode}
               />
               {useExtractionCode && (
+                <>
                 <Form.Item
                   name="extractionCode"
                   noStyle
@@ -242,6 +252,12 @@ const ShareConfigModal: React.FC<ShareConfigModalProps> = ({
                     style={{ width: 200 }}
                   />
                 </Form.Item>
+                <Button
+                  icon={<ReloadOutlined />}
+                  size="small"
+                  onClick={generateRandomCode}
+                />
+                </>
               )}
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4 }}>

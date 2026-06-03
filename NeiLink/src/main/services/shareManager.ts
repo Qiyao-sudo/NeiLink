@@ -431,6 +431,22 @@ export class ShareManager {
   }
 
   /**
+   * 更新所有活跃分享的端口号（端口变更后调用）
+   */
+  updateSharePorts(newPort: number): void {
+    let updated = false;
+    for (const [id, share] of this.shares) {
+      if (share.port !== newPort) {
+        share.port = newPort;
+        updated = true;
+      }
+    }
+    if (updated) {
+      this.saveShares();
+    }
+  }
+
+  /**
    * 计算文件夹大小
    */
   private calculateFolderSize(dirPath: string): number {

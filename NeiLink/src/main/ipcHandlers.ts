@@ -236,6 +236,10 @@ export function registerIpcHandlers(
   // 保存设置
   ipcMain.handle(IPC_CHANNELS.SETTINGS_SAVE, async (_event, settings: Partial<SystemSettings>) => {
     try {
+      // 检测端口是否变更
+      const oldSettings = await settingsManager.getSettings();
+      const portChanged = settings.port !== undefined && settings.port !== oldSettings.port;
+
       await settingsManager.saveSettings(settings);
 
       // 托盘菜单语言同步
@@ -253,6 +257,17 @@ export function registerIpcHandlers(
         userAvatar: fullSettings.userAvatar
       });
       httpServer.updateSpeedLimit(fullSettings.downloadSpeedLimit || 0);
+
+      // 端口变更时重启 HTTP 服务
+      if (portChanged && httpServer.isServerRunning()) {
+        await httpServer.restartGlobalServer(fullSettings.port, {
+          rateLimitEnabled: fullSettings.rateLimitEnabled,
+          rateLimitMaxAttempts: fullSettings.rateLimitMaxAttempts,
+          rateLimitBanDuration: fullSettings.rateLimitBanDuration,
+        });
+        // 更新所有活跃分享的端口
+        shareManager.updateSharePorts(fullSettings.port);
+      }
       
       // 通知渲染进程用户设置已更新
       if (mainWindow && !mainWindow.isDestroyed()) {

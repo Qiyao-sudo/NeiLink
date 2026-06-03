@@ -587,6 +587,33 @@ export function stopGlobalServer(): Promise<void> {
   });
 }
 
+/**
+ * 重启 HTTP 服务（切换端口时使用，保留已注册的分享）
+ */
+export async function restartGlobalServer(
+  newPort: number,
+  settings?: {
+    rateLimitEnabled?: boolean;
+    rateLimitMaxAttempts?: number;
+    rateLimitBanDuration?: number;
+  }
+): Promise<number> {
+  // 先关闭旧服务，但保留 shares 和 downloadCallbacks
+  await new Promise<void>((resolve) => {
+    if (!globalServer) {
+      resolve();
+      return;
+    }
+    globalServer.close(() => {
+      globalServer = null;
+      globalServerPort = null;
+      resolve();
+    });
+  });
+  // 以新端口启动（startGlobalServer 检测到 globalServer 为 null 会重新创建）
+  return startGlobalServer(newPort, settings);
+}
+
 export function isServerRunning(): boolean {
   return globalServer !== null && globalServerPort !== null;
 }
