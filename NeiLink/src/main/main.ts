@@ -278,7 +278,12 @@ async function initializeServices(): Promise<void> {
   ipcMain.on(IPC_CHANNELS.FLOAT_MOVE, (_event, { dx, dy }: { dx: number; dy: number }) => {
     if (floatWindow && !floatWindow.isDestroyed()) {
       const [x, y] = floatWindow.getPosition();
-      floatWindow.setPosition(Math.round(x + dx), Math.round(y + dy));
+      const [w, h] = floatWindow.getSize();
+      const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+      const { x: wx, y: wy, width: ww, height: wh } = display.workArea;
+      const newX = Math.max(wx, Math.min(wx + ww - w, Math.round(x + dx)));
+      const newY = Math.max(wy, Math.min(wy + wh - h, Math.round(y + dy)));
+      floatWindow.setPosition(newX, newY);
     }
   });
 

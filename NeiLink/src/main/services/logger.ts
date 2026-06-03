@@ -160,6 +160,7 @@ export class Logger {
    * @param retentionDays 保留天数
    */
   cleanupOldLogs(retentionDays: number): number {
+    if (retentionDays === -1) return 0; // 永久保留，跳过清理
     try {
       const cutoffTime = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
       const allLogs = this.getLogs();

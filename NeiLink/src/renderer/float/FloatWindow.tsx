@@ -101,6 +101,8 @@ const FloatWindow: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
       }}
     >
       <div
