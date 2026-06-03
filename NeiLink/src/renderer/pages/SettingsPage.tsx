@@ -953,6 +953,26 @@ const SettingsPage: React.FC = () => {
         </div>
       </div>
 
+      {/* 其他 */}
+      <div className="settings-section">
+        <div className="settings-section-title">{locale.onboarding.replayInSettings}</div>
+        <div className="settings-item">
+          <div>
+            <div className="settings-label">{locale.onboarding.replayInSettings}</div>
+          </div>
+          <Button
+            size="small"
+            onClick={() => {
+              window.neilink.ipc.invoke('settings:save', { onboardingCompleted: false }).then(() => {
+                window.location.reload();
+              });
+            }}
+          >
+            {locale.onboarding.replayInSettings}
+          </Button>
+        </div>
+      </div>
+
       {/* 底部操作按钮 */}
       <div style={{
         display: 'flex',

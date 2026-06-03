@@ -17,11 +17,15 @@ import LogPage from './pages/LogPage';
 import SettingsPage from './pages/SettingsPage';
 import StatsPage from './pages/StatsPage';
 import AboutPage from './pages/AboutPage';
+import OnboardingPage from './pages/OnboardingPage';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { SystemSettings, IPC_CHANNELS } from '../shared/types';
 
-const AppLayout: React.FC = () => {
+const AppLayout: React.FC<{
+  showOnboarding: boolean;
+  onOnboardingComplete: () => void;
+}> = ({ showOnboarding, onOnboardingComplete }) => {
   const { locale } = useLanguage();
   const { resolvedTheme } = useTheme();
   const navigate = useNavigate();
@@ -73,6 +77,43 @@ const AppLayout: React.FC = () => {
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);
   };
+
+  // 开箱体验完成后保存设置
+  const handleOnboardingComplete = async (settings: any) => {
+    try {
+      await window.neilink.ipc.invoke('settings:save', {
+        userName: settings.userName,
+        userAvatar: settings.userAvatar,
+        floatWindowEnabled: settings.floatWindowEnabled,
+        autoStart: settings.autoStart,
+        defaultEncrypt: settings.defaultEncrypt,
+        defaultExtractCode: settings.defaultExtractCode,
+        defaultExpiry: settings.defaultExpiry,
+        defaultMaxDownloads: settings.defaultMaxDownloads,
+        onboardingCompleted: true,
+      });
+    } catch (err) {
+      console.error('保存开箱设置失败:', err);
+    }
+    onOnboardingComplete();
+  };
+
+  if (showOnboarding) {
+    return (
+      <ConfigProvider
+        theme={{
+          algorithm: resolvedTheme === 'dark' ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm,
+          token: {
+            colorPrimary: resolvedTheme === 'dark' ? '#4da6ff' : '#1890ff',
+          },
+        }}
+      >
+        <AntdApp>
+          <OnboardingPage onComplete={handleOnboardingComplete} />
+        </AntdApp>
+      </ConfigProvider>
+    );
+  }
 
   return (
     <ConfigProvider
@@ -146,28 +187,40 @@ const App: React.FC = () => {
     userName: 'NeiLink用户',
     userAvatar: undefined,
   });
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   useEffect(() => {
-    // 初始获取系统设置
     const fetchSettings = async () => {
       try {
         const result = await window.neilink.ipc.invoke('settings:get') as any;
         if (result?.success && result.data) {
-          setInitialSettings(result.data as SystemSettings);
+          const data = result.data as SystemSettings;
+          setInitialSettings(data);
+          // 未完成开箱体验时显示引导
+          if (!data.onboardingCompleted) {
+            setShowOnboarding(true);
+          }
         }
       } catch (error) {
         console.error('获取系统设置失败:', error);
       }
+      setSettingsLoaded(true);
     };
 
     fetchSettings();
   }, []);
 
+  if (!settingsLoaded) return null;
+
   return (
     <HashRouter>
       <LanguageProvider initialSettings={initialSettings}>
         <ThemeProvider initialTheme={initialSettings.theme}>
-          <AppLayout />
+          <AppLayout
+            showOnboarding={showOnboarding}
+            onOnboardingComplete={() => setShowOnboarding(false)}
+          />
         </ThemeProvider>
       </LanguageProvider>
     </HashRouter>

@@ -161,3 +161,378 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft Ya
 .release-notes .markdown-alert.warning   .markdown-alert-icon { fill: #d4a017; }
 .release-notes .markdown-alert.caution   { color: #ff4d4f; }
 .release-notes .markdown-alert.caution   .markdown-alert-icon { fill: #ff4d4f; }
+
+/* ==================== 开箱体验 ==================== */
+.onboarding-root {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.onboarding-page-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.onboarding-page {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+}
+
+/* 开箱体验顶栏 */
+.onboarding-topbar {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.onboarding-page-welcome .onboarding-topbar {
+  background: #0f0f1a;
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+.onboarding-topbar-drag {
+  flex: 1;
+  height: 100%;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.onboarding-topbar-controls {
+  display: flex;
+  align-items: center;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+/* PAGE0 欢迎页 - 深色分屏布局 */
+.onboarding-page-welcome {
+  background: #0f0f1a;
+  flex-direction: row;
+}
+
+.onboarding-welcome-hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 48px 56px;
+  max-width: 480px;
+}
+
+.onboarding-welcome-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #a78bfa;
+  background: rgba(167, 139, 250, 0.1);
+  border: 1px solid rgba(167, 139, 250, 0.2);
+  border-radius: 100px;
+  padding: 4px 14px;
+  margin-bottom: 24px;
+}
+
+.onboarding-welcome-title {
+  font-size: 56px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin: 0 0 16px 0;
+}
+
+.onboarding-title-char {
+  display: inline-block;
+  background: linear-gradient(135deg, #c084fc 0%, #818cf8 40%, #60a5fa 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  opacity: 0;
+  filter: blur(8px);
+  animation: onboarding-char-in 0.6s cubic-bezier(0, 0, 0.2, 1) forwards;
+}
+
+@keyframes onboarding-char-in {
+  0% {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0);
+  }
+}
+
+.onboarding-welcome-subtitle {
+  font-size: 15px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0 0 36px 0;
+  max-width: 360px;
+}
+
+.onboarding-welcome-video-wrapper {
+  flex: 1.2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 48px 32px 0;
+  min-width: 0;
+}
+
+.onboarding-welcome-video {
+  width: 100%;
+  max-height: 100%;
+  border-radius: 16px;
+  object-fit: contain;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+}
+
+.onboarding-start-btn {
+  height: 48px !important;
+  padding: 0 40px !important;
+  font-size: 16px !important;
+  border-radius: 12px !important;
+  background: linear-gradient(135deg, #818cf8, #6366f1) !important;
+  border: none !important;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+}
+
+.onboarding-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 60px;
+  overflow-y: auto;
+}
+
+.onboarding-content-center {
+  text-align: center;
+}
+
+.onboarding-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.onboarding-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+}
+
+.onboarding-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
+  padding: 20px 28px;
+  width: 100%;
+  max-width: 480px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.onboarding-card-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.onboarding-card h3 {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.onboarding-footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 16px 60px;
+  border-top: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+}
+
+/* 设备图标 */
+.onboarding-device-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+/* 连接链动画 */
+.onboarding-arrow-chain {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 120px;
+  justify-content: center;
+}
+
+.onboarding-dot-flow {
+  position: relative;
+  width: 40px;
+  height: 3px;
+  background: var(--border-primary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.onboarding-dot-flow::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 2px;
+  animation: onboarding-flow 1.5s ease-in-out infinite;
+}
+
+@keyframes onboarding-flow {
+  0% { left: -100%; }
+  50% { left: 0; }
+  100% { left: 100%; }
+}
+
+/* 偏好设置列表 */
+.onboarding-preferences {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.onboarding-pref-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+}
+
+/* 头像上传 */
+.onboarding-avatar-wrapper {
+  position: relative;
+  cursor: pointer;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.onboarding-avatar-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+  border-radius: 50%;
+}
+
+.onboarding-avatar-wrapper:hover .onboarding-avatar-overlay {
+  opacity: 1;
+}
+
+/* 礼花动画 */
+.onboarding-confetti-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.onboarding-confetti-piece {
+  position: absolute;
+  top: -10px;
+  animation: onboarding-confetti-fall linear forwards;
+}
+
+@keyframes onboarding-confetti-fall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+/* 页面切换过渡动画 */
+.onboarding-slide {
+  position: absolute;
+  inset: 0;
+  animation: onboarding-slide-in 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.onboarding-slide-forward {
+  animation-name: onboarding-slide-in-forward;
+}
+
+.onboarding-slide-backward {
+  animation-name: onboarding-slide-in-backward;
+}
+
+@keyframes onboarding-slide-in-forward {
+  0% {
+    opacity: 0;
+    transform: translateX(80px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes onboarding-slide-in-backward {
+  0% {
+    opacity: 0;
+    transform: translateX(-80px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* 开箱体验内 Select 下拉菜单 z-index 高于 onboarding-root */
+.onboarding-select-popup {
+  z-index: 10001 !important;
+}

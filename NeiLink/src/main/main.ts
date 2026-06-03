@@ -3,8 +3,9 @@
  * 初始化所有服务模块并启动应用
  */
 
-import { app, BrowserWindow, Tray, Menu, nativeImage, screen, ipcMain } from 'electron';
+import { app, BrowserWindow, Tray, Menu, nativeImage, screen, ipcMain, protocol, net } from 'electron';
 import * as path from 'path';
+import * as fs from 'fs';
 import * as cron from 'node-cron';
 import { IPC_CHANNELS } from '../shared/types';
 import { NetworkMonitor, initializeNetwork } from './services/network';
@@ -330,6 +331,18 @@ async function cleanup(): Promise<void> {
 
 // ==================== 应用生命周期 ====================
 
+// 注册本地资源协议（提供视频等静态资源给渲染进程）
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'local-asset',
+    privileges: {
+      bypassCSP: true,
+      stream: true,
+      supportFetchAPI: true,
+    },
+  },
+]);
+
 const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
@@ -346,6 +359,49 @@ if (!gotTheLock) {
 
   app.whenReady().then(async () => {
     try {
+      // 注册本地资源协议处理器（支持 Range 请求，用于视频播放）
+      protocol.handle('local-asset', (request) => {
+        const assetsDir = path.join(__dirname, 'assets');
+        const fileName = request.url.replace('local-asset://', '');
+        const filePath = path.join(assetsDir, fileName);
+
+        try {
+          const stat = fs.statSync(filePath);
+          const fileSize = stat.size;
+
+          const rangeHeader = request.headers.get('range');
+          if (rangeHeader) {
+            const parts = rangeHeader.replace(/bytes=/, '').split('-');
+            const start = parseInt(parts[0], 10);
+            const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+            const chunkSize = end - start + 1;
+
+            const fileStream = fs.createReadStream(filePath, { start, end });
+            return new Response(fileStream as any, {
+              status: 206,
+              headers: {
+                'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+                'Accept-Ranges': 'bytes',
+                'Content-Length': String(chunkSize),
+                'Content-Type': 'video/mp4',
+              },
+            });
+          }
+
+          const fileStream = fs.createReadStream(filePath);
+          return new Response(fileStream as any, {
+            status: 200,
+            headers: {
+              'Content-Length': String(fileSize),
+              'Content-Type': 'video/mp4',
+              'Accept-Ranges': 'bytes',
+            },
+          });
+        } catch {
+          return new Response('Not Found', { status: 404 });
+        }
+      });
+
       createWindow();
     await initializeServices();
 

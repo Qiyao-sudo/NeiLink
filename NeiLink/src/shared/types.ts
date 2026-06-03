@@ -96,6 +96,7 @@ export interface SystemSettings {
   // 用户设置
   userName?: string; // 用户名称
   userAvatar?: string; // 用户头像的base64数据或文件路径
+  onboardingCompleted?: boolean; // 是否已完成开箱体验
 }
 
 // IPC 通道定义

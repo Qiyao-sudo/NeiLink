@@ -508,6 +508,31 @@ export interface Locale {
     author: string;
     repository: string;
   };
+
+  // 开箱体验
+  onboarding: {
+    startConfig: string;
+    page1Title: string;
+    page1Desc: string;
+    page1Wifi: string;
+    page1Ethernet: string;
+    page2Title: string;
+    page2Desc: string;
+    page3Title: string;
+    page3FloatWindow: string;
+    page3AutoStart: string;
+    page3DefaultEncrypt: string;
+    page3DefaultExtractCode: string;
+    page3DefaultExpiry: string;
+    page3DefaultMaxDownloads: string;
+    page4Title: string;
+    page4StartUsing: string;
+    replayInSettings: string;
+    hour: string;
+    day: string;
+    permanent: string;
+    unlimited: string;
+  };
 }
 
 // 支持的语言
