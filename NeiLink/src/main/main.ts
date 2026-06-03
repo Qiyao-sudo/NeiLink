@@ -3,7 +3,7 @@
  * 初始化所有服务模块并启动应用
  */
 
-import { app, BrowserWindow, Tray, Menu, nativeImage } from 'electron';
+import { app, BrowserWindow, Tray, Menu, nativeImage, screen, ipcMain } from 'electron';
 import * as path from 'path';
 import * as cron from 'node-cron';
 import { IPC_CHANNELS } from '../shared/types';
@@ -13,8 +13,10 @@ import { SettingsManager } from './services/settings';
 import { ShareManager } from './services/shareManager';
 import { registerIpcHandlers } from './ipcHandlers';
 import { setLogger, updateUserSettings } from './services/httpServer';
+import { initializeHotspot } from './services/hotspot';
 
 let mainWindow: BrowserWindow | null = null;
+let floatWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let settingsManager: SettingsManager | null = null;
 let shareManager: ShareManager | null = null;
@@ -115,6 +117,24 @@ function createWindow(): void {
     mainWindow.loadFile(indexPath);
   }
 
+  mainWindow.on('close', async (e) => {
+    if (!settingsManager) return;
+
+    const settings = await settingsManager.getSettings();
+    const behavior = settings.closeBehavior || 'ask';
+
+    if (behavior === 'minimize') {
+      e.preventDefault();
+      mainWindow?.hide();
+    } else if (behavior === 'ask') {
+      e.preventDefault();
+      if (mainWindow?.isMinimized()) mainWindow.restore();
+      mainWindow?.show();
+      mainWindow?.focus();
+      mainWindow?.webContents.send(IPC_CHANNELS.WINDOW_CLOSE_ACTION, 'ask');
+    }
+  });
+
   mainWindow.on('closed', () => {
     if (tray) {
       tray.destroy();
@@ -124,7 +144,7 @@ function createWindow(): void {
   });
 
   // 创建系统托盘
-  const iconPath = path.join(__dirname, '..', '..', 'build', 'NeiLink.ico');
+  const iconPath = path.join(__dirname, 'assets', 'NeiLink.ico');
   let trayIcon = nativeImage.createFromPath(iconPath);
   if (trayIcon.isEmpty()) {
     trayIcon = nativeImage.createEmpty();
@@ -140,6 +160,56 @@ function createWindow(): void {
   });
 
   rebuildTrayMenu();
+}
+
+/**
+ * 创建桌面悬浮窗
+ */
+function createFloatWindow(): void {
+  const isDev = !app.isPackaged;
+
+  floatWindow = new BrowserWindow({
+    width: 84,
+    height: 84,
+    resizable: false,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    hasShadow: false,
+    webPreferences: {
+      preload: path.join(__dirname, '..', 'preload', 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  floatWindow.setVisibleOnAllWorkspaces(true);
+  floatWindow.setAlwaysOnTop(true, 'floating');
+
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width } = primaryDisplay.workAreaSize;
+  floatWindow.setPosition(width - 100, 100);
+
+  if (isDev) {
+    floatWindow.loadURL('http://localhost:3000/float');
+  } else {
+    floatWindow.loadFile(path.join(__dirname, '..', 'renderer', 'float.html'));
+  }
+
+  floatWindow.on('closed', () => {
+    floatWindow = null;
+  });
+}
+
+/**
+ * 关闭悬浮窗
+ */
+function closeFloatWindow(): void {
+  if (floatWindow && !floatWindow.isDestroyed()) {
+    floatWindow.close();
+    floatWindow = null;
+  }
 }
 
 /**
@@ -173,14 +243,13 @@ async function initializeServices(): Promise<void> {
   });
 
   // 2.5 初始化网络模块，加载用户选择的适配器
-  await initializeNetwork(settingsManager);
+  await initializeNetwork(settingsManager, logger);
+
+  // 2.6 初始化热点模块
+  initializeHotspot(logger);
 
   // 3. 初始化网络监控
   networkMonitor = new NetworkMonitor((info) => {
-    logger.log('system', '网络状态变化', {
-      detail: `IP: ${info.ip}, 类型: ${info.type}, 在线: ${info.isOnline}`,
-      messageKey: 'network.change',
-    });
     // 网络变化时推送通知到渲染进程
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send(IPC_CHANNELS.NETWORK_ON_CHANGE, info);
@@ -194,6 +263,29 @@ async function initializeServices(): Promise<void> {
 
   // 5. 注册 IPC 处理器
   registerIpcHandlers(mainWindow!, logger, settingsManager, shareManager, networkMonitor, (lang) => rebuildTrayMenu(lang));
+
+  ipcMain.handle(IPC_CHANNELS.FLOAT_TOGGLE, async (_event, enabled: boolean) => {
+    if (enabled) {
+      if (!floatWindow || floatWindow.isDestroyed()) {
+        createFloatWindow();
+      }
+    } else {
+      closeFloatWindow();
+    }
+    return { success: true };
+  });
+
+  ipcMain.on(IPC_CHANNELS.FLOAT_MOVE, (_event, { dx, dy }: { dx: number; dy: number }) => {
+    if (floatWindow && !floatWindow.isDestroyed()) {
+      const [x, y] = floatWindow.getPosition();
+      const [w, h] = floatWindow.getSize();
+      const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+      const { x: wx, y: wy, width: ww, height: wh } = display.workArea;
+      const newX = Math.max(wx, Math.min(wx + ww - w, Math.round(x + dx)));
+      const newY = Math.max(wy, Math.min(wy + wh - h, Math.round(y + dy)));
+      floatWindow.setPosition(newX, newY);
+    }
+  });
 
   // 6. 启动日志清理定时任务（每天凌晨3点执行）
   cron.schedule('0 3 * * *', () => {
@@ -255,7 +347,12 @@ if (!gotTheLock) {
   app.whenReady().then(async () => {
     try {
       createWindow();
-      await initializeServices();
+    await initializeServices();
+
+    const settings = await settingsManager!.getSettings();
+    if (settings.floatWindowEnabled !== false) {
+      createFloatWindow();
+    }
     } catch (err) {
       console.error('应用初始化失败:', err);
     }

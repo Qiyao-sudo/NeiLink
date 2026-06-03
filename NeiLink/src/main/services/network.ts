@@ -7,22 +7,29 @@ import * as os from 'os';
 import * as net from 'net';
 import { NetworkInfo, NetworkType, NetworkAdapter } from '../../shared/types';
 import { SettingsManager } from './settings';
+import { Logger } from './logger';
 
-// 存储用户选择的网络适配器名称列表
+// 存储用户选择的网络适配器名称列表（保存完整历史）
+let originalSelectedAdapterNames: string[] = [];
 let selectedAdapterNames: string[] = [];
 let settingsManagerRef: SettingsManager | undefined = undefined;
+let loggerRef: Logger | undefined = undefined;
+let lastLoggedState: string = ''; // 记录上次的状态，避免重复日志
 
 /**
- * 初始化网络模块，传入设置管理器引用
+ * 初始化网络模块，传入设置管理器和logger引用
  */
-export async function initializeNetwork(settingsManager: SettingsManager): Promise<void> {
+export async function initializeNetwork(settingsManager: SettingsManager, logger: Logger): Promise<void> {
   settingsManagerRef = settingsManager;
+  loggerRef = logger;
   // 从设置中加载用户选择的适配器
   const settings = await settingsManager.getSettings();
   if (settings.selectedAdapters && settings.selectedAdapters.length > 0) {
+    originalSelectedAdapterNames = settings.selectedAdapters;
     selectedAdapterNames = settings.selectedAdapters;
   } else if (settings.selectedAdapter) {
     // 迁移旧的单选适配器设置
+    originalSelectedAdapterNames = [settings.selectedAdapter];
     selectedAdapterNames = [settings.selectedAdapter];
   }
 }
@@ -31,10 +38,31 @@ export async function initializeNetwork(settingsManager: SettingsManager): Promi
  * 设置选中的网络适配器名称列表
  */
 export function setSelectedAdapterNames(adapterNames: string[]): void {
+  // 更新选择列表
+  originalSelectedAdapterNames = [...adapterNames];
   selectedAdapterNames = [...adapterNames];
+  
   // 保存到设置中
   if (settingsManagerRef) {
     settingsManagerRef.saveSettings({ selectedAdapters: adapterNames, selectedAdapter: adapterNames[0] });
+  }
+  
+  // 重置最后记录的状态，确保下次检测能正常工作
+  lastLoggedState = '';
+  
+  // 记录日志
+  if (loggerRef) {
+    const newSelection = adapterNames.join(', ') || '无';
+    loggerRef.log('system', `适配器选择已更新，当前选择: ${newSelection}`, {
+      messageKey: 'network.adapters.updated',
+      messageParams: [newSelection]
+    });
+    
+    // 更新状态标识
+    lastLoggedState = JSON.stringify({
+      validAdapters: adapterNames,
+      selectedAdapterNames: adapterNames
+    });
   }
 }
 
@@ -183,9 +211,77 @@ export function getIPByAdapterName(adapterName: string): string | null {
 }
 
 /**
+ * 获取有效的选择适配器（过滤掉不可用的，恢复可用的）
+ */
+function getValidSelectedAdapters(): string[] {
+  const availableAdapters = getAllAdapters().map(a => a.name);
+  
+  // 从原始选择列表中找出当前可用的适配器
+  const validAdapters = originalSelectedAdapterNames.filter(name => 
+    availableAdapters.includes(name) && getIPByAdapterName(name) !== null
+  );
+  
+  // 计算当前状态标识，用于去重
+  const currentState = JSON.stringify({
+    validAdapters,
+    selectedAdapterNames
+  });
+  
+  // 检测适配器变化，记录日志
+  if (loggerRef && currentState !== lastLoggedState) {
+    // 检测禁用的适配器
+    const disabledAdapters = originalSelectedAdapterNames.filter(name => 
+      !validAdapters.includes(name)
+    );
+    
+    // 检测启用的适配器
+    const enabledAdapters = validAdapters.filter(name => 
+      !selectedAdapterNames.includes(name)
+    );
+    
+    // 记录日志（只在有真正变化时记录）
+    if (disabledAdapters.length > 0 || enabledAdapters.length > 0) {
+      for (const adapter of disabledAdapters) {
+        loggerRef.log('system', `适配器禁用: ${adapter}`, {
+          messageKey: 'network.adapter.disabled',
+          messageParams: [adapter]
+        });
+      }
+      
+      for (const adapter of enabledAdapters) {
+        loggerRef.log('system', `适配器启用: ${adapter}`, {
+          messageKey: 'network.adapter.enabled',
+          messageParams: [adapter]
+        });
+      }
+      
+      const currentSelection = validAdapters.join(', ') || '无';
+      loggerRef.log('system', `适配器选择已更新，当前选择: ${currentSelection}`, {
+        messageKey: 'network.adapters.updated',
+        messageParams: [currentSelection]
+      });
+      
+      // 更新最后记录的状态
+      lastLoggedState = currentState;
+    }
+  }
+  
+  // 更新当前选择
+  selectedAdapterNames = [...validAdapters];
+  
+  // 保存到设置中（仅在需要时）
+  if (settingsManagerRef) {
+    settingsManagerRef.saveSettings({ selectedAdapters: validAdapters, selectedAdapter: validAdapters[0] });
+  }
+  
+  return validAdapters;
+}
+
+/**
  * 获取完整的网络状态信息
  */
 export function getNetworkInfo(): NetworkInfo {
+  const validSelectedAdapters = getValidSelectedAdapters();
   const ip = getLocalIP();
   const ips = getLocalIPs();
   const type = detectNetworkType();
@@ -193,9 +289,6 @@ export function getNetworkInfo(): NetworkInfo {
 
   // 网络状态判断：如果有有效的IP地址且不是回环地址，则认为网络是连接的
   const isOnline = ip !== '127.0.0.1' && adapters.length > 0;
-
-  // 使用用户选择的适配器名称列表，未选择时返回空数组
-  const currentSelectedAdapters = selectedAdapterNames;
 
   return {
     type,
@@ -205,8 +298,8 @@ export function getNetworkInfo(): NetworkInfo {
     // SSID 在桌面端难以直接获取，留空由上层处理
     ssid: undefined,
     adapters,
-    selectedAdapter: currentSelectedAdapters[0],
-    selectedAdapters: currentSelectedAdapters,
+    selectedAdapter: validSelectedAdapters[0],
+    selectedAdapters: validSelectedAdapters,
   };
 }
 

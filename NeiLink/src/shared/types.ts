@@ -76,8 +76,10 @@ export interface SystemSettings {
   defaultMaxDownloads: number;
   defaultMaxConcurrent: number;
   port: number;
-  hotspotPrefix: string;
-  hotspotPasswordLength: number;
+  hotspotSsid: string;
+  hotspotPassword: string;
+  hotspotRandomPassword: boolean;
+  floatWindowEnabled: boolean;
   downloadSpeedLimit: number; // KB/s，0 表示不限速
   rateLimitEnabled: boolean;
   rateLimitMaxAttempts: number;
@@ -147,7 +149,15 @@ export const IPC_CHANNELS = {
   WINDOW_CLOSE: 'window:close',
   WINDOW_IS_MAXIMIZED: 'window:is-maximized',
   WINDOW_ON_STATE_CHANGE: 'window:on-state-change',
-  
+
+  // 悬浮窗控制
+  FLOAT_FILE_DROPPED: 'float:file-dropped',
+  FLOAT_CLOSE: 'float:close',
+  FLOAT_SET_VISIBLE: 'float:set-visible',
+  FLOAT_OPEN_SHARE: 'float:open-share',
+  FLOAT_TOGGLE: 'float:toggle',
+  FLOAT_MOVE: 'float:move',
+
   // 封禁IP管理
   BANNED_IPS_GET: 'banned-ips:get',
   BANNED_IPS_UNBAN: 'banned-ips:unban',

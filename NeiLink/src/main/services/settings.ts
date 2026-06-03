@@ -17,8 +17,10 @@ const DEFAULT_SETTINGS: SystemSettings = {
   defaultMaxDownloads: -1, // 不限
   defaultMaxConcurrent: -1, // 不限
   port: 8080,
-  hotspotPrefix: 'NeiLink',
-  hotspotPasswordLength: 8,
+  hotspotSsid: 'NeiLink',
+  hotspotPassword: '',
+  hotspotRandomPassword: true,
+  floatWindowEnabled: true,
   rateLimitEnabled: true,
   rateLimitMaxAttempts: 10,
   rateLimitBanDuration: 30, // 30分钟

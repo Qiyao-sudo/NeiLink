@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { App, Card, Button, Switch, Alert, Typography, Space, Select } from 'antd';
+import { App, Card, Button, Switch, Alert, Typography, Space, Select, Spin } from 'antd';
 import {
   WifiOutlined,
   ApiOutlined,
@@ -20,6 +20,7 @@ interface HotspotStatus {
   ssid?: string;
   password?: string;
   error?: string;
+  clients?: number;
 }
 
 const HomePage: React.FC = () => {
@@ -42,6 +43,8 @@ const HomePage: React.FC = () => {
   const [dragActive, setDragActive] = useState(false);
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [hotspotModalVisible, setHotspotModalVisible] = useState(false);
+  const [hotspotLoading, setHotspotLoading] = useState<'start' | 'stop' | null>(null);
+  const [hotspotRandomPassword, setHotspotRandomPassword] = useState(true);
   const [selectedFilePath, setSelectedFilePath] = useState('');
   const [selectedIsFolder, setSelectedIsFolder] = useState(false);
   const [defaultSettings, setDefaultSettings] = useState({
@@ -99,6 +102,12 @@ const HomePage: React.FC = () => {
           defaultMaxConcurrent: settings.defaultMaxConcurrent as number ?? -1,
           defaultEncrypt: settings.defaultEncrypt as boolean ?? false,
         });
+        setHotspotRandomPassword(settings.hotspotRandomPassword as boolean ?? true);
+        setHotspotInfo(prev => ({
+          ...prev,
+          ssid: prev.ssid || (settings.hotspotSsid as string) || 'NeiLink',
+          password: prev.password || (settings.hotspotPassword as string) || '',
+        }));
       }
     } catch {
       // 静默处理
@@ -115,6 +124,17 @@ const HomePage: React.FC = () => {
     }, 5000);
     return () => clearInterval(interval);
   }, [fetchNetworkStatus, fetchHotspotStatus, fetchDefaultSettings]);
+
+  useEffect(() => {
+    const cleanup = window.neilink.ipc.on('float:open-share', (data: any) => {
+      setSelectedFilePath(data.path);
+      setSelectedIsFolder(data.isFolder);
+      setShareModalVisible(true);
+    });
+    return () => {
+      if (typeof cleanup === 'function') cleanup();
+    };
+  }, []);
 
   // 拖拽处理
   const handleDragEnter = (e: React.DragEvent) => {
@@ -239,28 +259,71 @@ const HomePage: React.FC = () => {
   };
 
   const handleHotspotToggle = async (checked: boolean) => {
+    setHotspotLoading(checked ? 'start' : 'stop');
     try {
       if (checked) {
-        await window.neilink.ipc.invoke('hotspot:start');
-        message.success('热点已开启');
+        const result = await window.neilink.ipc.invoke('hotspot:start', {
+          ssid: hotspotInfo.ssid || undefined,
+          password: hotspotRandomPassword ? undefined : (hotspotInfo.password || undefined),
+          randomPassword: hotspotRandomPassword,
+        }) as any;
+        if (result?.success && result.data) {
+          const status = result.data as HotspotStatus;
+          if (status.enabled) {
+            message.success(locale.hotspot.toastStarted);
+          } else if (status.error) {
+            message.error(locale.hotspot.toastStartFailed.replace('{0}', status.error));
+          }
+        } else if (result?.error) {
+          message.error(locale.hotspot.toastStartFailed.replace('{0}', result.error));
+        }
       } else {
-        await window.neilink.ipc.invoke('hotspot:stop');
-        message.info('热点已关闭');
+        const result = await window.neilink.ipc.invoke('hotspot:stop') as any;
+        if (result?.success) {
+          message.info(locale.hotspot.toastStopped);
+        } else if (result?.error) {
+          message.error(locale.hotspot.toastStopFailed.replace('{0}', result.error));
+        }
       }
       fetchHotspotStatus();
     } catch {
-      message.error('操作热点失败');
+      message.error(locale.hotspot.toastError);
+    } finally {
+      setHotspotLoading(null);
     }
   };
 
-  const handleHotspotConfigSave = async (name: string, password: string): Promise<boolean> => {
+  const handleHotspotConfigSave = async (name: string, password: string, randomPassword: boolean): Promise<boolean> => {
     try {
-      await window.neilink.ipc.invoke('hotspot:config', { name, password });
+      setHotspotRandomPassword(randomPassword);
+      const configResult = await window.neilink.ipc.invoke('hotspot:config', { ssid: name, password, randomPassword }) as any;
+      if (!configResult?.success) {
+        message.error(locale.hotspot.toastConfigFailed);
+        return false;
+      }
+
+      if (hotspotInfo.enabled) {
+        await window.neilink.ipc.invoke('hotspot:stop');
+        const startResult = await window.neilink.ipc.invoke('hotspot:start', {
+          ssid: name,
+          password: randomPassword ? undefined : password,
+          randomPassword,
+        }) as any;
+        if (startResult?.success && startResult.data?.enabled) {
+          message.success(locale.hotspot.toastConfigSuccess);
+        } else {
+          const errMsg = startResult?.data?.error || startResult?.error || locale.hotspot.toastError;
+          message.error(locale.hotspot.toastStartFailed.replace('{0}', errMsg));
+        }
+      } else {
+        message.success(locale.hotspot.toastConfigSuccess);
+      }
+
       setHotspotModalVisible(false);
       fetchHotspotStatus();
       return true;
     } catch {
-      message.error('保存热点配置失败');
+      message.error(locale.hotspot.toastConfigFailed);
       return false;
     }
   };
@@ -397,6 +460,7 @@ const HomePage: React.FC = () => {
       </Card>
 
       {/* 热点操作区 */}
+      <Spin spinning={hotspotLoading !== null} tip={hotspotLoading === 'start' ? locale.hotspot.loadingStart : locale.hotspot.loadingStop} delay={300}>
       <div className="hotspot-section">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -404,8 +468,9 @@ const HomePage: React.FC = () => {
             <Switch
               checked={hotspotInfo.enabled}
               onChange={handleHotspotToggle}
-              checkedChildren="开"
-              unCheckedChildren="关"
+              loading={hotspotLoading !== null}
+              checkedChildren={locale.hotspot.on}
+              unCheckedChildren={locale.hotspot.off}
             />
           </div>
           <Button
@@ -415,6 +480,16 @@ const HomePage: React.FC = () => {
             {locale.hotspot.title}
           </Button>
         </div>
+
+        {hotspotInfo.error && !hotspotInfo.enabled && (
+          <Alert
+            type="error"
+            showIcon
+            style={{ marginTop: 12 }}
+            message={locale.hotspot.statusStopped}
+            description={hotspotInfo.error}
+          />
+        )}
 
         {hotspotInfo.enabled && hotspotInfo.ssid && (
           <div style={{ marginTop: 12, display: 'flex', gap: 24 }}>
@@ -428,19 +503,17 @@ const HomePage: React.FC = () => {
                 <Text strong>{hotspotInfo.password}</Text>
               </div>
             )}
+            {hotspotInfo.clients !== undefined && (
+              <div>
+                <Text type="secondary">{locale.hotspot.status}：</Text>
+                <Text strong>{locale.hotspot.statusRunning} ({locale.hotspot.clientsCount.replace('{0}', String(hotspotInfo.clients))})</Text>
+              </div>
+            )}
           </div>
         )}
 
-        {hotspotInfo.enabled && (
-          <Alert
-            type="warning"
-            showIcon
-            style={{ marginTop: 12 }}
-            message="AP 隔离提示"
-            description="当前热点已启用 AP 隔离，连接同一热点的设备之间无法互相通信。如需局域网内设备互访，请在系统网络设置中关闭 AP 隔离。"
-          />
-        )}
       </div>
+      </Spin>
 
       {/* 分享配置弹窗 */}
       <ShareConfigModal
@@ -459,8 +532,9 @@ const HomePage: React.FC = () => {
       {/* 热点配置弹窗 */}
       <HotspotConfigModal
         visible={hotspotModalVisible}
-        currentName={hotspotInfo.ssid || ''}
+        currentName={hotspotInfo.ssid || 'NeiLink'}
         currentPassword={hotspotInfo.password || ''}
+        randomPasswordEnabled={hotspotRandomPassword}
         onConfirm={handleHotspotConfigSave}
         onCancel={() => setHotspotModalVisible(false)}
       />

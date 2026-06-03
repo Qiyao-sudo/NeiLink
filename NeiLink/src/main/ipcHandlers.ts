@@ -3,7 +3,7 @@
  * 注册所有 IPC 通信通道的处理函数
  */
 
-import { ipcMain, dialog, BrowserWindow, shell } from 'electron';
+import { ipcMain, dialog, BrowserWindow, shell, app } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import { IPC_CHANNELS, ShareConfig, SystemSettings, LogEntry } from '../shared/types';
@@ -70,15 +70,32 @@ export function registerIpcHandlers(
   ipcMain.handle(IPC_CHANNELS.NETWORK_SELECT_ADAPTERS, async (_event, adapterNames: string[]) => {
     try {
       const ips: string[] = [];
+      const validAdapterNames: string[] = [];
+      
+      // 过滤掉不可用的适配器
       for (const name of adapterNames) {
         const ip = getIPByAdapterName(name);
-        if (!ip) {
-          return { success: false, error: `适配器 ${name} 不存在或无可用IP地址` };
+        if (ip) {
+          ips.push(ip);
+          validAdapterNames.push(name);
         }
-        ips.push(ip);
       }
-      setSelectedAdapterNames(adapterNames);
-      return { success: true, data: { ips, adapterNames } };
+      
+      // 如果所有适配器都不可用，则使用自动选择
+      if (validAdapterNames.length === 0) {
+        setSelectedAdapterNames([]);
+        const networkInfo = getNetworkInfo();
+        return { 
+          success: true, 
+          data: { 
+            ips: networkInfo.ips, 
+            adapterNames: networkInfo.selectedAdapters 
+          } 
+        };
+      }
+      
+      setSelectedAdapterNames(validAdapterNames);
+      return { success: true, data: { ips, adapterNames: validAdapterNames } };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.log('error', '切换网络适配器失败', { detail: message, messageKey: 'error.switchAdapter' });
@@ -314,8 +331,16 @@ export function registerIpcHandlers(
   // ==================== 热点相关 ====================
 
   // 启动热点
-  ipcMain.handle(IPC_CHANNELS.HOTSPOT_START, async (_event, config?: { ssid: string; password: string }) => {
+  ipcMain.handle(IPC_CHANNELS.HOTSPOT_START, async (_event, config?: { ssid: string; password: string; randomPassword?: boolean }) => {
     try {
+      if (!config) {
+        const settings = await settingsManager.getSettings();
+        config = {
+          ssid: settings.hotspotSsid || 'NeiLink',
+          password: settings.hotspotPassword,
+          randomPassword: settings.hotspotRandomPassword,
+        };
+      }
       const status = await hotspot.startHotspot(config);
       return { success: true, data: status };
     } catch (err) {
@@ -347,9 +372,16 @@ export function registerIpcHandlers(
   });
 
   // 配置热点
-  ipcMain.handle(IPC_CHANNELS.HOTSPOT_CONFIG, async (_event, config: { ssid: string; password: string }) => {
+  ipcMain.handle(IPC_CHANNELS.HOTSPOT_CONFIG, async (_event, config: { ssid?: string; name?: string; password: string; randomPassword?: boolean }) => {
     try {
-      await hotspot.configureHotspot(config);
+      const ssid = config.ssid || config.name || 'NeiLink';
+      const hotspotConfig = { ssid, password: config.password, randomPassword: config.randomPassword };
+      await hotspot.configureHotspot(hotspotConfig);
+      await settingsManager.saveSettings({
+        hotspotSsid: ssid,
+        hotspotPassword: config.password,
+        hotspotRandomPassword: config.randomPassword ?? true,
+      });
       return { success: true };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -453,6 +485,9 @@ export function registerIpcHandlers(
         mainWindow.hide();
       } else {
         mainWindow.close();
+        setTimeout(() => {
+          app.exit(0);
+        }, 500);
       }
       return { success: true };
     } catch (err) {
@@ -569,5 +604,29 @@ export function registerIpcHandlers(
     if (!mainWindow.isDestroyed()) {
       mainWindow.webContents.send(IPC_CHANNELS.WINDOW_ON_STATE_CHANGE, { isMaximized: false });
     }
+  });
+
+  // ==================== 悬浮窗相关 ====================
+
+  ipcMain.handle(IPC_CHANNELS.FLOAT_FILE_DROPPED, async (_event, data: { path: string; isFolder: boolean }) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      mainWindow.focus();
+      mainWindow.webContents.send(IPC_CHANNELS.WINDOW_NAVIGATE, '/');
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send(IPC_CHANNELS.FLOAT_OPEN_SHARE, data);
+        }
+      }, 200);
+    }
+    return { success: true };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.FLOAT_CLOSE, async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win && !win.isDestroyed()) {
+      win.close();
+    }
+    return { success: true };
   });
 }
