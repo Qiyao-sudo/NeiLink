@@ -13,6 +13,8 @@ import { getLocale, translateLogMessage } from '../../shared/i18n';
 export class Logger {
   private logFilePath: string;
   private logDir: string;
+  private writeQueue: string[] = [];
+  private writing: boolean = false;
 
   /**
    * @param logDir 日志存储目录路径
@@ -30,6 +32,25 @@ export class Logger {
     if (!fs.existsSync(this.logFilePath)) {
       fs.writeFileSync(this.logFilePath, '', 'utf-8');
     }
+  }
+
+  /**
+   * 异步消费写入队列
+   */
+  private flushQueue(): void {
+    if (this.writing || this.writeQueue.length === 0) return;
+    this.writing = true;
+    const batch = this.writeQueue.splice(0);
+    const data = batch.join('');
+    fs.appendFile(this.logFilePath, data, 'utf-8', (err) => {
+      this.writing = false;
+      if (err) {
+        console.error('写入日志失败:', err);
+      }
+      if (this.writeQueue.length > 0) {
+        this.flushQueue();
+      }
+    });
   }
 
   /**
@@ -57,9 +78,10 @@ export class Logger {
       messageParams: opts?.messageParams,
     };
 
-    // 追加写入日志文件（JSON Lines 格式，每行一个 JSON 对象）
+    // 异步追加写入日志文件（JSON Lines 格式，每行一个 JSON 对象）
     const line = JSON.stringify(entry) + '\n';
-    fs.appendFileSync(this.logFilePath, line, 'utf-8');
+    this.writeQueue.push(line);
+    this.flushQueue();
 
     return entry;
   }
@@ -67,15 +89,29 @@ export class Logger {
   /**
    * 获取日志列表
    * @param filter 过滤条件
+   * @param limit 最大返回条数，默认 1000，-1 表示全部
    */
   getLogs(filter?: {
     type?: LogEntry['type'];
     startTime?: number;
     endTime?: number;
+    limit?: number;
   }): LogEntry[] {
     try {
+      const limit = filter?.limit ?? 1000;
       const content = fs.readFileSync(this.logFilePath, 'utf-8');
       const lines = content.split('\n').filter((line) => line.trim() !== '');
+
+      // 如果只需要最新的 N 条，从末尾开始解析以减少 JSON.parse 次数
+      if (limit > 0 && !filter?.type && !filter?.startTime && !filter?.endTime) {
+        const result: LogEntry[] = [];
+        for (let i = lines.length - 1; i >= 0 && result.length < limit; i--) {
+          try {
+            result.push(JSON.parse(lines[i]) as LogEntry);
+          } catch { /* skip malformed lines */ }
+        }
+        return result; // 已经是倒序（最新的在前）
+      }
 
       let entries: LogEntry[] = lines.map((line) => {
         try {
@@ -98,6 +134,11 @@ export class Logger {
 
       // 按时间倒序排列（最新的在前）
       entries.sort((a, b) => b.timestamp - a.timestamp);
+
+      // 应用 limit
+      if (limit > 0 && entries.length > limit) {
+        entries = entries.slice(0, limit);
+      }
 
       return entries;
     } catch (err) {

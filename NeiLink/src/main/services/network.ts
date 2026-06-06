@@ -267,10 +267,11 @@ function getValidSelectedAdapters(): string[] {
   }
   
   // 更新当前选择
+  const adaptersChanged = !arraysEqual(selectedAdapterNames, validAdapters);
   selectedAdapterNames = [...validAdapters];
   
-  // 保存到设置中（仅在需要时）
-  if (settingsManagerRef) {
+  // 仅在适配器列表真正变化时才持久化到设置文件
+  if (adaptersChanged && settingsManagerRef) {
     settingsManagerRef.saveSettings({ selectedAdapters: validAdapters, selectedAdapter: validAdapters[0] });
   }
   

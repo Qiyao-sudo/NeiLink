@@ -6,9 +6,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import * as os from 'os';
 import archiver from 'archiver';
 import { ShareConfig, SystemSettings } from '../../shared/types';
-import { startGlobalServer, registerShare, unregisterShare, getGlobalServerPort } from './httpServer';
+import { startGlobalServer, registerShare, unregisterShare, getGlobalServerPort, setShareLookup } from './httpServer';
 import { Logger } from './logger';
 import { generateKey, encryptFile } from './encryption';
 
@@ -29,6 +30,39 @@ export interface CreateShareParams {
 export type ShareUpdateCallback = (shares: ShareConfig[]) => void;
 /** 下载事件回调 */
 export type DownloadCallback = (shareId: string, downloadCount: number) => void;
+
+// =============================================================================
+// 密钥保护：使用机器特征派生密钥加密存储的 encryptKey
+// =============================================================================
+
+/** 基于机器特征生成稳定的派生密钥 */
+function getMachineDerivedKey(): Buffer {
+  const machineId = `${os.hostname()}-${os.userInfo().username}-${process.cwd()}`;
+  return crypto.createHash('sha256').update(machineId).digest();
+}
+
+/** 加密 hex 格式的密钥字符串，返回加密后的字符串 */
+function protectKey(plainHexKey: string): string {
+  const derivedKey = getMachineDerivedKey();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', derivedKey, iv);
+  const encrypted = Buffer.concat([cipher.update(plainHexKey, 'utf8'), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+  // 格式: iv(12) + authTag(16) + encrypted
+  return Buffer.concat([iv, authTag, encrypted]).toString('base64');
+}
+
+/** 解密被保护的密钥字符串，返回原始 hex 密钥 */
+function unprotectKey(protectedStr: string): string {
+  const derivedKey = getMachineDerivedKey();
+  const data = Buffer.from(protectedStr, 'base64');
+  const iv = data.subarray(0, 12);
+  const authTag = data.subarray(12, 28);
+  const encrypted = data.subarray(28);
+  const decipher = crypto.createDecipheriv('aes-256-gcm', derivedKey, iv);
+  decipher.setAuthTag(authTag);
+  return decipher.update(encrypted) + decipher.final('utf8');
+}
 
 export class ShareManager {
   private shares: Map<string, ShareConfig> = new Map();
@@ -58,6 +92,9 @@ export class ShareManager {
     if (!fs.existsSync(this.dataDir)) {
       fs.mkdirSync(this.dataDir, { recursive: true });
     }
+
+    // 注册单一数据源查找回调，httpServer 通过此回调获取分享配置
+    setShareLookup((fileCode: string) => this.shares.get(fileCode));
 
     // 尝试恢复之前的分享任务
     this.loadShares().catch(err => {
@@ -330,7 +367,7 @@ export class ShareManager {
       }
     }
 
-    // 重置下载次数
+    // 重置下载次数（使用 Math.max 防止并发下载回退导致负数）
     share.downloadCount = 0;
     
     // 重新激活分享：如果是已过期或已取消，并且有有效的过期时间（或永久），重新激活
@@ -340,14 +377,13 @@ export class ShareManager {
       const canReactivate = !share.expiryTime || (share.expiryTime > now);
       if (canReactivate) {
         share.status = 'active';
-        // 重新注册到服务器
+        // 重新注册下载回调
         registerShare(share, (shareId) => {
           this.handleDownloadComplete(shareId);
         });
       }
     } else {
-      // 如果分享已经是活跃状态，也需要更新服务器端的分享配置
-      // 确保服务器端的 downloadCount 被正确重置
+      // 如果分享已经是活跃状态，更新下载回调
       registerShare(share, (shareId) => {
         this.handleDownloadComplete(shareId);
       });
@@ -506,11 +542,18 @@ export class ShareManager {
   }
 
   /**
-   * 保存分享任务到文件
+   * 保存分享任务到文件（加密密钥字段）
    */
   private saveShares(): void {
     try {
-      const sharesData = Array.from(this.shares.values());
+      const sharesData = Array.from(this.shares.values()).map(share => {
+        // 深拷贝，避免修改内存中的对象
+        const serializable = { ...share };
+        if (serializable.encryptKey) {
+          (serializable as any).encryptKey = protectKey(serializable.encryptKey);
+        }
+        return serializable;
+      });
       const sharesFilePath = path.join(this.dataDir, 'shares.json');
       fs.writeFileSync(sharesFilePath, JSON.stringify(sharesData, null, 2), 'utf-8');
     } catch (err) {
@@ -539,6 +582,20 @@ export class ShareManager {
       
       let restoredCount = 0;
       for (const share of sharesData) {
+        // 解密被保护的密钥
+        if (share.encryptKey) {
+          try {
+            // 检测是否为加密后的格式（base64），旧格式是 hex 字符串
+            const isProtected = !/^[0-9a-f]+$/.test(share.encryptKey);
+            if (isProtected) {
+              share.encryptKey = unprotectKey(share.encryptKey);
+            }
+          } catch (err) {
+            console.error(`解密分享密钥失败: ${share.fileName}`, err);
+            share.encryptKey = undefined;
+          }
+        }
+
         let fileExists: boolean;
 
         if (share.encryptEnabled && share.encryptKey && share.encryptOriginalPath) {

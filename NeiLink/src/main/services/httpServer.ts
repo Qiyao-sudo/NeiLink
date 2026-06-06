@@ -43,7 +43,8 @@ let logger: Logger | null = null;
 let globalServer: http.Server | null = null;
 let globalServerPort: number | null = null;
 
-const shares: Map<string, ShareConfig> = new Map();
+// 单一数据源：通过回调从 ShareManager 获取分享配置，不再维护独立的 Map
+let shareLookup: ((fileCode: string) => ShareConfig | undefined) | null = null;
 const downloadCallbacks: Map<string, (shareId: string) => void> = new Map();
 
 let rateLimitSettings: {
@@ -210,10 +211,19 @@ function checkRateLimit(ip: string, maxAttempts: number, banDuration: number): b
     record.banned = true;
     record.banExpiry = now + banDuration * 60 * 1000;
     logger?.log('system', `封禁IP: ${ip}，每分钟尝试次数: ${record.attempts}，封禁时长: ${banDuration}分钟`, { messageKey: 'bannedIP.blocked', messageParams: [ip, String(record.attempts), String(banDuration)] });
-    return true;
   }
 
-  return false;
+  // 定期清理过期记录（每 100 次调用清理一次，避免频繁遍历）
+  if (rateLimitRecords.size > 100 && Math.random() < 0.01) {
+    for (const [key, rec] of rateLimitRecords) {
+      // 删除已过期且不在封禁中的记录
+      if (!rec.banned && now - rec.windowStart > WINDOW_MS) {
+        rateLimitRecords.delete(key);
+      }
+    }
+  }
+
+  return record.banned;
 }
 
 // =============================================================================
@@ -251,7 +261,7 @@ function handleFileCodePage(
   }
 
   const fileCode = req.url.substring(1);
-  const share = shares.get(fileCode);
+  const share = shareLookup?.(fileCode);
   const locale = getLocale(detectLanguage(req));
   if (!share) {
     sendErrorPage(res, 404, locale.receiver.error.badFileCode, locale.receiver.error.badFileCodeMsg, undefined, locale);
@@ -270,7 +280,7 @@ function handleShareInfoAPI(req: http.IncomingMessage, res: http.ServerResponse)
   if (req.method !== 'GET' || !req.url?.startsWith('/api/share-info/')) return false;
 
   const fileCode = req.url.substring('/api/share-info/'.length);
-  const share = shares.get(fileCode);
+  const share = shareLookup?.(fileCode);
   const locale = getLocale(detectLanguage(req));
   if (!share) {
     sendJSON(res, 404, { error: locale.receiver.error.shareNotExist });
@@ -299,7 +309,7 @@ function handleVerifyAPI(req: http.IncomingMessage, res: http.ServerResponse): b
   if (req.method !== 'POST' || !req.url?.startsWith('/api/verify/')) return false;
 
   const fileCode = req.url.substring('/api/verify/'.length);
-  const share = shares.get(fileCode);
+  const share = shareLookup?.(fileCode);
   const locale = getLocale(detectLanguage(req));
   if (!share) {
     sendJSON(res, 404, { error: locale.receiver.error.shareNotExist });
@@ -337,7 +347,7 @@ function handleDownloadAPI(
   if (req.method !== 'GET' || !req.url?.startsWith('/api/download/')) return false;
 
   const fileCode = req.url.substring('/api/download/'.length);
-  const share = shares.get(fileCode);
+  const share = shareLookup?.(fileCode);
   const locale = getLocale(detectLanguage(req));
   if (!share) {
     sendErrorPage(res, 404, locale.receiver.error.shareNotExist, locale.receiver.error.shareNotExistMsg, undefined, locale);
@@ -356,9 +366,11 @@ function handleDownloadAPI(
     return true;
   }
 
-  // 下载完成回调
+  // 下载前预占计数（防止并发下载超出 maxDownloads 限制）
+  share.downloadCount++;
+
+  // 下载完成/中断回调
   res.on('finish', () => {
-    share.downloadCount++;
     logger?.log(
       'download',
       `文件下载成功: ${share.fileName} (下载码: ${fileCode})，下载IP: ${clientIP}`,
@@ -370,6 +382,13 @@ function handleDownloadAPI(
     );
     const cb = downloadCallbacks.get(fileCode);
     if (cb) cb(share.id);
+  });
+
+  // 下载中断时回退计数（防止负数）
+  res.on('close', () => {
+    if (!res.writableFinished) {
+      share.downloadCount = Math.max(0, share.downloadCount - 1);
+    }
   });
 
   const headers: http.OutgoingHttpHeaders = {
@@ -580,7 +599,7 @@ export function stopGlobalServer(): Promise<void> {
     globalServer.close(() => {
       globalServer = null;
       globalServerPort = null;
-      shares.clear();
+      shareLookup = null;
       downloadCallbacks.clear();
       resolve();
     });
@@ -648,14 +667,13 @@ export function registerShare(
   }
 
   const fileCode = shareConfig.id;
-  shares.set(fileCode, shareConfig);
+  // 不再存储到独立 Map，仅注册下载回调
   if (onDownload) {
     downloadCallbacks.set(fileCode, onDownload);
   }
 }
 
 export function unregisterShare(fileCode: string): void {
-  shares.delete(fileCode);
   downloadCallbacks.delete(fileCode);
 }
 
@@ -669,6 +687,13 @@ export function getGlobalServerPort(): number | null {
 
 export function setLogger(l: Logger): void {
   logger = l;
+}
+
+/**
+ * 注册分享数据查找回调（由 ShareManager 调用，建立单一数据源）
+ */
+export function setShareLookup(lookup: (fileCode: string) => ShareConfig | undefined): void {
+  shareLookup = lookup;
 }
 
 export function updateUserSettings(settings: Partial<SystemSettings>): void {
