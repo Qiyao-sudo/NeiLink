@@ -54,6 +54,13 @@ function execCmd(command: string, timeout = 15000): Promise<{ stdout: string; st
   });
 }
 
+/**
+ * 转义 shell 双引号字符串中的特殊字符，防止命令注入
+ */
+function escapeShellArg(s: string): string {
+  return s.replace(/["\\$`!]/g, '\\$&');
+}
+
 function runPowerShell(script: string, timeout = 60000): Promise<string> {
   const utf8Script = `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8\n${script}`;
   const encoded = Buffer.from(utf8Script, 'utf16le').toString('base64');
@@ -339,7 +346,7 @@ try {
 // ==================== Windows netsh 回退 ====================
 
 async function winStartHotspotNetsh(ssid: string, password: string): Promise<HotspotStatus> {
-  await execCmd(`netsh wlan set hostednetwork mode=allow ssid="${ssid}" key="${password}"`);
+  await execCmd(`netsh wlan set hostednetwork mode=allow ssid="${escapeShellArg(ssid)}" key="${escapeShellArg(password)}"`);
   await execCmd('netsh wlan start hostednetwork');
   currentConfig = { ssid, password };
   return { enabled: true, ssid, password };
@@ -593,7 +600,7 @@ async function linuxStartHotspot(config?: HotspotConfig): Promise<HotspotStatus>
     : (config?.password || currentConfig?.password || generatePassword(8));
 
   try {
-    await execCmd(`nmcli device wifi hotspot ssid "${ssid}" password "${password}"`);
+    await execCmd(`nmcli device wifi hotspot ssid "${escapeShellArg(ssid)}" password "${escapeShellArg(password)}"`);
     currentConfig = { ssid, password };
 
     if (loggerRef) {

@@ -361,9 +361,15 @@ if (!gotTheLock) {
     try {
       // 注册本地资源协议处理器（支持 Range 请求，用于视频播放）
       protocol.handle('local-asset', (request) => {
-        const assetsDir = path.join(__dirname, 'assets');
+        const assetsDir = path.resolve(path.join(__dirname, 'assets'));
         const fileName = request.url.replace('local-asset://', '');
-        const filePath = path.join(assetsDir, fileName);
+        const decodedFileName = decodeURIComponent(fileName);
+        const filePath = path.resolve(path.join(assetsDir, decodedFileName));
+
+        // 防止路径遍历：确保解析后的路径在 assetsDir 内
+        if (!filePath.startsWith(assetsDir + path.sep) && filePath !== assetsDir) {
+          return new Response('Forbidden', { status: 403 });
+        }
 
         try {
           const stat = fs.statSync(filePath);

@@ -626,6 +626,27 @@ export function registerShare(
   shareConfig: ShareConfig,
   onDownload?: (shareId: string) => void
 ): void {
+  // 校验文件路径合法性：禁止路径遍历和系统敏感目录
+  if (shareConfig.filePath) {
+    const resolvedPath = path.resolve(shareConfig.filePath);
+    const forbiddenPrefixes = [
+      path.resolve('C:\\Windows'),
+      path.resolve('C:\\Program Files'),
+      path.resolve('C:\\Program Files (x86)'),
+      '/etc',
+      '/usr',
+      '/bin',
+      '/sbin',
+      '/boot',
+      '/root',
+    ];
+    for (const prefix of forbiddenPrefixes) {
+      if (resolvedPath.startsWith(prefix + path.sep) || resolvedPath === prefix) {
+        throw new Error(`不允许分享系统目录下的文件: ${resolvedPath}`);
+      }
+    }
+  }
+
   const fileCode = shareConfig.id;
   shares.set(fileCode, shareConfig);
   if (onDownload) {
