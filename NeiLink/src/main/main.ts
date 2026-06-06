@@ -112,9 +112,6 @@ function createWindow(): void {
   } else {
     // 修正路径，直接指向 dist/renderer/index.html
     const indexPath = path.join(__dirname, '..', 'renderer', 'index.html');
-    console.log('Loading index.html from:', indexPath);
-    console.log('__dirname:', __dirname);
-    console.log('Full path:', indexPath);
     mainWindow.loadFile(indexPath);
   }
 

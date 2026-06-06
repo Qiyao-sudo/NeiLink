@@ -530,18 +530,6 @@ export class ShareManager {
   }
 
   /**
-   * 生成随机提取码
-   */
-  private generateExtractCode(length: number = 6): string {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 去除容易混淆的字符
-    let code = '';
-    for (let i = 0; i < length; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return code;
-  }
-
-  /**
    * 保存分享任务到文件（加密密钥字段）
    */
   private saveShares(): void {

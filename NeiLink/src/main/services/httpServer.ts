@@ -408,19 +408,10 @@ function handleDownloadAPI(
       headers['Accept-Ranges'] = 'none';
       // 不要设置 Content-Length 为 undefined，直接省略该字段
       res.writeHead(200, headers);
-
-      console.log('Starting encrypted file download:', {
-        shareId: share.id,
-        fileName: share.fileName,
-        filePath: share.filePath,
-        encryptEnabled: share.encryptEnabled,
-        encryptKeyLength: share.encryptKey?.length
-      });
       
       const inputStream = fs.createReadStream(share.filePath);
       
       inputStream.on('error', (err) => {
-        console.error('Input stream error:', err);
         logger?.log('error', `读取加密文件失败: ${share.fileName}`, { detail: err.message, messageKey: 'error.downloadEncrypted', messageParams: [share.fileName] });
       });
       
@@ -428,7 +419,6 @@ function handleDownloadAPI(
       try {
         decryptTransform = createDecryptTransform(share.encryptKey!);
       } catch (err) {
-        console.error('Failed to create decrypt transform:', err);
         if (!res.headersSent) {
           sendErrorPage(res, 500, locale.receiver.error.serverError, locale.receiver.error.transferFailed, undefined, locale);
         }
@@ -440,10 +430,9 @@ function handleDownloadAPI(
 
       pipeline(inputStream, decryptTransform, throttle, res, (err) => {
         if (err) {
-          console.error('Encrypted file pipeline error:', err);
           logger?.log('error', `加密文件传输失败: ${share.fileName}`, { detail: err.message, messageKey: 'error.downloadEncrypted', messageParams: [share.fileName] });
         } else {
-          console.log('Encrypted file pipeline completed successfully');
+          logger?.log('download', `加密文件传输完成: ${share.fileName}`, { messageKey: 'download.encryptedComplete', messageParams: [share.fileName] });
         }
       });
     } else if (share.isFolder) {
@@ -456,7 +445,7 @@ function handleDownloadAPI(
         if (!res.headersSent) {
           sendErrorPage(res, 500, locale.receiver.error.serverError, locale.receiver.error.archiveFailed, undefined, locale);
         }
-        console.error('Archive error:', err);
+        logger?.log('error', `打包文件夹失败: ${share.fileName}`, { detail: err.message, messageKey: 'error.archiveFailed', messageParams: [share.fileName] });
       });
       archive.finalize();
     } else {
@@ -496,14 +485,14 @@ function handleDownloadAPI(
         if (!res.headersSent) {
           sendErrorPage(res, 500, locale.receiver.error.serverError, locale.receiver.error.fileReadFailed, undefined, locale);
         }
-        console.error('File read error:', err);
+        logger?.log('error', `文件读取失败: ${share.fileName}`, { detail: err.message, messageKey: 'error.fileReadFailed', messageParams: [share.fileName] });
       });
     }
   } catch (err) {
     if (!res.headersSent) {
       sendErrorPage(res, 500, locale.receiver.error.serverError, locale.receiver.error.transferFailed, undefined, locale);
     }
-    console.error('Download error:', err);
+    logger?.log('error', `下载处理异常: ${share.fileName}`, { detail: err instanceof Error ? err.message : String(err), messageKey: 'error.downloadException', messageParams: [share.fileName] });
   }
 
   return true;
