@@ -501,6 +501,10 @@ export interface Locale {
     downloadUpdate: string;
     downloading: string;
     installing: string;
+    downloadPaused: string;
+    downloadPause: string;
+    downloadResume: string;
+    downloadCancel: string;
     releaseNotes: string;
     runtimeVersions: string;
     electron: string;

@@ -610,7 +610,20 @@ export function registerIpcHandlers(
   });
 
   ipcMain.handle(IPC_CHANNELS.APP_DOWNLOAD_UPDATE, async (event, assets) => {
-    return await updater.downloadAndInstall(assets, event);
+    return await updater.startDownload(assets, event);
+  });
+
+
+  ipcMain.handle(IPC_CHANNELS.APP_DOWNLOAD_PAUSE, () => {
+    return updater.pauseDownload();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.APP_DOWNLOAD_RESUME, async (event) => {
+    return await updater.resumeDownload(event);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.APP_DOWNLOAD_CANCEL, () => {
+    return updater.cancelDownload();
   });
 
   // 注册窗口状态变化事件推送

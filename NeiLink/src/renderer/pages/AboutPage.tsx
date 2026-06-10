@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { App, Card, Button, Typography, Space, Tag, Descriptions, Progress, Divider } from 'antd';
+import { App, Card, Button, Typography, Space, Progress } from 'antd';
 import {
   ReloadOutlined,
   DownloadOutlined,
@@ -100,6 +100,7 @@ const AboutPage: React.FC = () => {
   const [checking, setChecking] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
+  const [downloadPaused, setDownloadPaused] = useState(false);
 
   useEffect(() => {
     window.neilink.ipc.invoke('app:get-version').then((v) => setAppVersion(v as string));
@@ -131,10 +132,12 @@ const AboutPage: React.FC = () => {
     if (!updateInfo?.assets?.length || downloading) return;
     setDownloading(true);
     setDownloadProgress(0);
+    setDownloadPaused(false);
 
     const unsubscribe = window.neilink.ipc.on('update:download-progress', (percent) => {
       if (typeof percent === 'number') {
         setDownloadProgress(percent);
+        if (percent >= 100) setDownloadPaused(false);
       }
     });
 
@@ -148,204 +151,251 @@ const AboutPage: React.FC = () => {
     }
   }, [updateInfo, downloading, message, locale]);
 
+  const handlePause = useCallback(async () => {
+    await window.neilink.ipc.invoke('app:download-pause');
+    setDownloadPaused(true);
+  }, []);
+
+  const handleResume = useCallback(async () => {
+    setDownloadPaused(false);
+    const unsubscribe = window.neilink.ipc.on('update:download-progress', (percent) => {
+      if (typeof percent === 'number') {
+        setDownloadProgress(percent);
+        if (percent >= 100) setDownloadPaused(false);
+      }
+    });
+    try {
+      await window.neilink.ipc.invoke('app:download-resume');
+    } catch {
+      message.error(locale.about.checkError);
+      setDownloading(false);
+    } finally {
+      unsubscribe();
+    }
+  }, [message, locale]);
+
+  const handleCancel = useCallback(async () => {
+    await window.neilink.ipc.invoke('app:download-cancel');
+    setDownloading(false);
+    setDownloadPaused(false);
+    setDownloadProgress(0);
+  }, []);
+
   return (
     <div>
       <Title level={4} style={{ marginBottom: 16 }}>
         {locale.about.title}
       </Title>
 
-      {/* 应用信息卡片 */}
+      {/* 应用信息 */}
       <Card style={{ marginBottom: 16 }}>
-        <div style={{ textAlign: 'center' }}>
-          <img
-            src={logo}
-            alt="NeiLink"
-            style={{ width: 72, height: 72, marginBottom: 8 }}
-          />
-          <Title level={3} style={{ margin: 0, marginBottom: 4 }}>NeiLink</Title>
-          {appVersion && (
-            <Text type="secondary" style={{ fontSize: 13 }}>
-              v{appVersion}
-            </Text>
-          )}
-        </div>
-
-        <Divider style={{ margin: '16px 0' }} />
-
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 6,
-        }}>
-          <Space size={4}>
-            <UserOutlined style={{ color: 'var(--text-secondary, #666)' }} />
-            <Text type="secondary">{locale.about.author}:</Text>
-            <Text>Qiyao-sudo</Text>
-          </Space>
-          <Space size={4}>
-            <GithubOutlined style={{ color: 'var(--text-secondary, #666)' }} />
-            <Text type="secondary">{locale.about.repository}:</Text>
-            <a
-              href="https://github.com/Qiyao-sudo/NeiLink"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              github.com/Qiyao-sudo/NeiLink
-            </a>
-          </Space>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          <img src={logo} alt="NeiLink" style={{ width: 56, height: 56, flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+              <Title level={4} style={{ margin: 0 }}>NeiLink</Title>
+              {appVersion && <Text type="secondary">v{appVersion}</Text>}
+            </div>
+            <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <Space size={6}>
+                <UserOutlined style={{ color: 'var(--text-secondary, #666)' }} />
+                <Text type="secondary">{locale.about.author}:</Text>
+                <Text>Qiyao-sudo</Text>
+              </Space>
+              <Space size={6}>
+                <GithubOutlined style={{ color: 'var(--text-secondary, #666)' }} />
+                <Text type="secondary">{locale.about.repository}:</Text>
+                <a href="https://github.com/Qiyao-sudo/NeiLink" target="_blank" rel="noopener noreferrer">
+                  github.com/Qiyao-sudo/NeiLink
+                </a>
+              </Space>
+            </div>
+          </div>
         </div>
       </Card>
 
-      {/* 更新卡片 */}
-      <Card
-        title={locale.about.checkUpdate}
-        style={{ marginBottom: 16 }}
-      >
-        <div style={{ textAlign: 'center' }}>
-          <Button
-            type="primary"
-            icon={<ReloadOutlined />}
-            loading={checking}
-            onClick={handleCheckUpdate}
-            disabled={downloading}
-          >
-            {checking ? locale.about.checking : locale.about.checkUpdate}
-          </Button>
-        </div>
+      {/* 检查更新 */}
+      <Card title={locale.about.checkUpdate} style={{ marginBottom: 16 }}>
+        {/* 尚未检查 → 居中按钮 */}
+        {!updateInfo && !checking && (
+          <div style={{ textAlign: 'center' }}>
+            <Button
+              type="primary"
+              icon={<ReloadOutlined />}
+              onClick={handleCheckUpdate}
+              disabled={downloading}
+            >
+              {locale.about.checkUpdate}
+            </Button>
+          </div>
+        )}
 
-        {updateInfo && (
-          <div style={{ marginTop: 20 }}>
-            {updateInfo.hasUpdate ? (
-              <>
-                {/* 新版本提示 */}
+        {/* 正在检查 */}
+        {checking && (
+          <div style={{ textAlign: 'center', padding: '8px 0' }}>
+            <Button type="primary" icon={<ReloadOutlined />} loading>
+              {locale.about.checking}
+            </Button>
+          </div>
+        )}
+
+        {/* 已是最新 */}
+        {updateInfo && !updateInfo.hasUpdate && !checking && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <CheckCircleOutlined style={{ color: 'var(--color-success, #52c41a)', fontSize: 16 }} />
+              <Text strong>{locale.about.alreadyLatest}</Text>
+            </div>
+            <Button size="small" icon={<ReloadOutlined />} onClick={handleCheckUpdate} disabled={downloading}>
+              {locale.about.checkUpdate}
+            </Button>
+          </div>
+        )}
+
+        {/* 发现新版本 */}
+        {updateInfo && updateInfo.hasUpdate && !checking && (
+          <>
+            {/* 版本横幅 */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 14px',
+              background: 'var(--color-success-bg, #f6ffed)',
+              border: '1px solid var(--color-success, #52c41a)',
+              borderRadius: 6,
+              marginBottom: updateInfo.releaseNotes ? 14 : 16,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <CheckCircleOutlined style={{ color: 'var(--color-success, #52c41a)', fontSize: 16 }} />
+                <Text strong style={{ color: 'var(--color-success, #52c41a)' }}>
+                  v{updateInfo.currentVersion} → v{updateInfo.latestVersion}
+                </Text>
+              </div>
+              <Button
+                size="small"
+                icon={<ReloadOutlined />}
+                onClick={handleCheckUpdate}
+                disabled={downloading}
+              >
+                {locale.about.checkUpdate}
+              </Button>
+            </div>
+
+            {/* 更新日志 */}
+            {updateInfo.releaseNotes && (
+              <div style={{ marginBottom: 16 }}>
+                <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 13 }}>
+                  {locale.about.releaseNotes}
+                </Text>
+                <div
+                  className="release-notes"
+                  dangerouslySetInnerHTML={{ __html: renderMarkdown(updateInfo.releaseNotes) }}
+                  style={{
+                    fontSize: 13,
+                    color: 'var(--text-secondary, #666)',
+                    background: 'var(--bg-primary, #fff)',
+                    padding: '10px 14px',
+                    borderRadius: 8,
+                    border: '1px solid var(--border-secondary, #f0f0f0)',
+                    maxHeight: 200,
+                    overflow: 'auto',
+                    textAlign: 'left',
+                    lineHeight: 1.6,
+                  }}
+                />
+              </div>
+            )}
+
+            {/* 下载 / 进度 */}
+            {downloading ? (
+              <div style={{ width: '100%', maxWidth: 400, margin: '0 auto' }}>
+                <Progress
+                  percent={downloadProgress < 0 ? 100 : downloadProgress}
+                  status={
+                    downloadProgress < 0 ? 'exception'
+                    : downloadPaused ? 'normal'
+                    : downloadProgress < 100 ? 'active' : 'success'
+                  }
+                />
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  padding: '10px 16px',
-                  background: 'var(--color-success-bg, #f6ffed)',
-                  border: '1px solid var(--color-success, #52c41a)',
-                  borderLeft: '3px solid var(--color-success, #52c41a)',
-                  borderRadius: 6,
-                  marginBottom: 16,
+                  justifyContent: 'space-between',
+                  marginTop: 4,
                 }}>
-                  <CheckCircleOutlined style={{ color: 'var(--color-success, #52c41a)', fontSize: 18 }} />
-                  <Text strong style={{ color: 'var(--color-success, #52c41a)', fontSize: 15 }}>
-                    {locale.about.newVersionFound}: v{updateInfo.latestVersion}
-                  </Text>
-                </div>
-
-                {/* 更新日志 */}
-                {updateInfo.releaseNotes && (
-                  <div style={{ marginBottom: 16 }}>
-                    <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 14 }}>
-                      {locale.about.releaseNotes}
-                    </Text>
-                    <div
-                      className="release-notes"
-                      dangerouslySetInnerHTML={{ __html: renderMarkdown(updateInfo.releaseNotes) }}
-                      style={{
-                        fontSize: 13,
-                        color: 'var(--text-secondary, #666)',
-                        background: 'var(--bg-primary, #fff)',
-                        padding: '12px 16px',
-                        borderRadius: 8,
-                        border: '1px solid var(--border-secondary, #f0f0f0)',
-                        maxHeight: 240,
-                        overflow: 'auto',
-                        textAlign: 'left',
-                        lineHeight: 1.6,
-                      }}
-                    />
-                  </div>
-                )}
-
-                {/* 下载区域 */}
-                {downloading ? (
-                  <div style={{ width: '100%', maxWidth: 360, margin: '0 auto' }}>
-                    <Progress
-                      percent={downloadProgress < 0 ? 100 : downloadProgress}
-                      status={downloadProgress < 0 ? 'exception' : downloadProgress < 100 ? 'active' : 'success'}
-                    />
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      {downloadProgress < 0
-                        ? locale.about.checkError
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {downloadProgress < 0
+                      ? locale.about.checkError
+                      : downloadPaused
+                        ? locale.about.downloadPaused
                         : downloadProgress < 100
                           ? locale.about.downloading
                           : locale.about.installing}
-                    </Text>
-                  </div>
-                ) : (
-                  <div style={{ textAlign: 'center' }}>
-                    <Button
-                      type="primary"
-                      size="large"
-                      icon={<DownloadOutlined />}
-                      onClick={handleDownload}
-                    >
-                      {locale.about.downloadUpdate}
-                    </Button>
-                  </div>
-                )}
-              </>
+                  </Text>
+                  <Space size={8}>
+                    {downloadProgress >= 0 && downloadProgress < 100 && (
+                      downloadPaused ? (
+                        <Button size="small" type="primary" onClick={handleResume}>
+                          {locale.about.downloadResume}
+                        </Button>
+                      ) : (
+                        <Button size="small" onClick={handlePause}>
+                          {locale.about.downloadPause}
+                        </Button>
+                      )
+                    )}
+                    {downloadProgress < 100 && (
+                      <Button size="small" danger onClick={handleCancel}>
+                        {locale.about.downloadCancel}
+                      </Button>
+                    )}
+                  </Space>
+                </div>
+              </div>
             ) : (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                padding: '10px 16px',
-                background: 'var(--bg-tertiary, #fafafa)',
-                border: '1px solid var(--border-primary, #d9d9d9)',
-                borderLeft: '3px solid var(--color-success, #52c41a)',
-                borderRadius: 6,
-              }}>
-                <CheckCircleOutlined style={{ color: 'var(--color-success, #52c41a)', fontSize: 18 }} />
-                <Text strong style={{ fontSize: 15 }}>
-                  {locale.about.alreadyLatest}
-                </Text>
+              <div style={{ textAlign: 'center' }}>
+                <Button
+                  type="primary"
+                  size="large"
+                  block
+                  icon={<DownloadOutlined />}
+                  onClick={handleDownload}
+                >
+                  {locale.about.downloadUpdate}
+                </Button>
               </div>
             )}
-          </div>
+          </>
         )}
       </Card>
 
-      {/* 运行时版本卡片 */}
+      {/* 运行时版本 */}
       <Card title={locale.about.runtimeVersions}>
-        <Descriptions column={1} size="small">
-          <Descriptions.Item
-            label={
-              <Space>
-                <InfoCircleOutlined style={{ color: 'var(--color-primary, #1890ff)' }} />
-                <span>{locale.about.electron}</span>
-              </Space>
-            }
-          >
-            <Tag>{versions.electron}</Tag>
-          </Descriptions.Item>
-          <Descriptions.Item
-            label={
-              <Space>
-                <InfoCircleOutlined style={{ color: 'var(--color-primary, #1890ff)' }} />
-                <span>{locale.about.chrome}</span>
-              </Space>
-            }
-          >
-            <Tag>{versions.chrome}</Tag>
-          </Descriptions.Item>
-          <Descriptions.Item
-            label={
-              <Space>
-                <InfoCircleOutlined style={{ color: 'var(--color-primary, #1890ff)' }} />
-                <span>{locale.about.node}</span>
-              </Space>
-            }
-          >
-            <Tag>{versions.node}</Tag>
-          </Descriptions.Item>
-        </Descriptions>
+        <div style={{ display: 'flex', gap: 12 }}>
+          {([
+            { label: locale.about.electron, value: versions.electron },
+            { label: locale.about.chrome, value: versions.chrome },
+            { label: locale.about.node, value: versions.node },
+          ] as const).map(item => (
+            <div key={item.label} style={{
+              flex: 1,
+              textAlign: 'center',
+              padding: '8px 0',
+              background: 'var(--bg-tertiary, #fafafa)',
+              borderRadius: 6,
+            }}>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary, #666)', marginBottom: 4 }}>
+                {item.label}
+              </div>
+              <Text strong>{item.value}</Text>
+            </div>
+          ))}
+        </div>
       </Card>
     </div>
   );

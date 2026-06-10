@@ -173,6 +173,9 @@ export const IPC_CHANNELS = {
   APP_GET_VERSION: 'app:get-version',
   APP_CHECK_UPDATE: 'app:check-update',
   APP_DOWNLOAD_UPDATE: 'app:download-update',
+  APP_DOWNLOAD_PAUSE: 'app:download-pause',
+  APP_DOWNLOAD_RESUME: 'app:download-resume',
+  APP_DOWNLOAD_CANCEL: 'app:download-cancel',
   UPDATE_DOWNLOAD_PROGRESS: 'update:download-progress',
 
   // 窗口关闭行为
