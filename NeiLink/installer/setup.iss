@@ -7,6 +7,9 @@
 #ifndef MyAppArch
   #define MyAppArch "x64"
 #endif
+#ifndef MyAppUnpackedDir
+  #define MyAppUnpackedDir "win-unpacked"
+#endif
 
 #define MyAppName "NeiLink"
 #define MyAppPublisher "Qiyao-sudo"
@@ -46,7 +49,7 @@ Name: "chinesesimplified"; MessagesFile: "ChineseSimplified.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
-Source: "..\release\win-unpacked\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\release\{#MyAppUnpackedDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

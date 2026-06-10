@@ -35,7 +35,19 @@ if (fs.existsSync(isccDefaultPath)) {
 }
 
 const scriptPath = path.join('installer', 'setup.iss');
-const cmd = `"${isccPath}" /DMyAppVersion="${version}" /DMyAppArch="${arch}" "${scriptPath}"`;
+
+// 查找 win-unpacked 目录（x64 为 win-unpacked，arm64 可能为 win-arm64-unpacked）
+const releaseDir = path.join('release');
+let unpackedDir = 'win-unpacked';
+if (fs.existsSync(releaseDir)) {
+  const dirs = fs.readdirSync(releaseDir).filter(d => d.startsWith('win') && d.endsWith('-unpacked'));
+  if (dirs.length > 0) {
+    // 优先匹配带架构名的目录，回退到 win-unpacked
+    unpackedDir = dirs.find(d => d.includes(arch)) || dirs.find(d => d === 'win-unpacked') || dirs[0];
+  }
+}
+
+const cmd = `"${isccPath}" /DMyAppVersion="${version}" /DMyAppArch="${arch}" /DMyAppUnpackedDir="${unpackedDir}" "${scriptPath}"`;
 
 console.log(`构建 NeiLink ${version} (${arch}) 安装包...`);
 console.log(`执行: ${cmd}`);
