@@ -499,6 +499,8 @@ export interface Locale {
     alreadyLatest: string;
     newVersionFound: string;
     downloadUpdate: string;
+    downloading: string;
+    installing: string;
     releaseNotes: string;
     runtimeVersions: string;
     electron: string;

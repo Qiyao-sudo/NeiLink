@@ -172,6 +172,8 @@ export const IPC_CHANNELS = {
   // 应用相关
   APP_GET_VERSION: 'app:get-version',
   APP_CHECK_UPDATE: 'app:check-update',
+  APP_DOWNLOAD_UPDATE: 'app:download-update',
+  UPDATE_DOWNLOAD_PROGRESS: 'update:download-progress',
 
   // 窗口关闭行为
   WINDOW_CLOSE_ACTION: 'window:close-action',
@@ -195,12 +197,18 @@ export interface NeiLinkAPI {
   };
 }
 
+export interface UpdateAsset {
+  name: string;
+  browser_download_url: string;
+}
+
 export interface UpdateInfo {
   hasUpdate: boolean;
   currentVersion: string;
   latestVersion: string;
   downloadUrl: string;
   releaseNotes: string;
+  assets: UpdateAsset[];
 }
 
 declare global {

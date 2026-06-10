@@ -609,6 +609,10 @@ export function registerIpcHandlers(
     return await updater.checkForUpdates();
   });
 
+  ipcMain.handle(IPC_CHANNELS.APP_DOWNLOAD_UPDATE, async (event, assets) => {
+    return await updater.downloadAndInstall(assets, event);
+  });
+
   // 注册窗口状态变化事件推送
   mainWindow.on('maximize', () => {
     if (!mainWindow.isDestroyed()) {
