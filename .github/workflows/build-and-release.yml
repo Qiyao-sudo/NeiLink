@@ -78,6 +78,15 @@ jobs:
         working-directory: NeiLink
         run: npx electron-builder --${{ matrix.platform }} --${{ matrix.arch }}
 
+      - name: 安装 Inno Setup
+        if: matrix.platform == 'win'
+        run: choco install innosetup -y
+
+      - name: 构建 Inno Setup 安装包
+        if: matrix.platform == 'win'
+        working-directory: NeiLink
+        run: node build-installer.js --arch=${{ matrix.arch }}
+
       - name: 整理和压缩构建产物
         working-directory: NeiLink/release
         run: |
@@ -96,23 +105,13 @@ jobs:
 
           # ==================== Windows ====================
           if [ "$P" = "win" ]; then
-            EXE=$(find . -maxdepth 2 -type f \( -name "NeiLink-${V}-${P}-${A}.exe" -o -name "NeiLink ${V}.exe" \) \
-              -not -name "*Setup*" -not -name "*.blockmap" 2>/dev/null | head -1)
-            if [ -n "$EXE" ]; then
-              DIR=$(dirname "$EXE"); BASE=$(basename "$EXE")
-              tar -czf "${OUT}-${PN}-${A}-executable.tar.gz" -C "$DIR" "$BASE"
-              echo "已压缩: ${BASE} -> ${OUT}-${PN}-${A}-executable.tar.gz"
+            SETUP=$(find . -maxdepth 2 -type f -name "*-setup.exe" 2>/dev/null | head -1)
+            if [ -n "$SETUP" ]; then
+              DIR=$(dirname "$SETUP"); BASE=$(basename "$SETUP")
+              tar -czf "${OUT}-${PN}-${A}-installation.tar.gz" -C "$DIR" "$BASE"
+              echo "已压缩: ${BASE} -> ${OUT}-${PN}-${A}-installation.tar.gz"
             else
-              echo "::warning::未找到 Windows 可执行文件(.exe)"
-            fi
-
-            UNP=$(find . -maxdepth 2 -type d -name "win-unpacked" 2>/dev/null | head -1)
-            if [ -n "$UNP" ]; then
-              DIR=$(dirname "$UNP"); BASE=$(basename "$UNP")
-              tar -czf "${OUT}-${PN}-${A}-unpacked.tar.gz" -C "$DIR" "$BASE"
-              echo "已压缩: ${BASE} -> ${OUT}-${PN}-${A}-unpacked.tar.gz"
-            else
-              echo "::warning::未找到 win-unpacked 目录"
+              echo "::warning::未找到 Inno Setup 安装包"
             fi
           fi
 
