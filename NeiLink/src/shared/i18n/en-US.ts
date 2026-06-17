@@ -282,6 +282,9 @@ export const enUS: Locale = {
 
     'settings.updated': 'Settings updated',
     'settings.reset': 'Settings reset to defaults',
+    'autoStart.enabled': 'Start on boot enabled',
+    'autoStart.disabled': 'Start on boot disabled',
+    'error.setAutoStart': 'Failed to set start on boot',
     'log.cleared': 'Logs cleared',
     'bannedIP.unban': 'Unbanned IP: {0}',
     'bannedIP.updateDuration': 'Updated ban duration: {0} -> {1}min',

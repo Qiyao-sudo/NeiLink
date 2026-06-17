@@ -15,6 +15,7 @@ import { ShareManager } from './services/shareManager';
 import { registerIpcHandlers } from './ipcHandlers';
 import { setLogger, updateUserSettings } from './services/httpServer';
 import { initializeHotspot } from './services/hotspot';
+import { setAutoStart, isLaunchedHidden } from './services/autoStart';
 
 let mainWindow: BrowserWindow | null = null;
 let floatWindow: BrowserWindow | null = null;
@@ -99,8 +100,13 @@ function createWindow(): void {
     frame: false, // 取消标题栏
   });
 
+  // 若由开机自启（带 --hidden 参数）启动，则启动后隐藏到托盘，不打扰用户
+  const startHidden = isLaunchedHidden();
+
   mainWindow.once('ready-to-show', () => {
-    mainWindow?.show();
+    if (!startHidden) {
+      mainWindow?.show();
+    }
   });
 
   // 开发环境加载 webpack-dev-server，生产环境加载打包后的文件
@@ -220,6 +226,10 @@ async function initializeServices(): Promise<void> {
   settingsManager = new SettingsManager(userDataPath);
   await settingsManager.initialize();
   const settings = await settingsManager.getSettings();
+
+  // 开机自启：启动时以持久化设置为准，校正操作系统登录项状态
+  // （避免卸载重装、手动清理注册表等导致的状态漂移）
+  setAutoStart(settings.autoStart);
 
   // 托盘菜单语言同步
   rebuildTrayMenu(settings.language);

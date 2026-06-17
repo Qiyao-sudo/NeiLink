@@ -279,6 +279,9 @@ export interface Locale {
     'error.cancelShareTask': string;
     'settings.updated': string;
     'settings.reset': string;
+    'autoStart.enabled': string;
+    'autoStart.disabled': string;
+    'error.setAutoStart': string;
     'log.cleared': string;
     'bannedIP.unban': string;
     'bannedIP.updateDuration': string;

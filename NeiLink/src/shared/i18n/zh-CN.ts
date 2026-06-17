@@ -282,6 +282,9 @@ export const zhCN: Locale = {
 
     'settings.updated': '设置已更新',
     'settings.reset': '设置已重置为默认值',
+    'autoStart.enabled': '已开启开机自启',
+    'autoStart.disabled': '已关闭开机自启',
+    'error.setAutoStart': '设置开机自启失败',
     'log.cleared': '日志已清空',
     'bannedIP.unban': '解封IP: {0}',
     'bannedIP.updateDuration': '更新封禁时长: {0} -> {1}分钟',

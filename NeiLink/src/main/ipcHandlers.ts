@@ -14,6 +14,7 @@ import { ShareManager, CreateShareParams } from './services/shareManager';
 import * as hotspot from './services/hotspot';
 import * as httpServer from './services/httpServer';
 import * as updater from './services/updater';
+import { setAutoStart } from './services/autoStart';
 
 /**
  * 注册所有 IPC 处理器
@@ -242,6 +243,18 @@ export function registerIpcHandlers(
 
       await settingsManager.saveSettings(settings);
 
+      // 开机自启：将开关同步到操作系统登录项
+      if (settings.autoStart !== undefined) {
+        const ok = setAutoStart(settings.autoStart);
+        if (ok) {
+          logger.log('system', settings.autoStart ? '已开启开机自启' : '已关闭开机自启', {
+            messageKey: settings.autoStart ? 'autoStart.enabled' : 'autoStart.disabled',
+          });
+        } else {
+          logger.log('error', '设置开机自启失败', { messageKey: 'error.setAutoStart' });
+        }
+      }
+
       // 托盘菜单语言同步
       if (settings.language && onLanguageChange) {
         onLanguageChange(settings.language);
@@ -290,6 +303,9 @@ export function registerIpcHandlers(
   ipcMain.handle(IPC_CHANNELS.SETTINGS_RESET, async () => {
     try {
       await settingsManager.resetSettings();
+
+      // 重置后默认关闭开机自启，同步到操作系统登录项
+      setAutoStart(false);
 
       // 更新分享管理器的设置引用
       const fullSettings = await settingsManager.getSettings();
