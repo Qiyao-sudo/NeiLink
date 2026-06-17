@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useSettings } from './SettingsContext';
 
 type ThemeMode = 'light' | 'dark' | 'auto';
 type ResolvedTheme = 'light' | 'dark';
@@ -6,7 +7,7 @@ type ResolvedTheme = 'light' | 'dark';
 interface ThemeContextType {
   theme: ThemeMode;
   resolvedTheme: ResolvedTheme;
-  setTheme: (theme: ThemeMode) => Promise<void>;
+  setTheme: (theme: ThemeMode) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -37,30 +38,20 @@ function applyTheme(resolved: ResolvedTheme) {
   document.documentElement.setAttribute('data-theme', resolved);
 }
 
-interface ThemeProviderProps {
-  children: ReactNode;
-  initialTheme: ThemeMode;
-}
+export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { settings, updateSetting } = useSettings();
+  // 主题来自全局设置（设置在应用启动时已加载）
+  const theme: ThemeMode = (settings.theme as ThemeMode) || 'auto';
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => resolveTheme(theme));
 
-export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children, initialTheme }) => {
-  const [theme, setThemeState] = useState<ThemeMode>(initialTheme);
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => resolveTheme(initialTheme));
-  const userChangedRef = React.useRef(false);
+  // 当设置中的主题变化时，重新解析
+  useEffect(() => {
+    setResolvedTheme(resolveTheme(theme));
+  }, [theme]);
 
   useEffect(() => {
     applyTheme(resolvedTheme);
   }, [resolvedTheme]);
-
-  useEffect(() => {
-    if (userChangedRef.current) {
-      userChangedRef.current = false;
-      return;
-    }
-    if (initialTheme !== theme) {
-      setThemeState(initialTheme);
-      setResolvedTheme(resolveTheme(initialTheme));
-    }
-  }, [initialTheme]);
 
   useEffect(() => {
     if (theme !== 'auto') return;
@@ -74,17 +65,9 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children, initialT
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, [theme]);
 
-  const setTheme = useCallback(async (newTheme: ThemeMode) => {
-    userChangedRef.current = true;
-    setThemeState(newTheme);
-    setResolvedTheme(resolveTheme(newTheme));
-
-    try {
-      await window.neilink.ipc.invoke('settings:save', { theme: newTheme });
-    } catch (error) {
-      console.error('保存主题设置失败:', error);
-    }
-  }, []);
+  const setTheme = (newTheme: ThemeMode) => {
+    updateSetting('theme', newTheme);
+  };
 
   return (
     <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme }}>

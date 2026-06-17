@@ -20,7 +20,7 @@ import AboutPage from './pages/AboutPage';
 import OnboardingPage from './pages/OnboardingPage';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
-import { SystemSettings, IPC_CHANNELS } from '../shared/types';
+import { SettingsProvider, useSettings } from './contexts/SettingsContext';
 
 const AppLayout: React.FC<{
   showOnboarding: boolean;
@@ -28,6 +28,7 @@ const AppLayout: React.FC<{
 }> = ({ showOnboarding, onOnboardingComplete }) => {
   const { locale } = useLanguage();
   const { resolvedTheme } = useTheme();
+  const { updateSettings } = useSettings();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -66,7 +67,7 @@ const AppLayout: React.FC<{
   ];
 
   useEffect(() => {
-    const unsubscribe = window.neilink.ipc.on(IPC_CHANNELS.WINDOW_NAVIGATE, (path: unknown) => {
+    const unsubscribe = window.neilink.ipc.on('window:navigate', (path: unknown) => {
       if (typeof path === 'string') {
         navigate(path);
       }
@@ -78,10 +79,10 @@ const AppLayout: React.FC<{
     navigate(key);
   };
 
-  // 开箱体验完成后保存设置
-  const handleOnboardingComplete = async (settings: any) => {
+  // 开箱体验完成后保存设置（通过 SettingsContext 立即持久化）
+  const handleOnboardingComplete = (settings: any) => {
     try {
-      await window.neilink.ipc.invoke('settings:save', {
+      updateSettings({
         userName: settings.userName,
         userAvatar: settings.userAvatar,
         floatWindowEnabled: settings.floatWindowEnabled,
@@ -159,70 +160,38 @@ const AppLayout: React.FC<{
   );
 };
 
-const App: React.FC = () => {
-  const [initialSettings, setInitialSettings] = useState<SystemSettings>({
-    autoStart: false,
-    defaultNickname: 'NeiLink用户',
-    defaultExtractCode: true,
-    defaultExpiry: '24h',
-    defaultMaxDownloads: -1,
-    defaultMaxConcurrent: -1,
-    port: 8080,
-    hotspotSsid: 'NeiLink',
-    hotspotPassword: '',
-    hotspotRandomPassword: true,
-    floatWindowEnabled: true,
-    downloadSpeedLimit: 0,
-    rateLimitEnabled: true,
-    rateLimitMaxAttempts: 10,
-    rateLimitBanDuration: 30,
-    defaultEncrypt: false,
-    logRetentionDays: 30,
-    logStoragePath: '',
-    clearSharesOnExit: false,
-    closeBehavior: 'ask',
-    selectedAdapter: undefined,
-    language: 'zh-CN',
-    theme: 'auto',
-    userName: 'NeiLink用户',
-    userAvatar: undefined,
-  });
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
+const AppRoot: React.FC = () => {
+  const { settings, loading } = useSettings();
+  // 仅在设置首次加载完成后决定是否进入开箱体验，
+  // 之后用本地状态记住“已完成开箱”，避免设置变化导致重复判断。
+  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        const result = await window.neilink.ipc.invoke('settings:get') as any;
-        if (result?.success && result.data) {
-          const data = result.data as SystemSettings;
-          setInitialSettings(data);
-          // 未完成开箱体验时显示引导
-          if (!data.onboardingCompleted) {
-            setShowOnboarding(true);
-          }
-        }
-      } catch (error) {
-        console.error('获取系统设置失败:', error);
-      }
-      setSettingsLoaded(true);
-    };
+    if (!loading && onboardingDone === null) {
+      setOnboardingDone(!!settings.onboardingCompleted);
+    }
+  }, [loading, settings.onboardingCompleted, onboardingDone]);
 
-    fetchSettings();
-  }, []);
-
-  if (!settingsLoaded) return null;
+  if (loading || onboardingDone === null) return null;
 
   return (
+    <LanguageProvider>
+      <ThemeProvider>
+        <AppLayout
+          showOnboarding={!onboardingDone}
+          onOnboardingComplete={() => setOnboardingDone(true)}
+        />
+      </ThemeProvider>
+    </LanguageProvider>
+  );
+};
+
+const App: React.FC = () => {
+  return (
     <HashRouter>
-      <LanguageProvider initialSettings={initialSettings}>
-        <ThemeProvider initialTheme={initialSettings.theme}>
-          <AppLayout
-            showOnboarding={showOnboarding}
-            onOnboardingComplete={() => setShowOnboarding(false)}
-          />
-        </ThemeProvider>
-      </LanguageProvider>
+      <SettingsProvider>
+        <AppRoot />
+      </SettingsProvider>
     </HashRouter>
   );
 };

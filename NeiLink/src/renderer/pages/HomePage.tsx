@@ -12,6 +12,7 @@ import ShareConfigModal, { ShareFormConfig, ShareResult } from '../components/Sh
 import HotspotConfigModal from '../components/HotspotConfigModal';
 import { NetworkInfo, ShareConfig } from '../../shared/types';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useSettings } from '../contexts/SettingsContext';
 
 const { Text, Title } = Typography;
 
@@ -26,6 +27,8 @@ interface HotspotStatus {
 const HomePage: React.FC = () => {
   const { message } = App.useApp();
   const { locale } = useLanguage();
+  // 设置统一由 SettingsContext 管理（应用启动时已加载）
+  const { settings, updateSetting } = useSettings();
   const [networkStatus, setNetworkStatus] = useState<NetworkInfo>({
     type: 'none',
     ip: '0.0.0.0',
@@ -44,16 +47,8 @@ const HomePage: React.FC = () => {
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [hotspotModalVisible, setHotspotModalVisible] = useState(false);
   const [hotspotLoading, setHotspotLoading] = useState<'start' | 'stop' | null>(null);
-  const [hotspotRandomPassword, setHotspotRandomPassword] = useState(true);
   const [selectedFilePath, setSelectedFilePath] = useState('');
   const [selectedIsFolder, setSelectedIsFolder] = useState(false);
-  const [defaultSettings, setDefaultSettings] = useState({
-    defaultExtractCode: true,
-    defaultExpiry: '24h',
-    defaultMaxDownloads: -1,
-    defaultMaxConcurrent: -1,
-    defaultEncrypt: false,
-  });
   const dropRef = useRef<HTMLDivElement>(null);
 
   const fetchNetworkStatus = useCallback(async () => {
@@ -90,40 +85,24 @@ const HomePage: React.FC = () => {
     }
   }, []);
 
-  const fetchDefaultSettings = useCallback(async () => {
-    try {
-      const result = await window.neilink.ipc.invoke('settings:get') as any;
-      if (result?.success && result.data) {
-        const settings = result.data as Record<string, unknown>;
-        setDefaultSettings({
-          defaultExtractCode: settings.defaultExtractCode as boolean ?? true,
-          defaultExpiry: (settings.defaultExpiry as string) || '24h',
-          defaultMaxDownloads: settings.defaultMaxDownloads as number ?? -1,
-          defaultMaxConcurrent: settings.defaultMaxConcurrent as number ?? -1,
-          defaultEncrypt: settings.defaultEncrypt as boolean ?? false,
-        });
-        setHotspotRandomPassword(settings.hotspotRandomPassword as boolean ?? true);
-        setHotspotInfo(prev => ({
-          ...prev,
-          ssid: prev.ssid || (settings.hotspotSsid as string) || 'NeiLink',
-          password: prev.password || (settings.hotspotPassword as string) || '',
-        }));
-      }
-    } catch {
-      // 静默处理
-    }
-  }, []);
-
   useEffect(() => {
     fetchNetworkStatus();
     fetchHotspotStatus();
-    fetchDefaultSettings();
     const interval = setInterval(() => {
       fetchNetworkStatus();
       fetchHotspotStatus();
     }, 5000);
     return () => clearInterval(interval);
-  }, [fetchNetworkStatus, fetchHotspotStatus, fetchDefaultSettings]);
+  }, [fetchNetworkStatus, fetchHotspotStatus]);
+
+  // 首次加载时用持久化设置填充热点展示信息（运行中的真实状态由轮询覆盖）
+  useEffect(() => {
+    setHotspotInfo(prev => ({
+      ...prev,
+      ssid: prev.ssid || settings.hotspotSsid || 'NeiLink',
+      password: prev.password || settings.hotspotPassword || '',
+    }));
+  }, [settings.hotspotSsid, settings.hotspotPassword]);
 
   useEffect(() => {
     const cleanup = window.neilink.ipc.on('float:open-share', (data: any) => {
@@ -264,8 +243,8 @@ const HomePage: React.FC = () => {
       if (checked) {
         const result = await window.neilink.ipc.invoke('hotspot:start', {
           ssid: hotspotInfo.ssid || undefined,
-          password: hotspotRandomPassword ? undefined : (hotspotInfo.password || undefined),
-          randomPassword: hotspotRandomPassword,
+          password: settings.hotspotRandomPassword ? undefined : (hotspotInfo.password || undefined),
+          randomPassword: settings.hotspotRandomPassword,
         }) as any;
         if (result?.success && result.data) {
           const status = result.data as HotspotStatus;
@@ -295,7 +274,7 @@ const HomePage: React.FC = () => {
 
   const handleHotspotConfigSave = async (name: string, password: string, randomPassword: boolean): Promise<boolean> => {
     try {
-      setHotspotRandomPassword(randomPassword);
+      updateSetting('hotspotRandomPassword', randomPassword);
       const configResult = await window.neilink.ipc.invoke('hotspot:config', { ssid: name, password, randomPassword }) as any;
       if (!configResult?.success) {
         message.error(locale.hotspot.toastConfigFailed);
@@ -520,11 +499,11 @@ const HomePage: React.FC = () => {
         visible={shareModalVisible}
         filePath={selectedFilePath}
         isFolder={selectedIsFolder}
-        defaultExtractCode={defaultSettings.defaultExtractCode}
-        defaultExpiry={defaultSettings.defaultExpiry}
-        defaultMaxDownloads={defaultSettings.defaultMaxDownloads}
-        defaultMaxConcurrent={defaultSettings.defaultMaxConcurrent}
-        defaultEncrypt={defaultSettings.defaultEncrypt}
+        defaultExtractCode={settings.defaultExtractCode}
+        defaultExpiry={settings.defaultExpiry}
+        defaultMaxDownloads={settings.defaultMaxDownloads}
+        defaultMaxConcurrent={settings.defaultMaxConcurrent}
+        defaultEncrypt={settings.defaultEncrypt}
         onConfirm={handleShareConfirm}
         onCancel={() => setShareModalVisible(false)}
       />
@@ -534,7 +513,7 @@ const HomePage: React.FC = () => {
         visible={hotspotModalVisible}
         currentName={hotspotInfo.ssid || 'NeiLink'}
         currentPassword={hotspotInfo.password || ''}
-        randomPasswordEnabled={hotspotRandomPassword}
+        randomPasswordEnabled={settings.hotspotRandomPassword}
         onConfirm={handleHotspotConfigSave}
         onCancel={() => setHotspotModalVisible(false)}
       />

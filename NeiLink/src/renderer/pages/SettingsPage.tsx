@@ -16,7 +16,6 @@ import {
   Avatar,
 } from 'antd';
 import {
-  SaveOutlined,
   UndoOutlined,
   FolderOpenOutlined,
   SearchOutlined,
@@ -30,80 +29,17 @@ import {
 import { NetworkInfo, BannedIPInfo } from '../../shared/types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useSettings } from '../contexts/SettingsContext';
 import { getSupportedLanguages } from '../../shared/i18n';
 
 const { Text, Title } = Typography;
 
-interface AppSettings {
-  // 用户设置
-  userName?: string;
-  userAvatar?: string;
-
-  // 基础设置
-  autoStart: boolean;
-  defaultNickname: string;
-  defaultExtractCode: boolean;
-  defaultExpiry: string;
-  defaultMaxDownloads: number;
-  defaultMaxConcurrent: number;
-  clearSharesOnExit: boolean;
-  closeBehavior: 'ask' | 'minimize' | 'exit';
-  language: string;
-  theme: 'light' | 'dark' | 'auto';
-
-  // 网络设置
-  port: number;
-  downloadSpeedLimit: number;
-  hotspotSsid: string;
-  hotspotPassword: string;
-  hotspotRandomPassword: boolean;
-  floatWindowEnabled: boolean;
-
-  // 安全设置
-  rateLimitEnabled: boolean;
-  rateLimitMaxAttempts: number;
-  rateLimitBanDuration: number;
-  defaultEncrypt: boolean;
-
-  // 日志设置
-  logRetentionDays: number;
-  logStoragePath: string;
-}
-
-const defaultSettings: AppSettings = {
-  userName: 'NeiLink用户',
-  userAvatar: undefined,
-  autoStart: false,
-  defaultNickname: '',
-  defaultExtractCode: true,
-  defaultExpiry: '24h',
-  defaultMaxDownloads: -1,
-  defaultMaxConcurrent: -1,
-  clearSharesOnExit: false,
-  closeBehavior: 'ask',
-  language: 'zh-CN',
-  theme: 'auto',
-  port: 8080,
-  downloadSpeedLimit: 0,
-  hotspotSsid: 'NeiLink',
-  hotspotPassword: '',
-  hotspotRandomPassword: true,
-  floatWindowEnabled: true,
-  rateLimitEnabled: true,
-  rateLimitMaxAttempts: 10,
-  rateLimitBanDuration: 30,
-  defaultEncrypt: false,
-  logRetentionDays: 30,
-  logStoragePath: '',
-};
-
 const SettingsPage: React.FC = () => {
   const { message } = App.useApp();
-  const { locale, language, setLanguage } = useLanguage();
-  const { theme, setTheme } = useTheme();
-  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const { locale, setLanguage } = useLanguage();
+  const { setTheme } = useTheme();
+  // 设置统一由 SettingsContext 管理：启动时加载，改动即时（防抖）持久化。
+  const { settings, updateSetting, resetSettings } = useSettings();
   const [networkInfo, setNetworkInfo] = useState<NetworkInfo>({
     type: 'none',
     ip: '0.0.0.0',
@@ -116,53 +52,6 @@ const SettingsPage: React.FC = () => {
   const [bannedIPs, setBannedIPs] = useState<BannedIPInfo[]>([]);
   const [bannedIPsLoading, setBannedIPsLoading] = useState(false);
   const [refreshTimer, setRefreshTimer] = useState<any>(null);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const initialSettingsRef = useRef<AppSettings>(defaultSettings);
-
-  const fetchSettings = useCallback(async () => {
-    try {
-      setLoading(true);
-      const result = await window.neilink.ipc.invoke('settings:get') as any;
-      if (result?.success && result.data && typeof result.data === 'object') {
-        let convertedData = { ...result.data };
-        if (typeof convertedData.defaultExpiry === 'number') {
-          const numVal = convertedData.defaultExpiry as number;
-          if (numVal === -1) {
-            convertedData.defaultExpiry = 'permanent';
-          } else if (numVal <= 1) {
-            convertedData.defaultExpiry = '1h';
-          } else if (numVal <= 6) {
-            convertedData.defaultExpiry = '6h';
-          } else if (numVal <= 24) {
-            convertedData.defaultExpiry = '24h';
-          } else if (numVal <= 168) {
-            convertedData.defaultExpiry = '7d';
-          } else {
-            convertedData.defaultExpiry = '30d';
-          }
-        }
-        const hotspotResult = await window.neilink.ipc.invoke('hotspot:status') as any;
-        if (hotspotResult?.success && hotspotResult.data) {
-          const hotspotStatus = hotspotResult.data;
-          if (hotspotStatus.ssid) {
-            convertedData.hotspotSsid = hotspotStatus.ssid;
-          }
-          if (hotspotStatus.password && !convertedData.hotspotRandomPassword) {
-            convertedData.hotspotPassword = hotspotStatus.password;
-          }
-        }
-        const finalSettings = { ...defaultSettings, ...convertedData };
-        setSettings(finalSettings);
-        initialSettingsRef.current = { ...finalSettings };
-        setHasUnsavedChanges(false);
-      }
-    } catch (error) {
-      console.error('获取设置失败:', error);
-      message.error('获取设置失败');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   const fetchNetworkInfo = useCallback(async () => {
     try {
@@ -187,55 +76,9 @@ const SettingsPage: React.FC = () => {
     }
   }, []);
 
-  const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
-    setSettings((prev) => {
-      const newSettings = { ...prev, [key]: value };
-      // 检查是否有更改
-      const hasChanges = JSON.stringify(newSettings) !== JSON.stringify(initialSettingsRef.current);
-      setHasUnsavedChanges(hasChanges);
-      return newSettings;
-    });
-  };
-
-  const handleSave = useCallback(async () => {
-    try {
-      setSaving(true);
-      const result = await window.neilink.ipc.invoke('settings:save', settings) as any;
-      if (result?.success) {
-        await window.neilink.ipc.invoke('hotspot:config', {
-          ssid: settings.hotspotSsid,
-          password: settings.hotspotPassword,
-          randomPassword: settings.hotspotRandomPassword,
-        });
-        const statusResult = await window.neilink.ipc.invoke('hotspot:status') as any;
-        if (statusResult?.success && statusResult.data?.enabled) {
-          await window.neilink.ipc.invoke('hotspot:stop');
-          await window.neilink.ipc.invoke('hotspot:start', {
-            ssid: settings.hotspotSsid,
-            password: settings.hotspotRandomPassword ? undefined : settings.hotspotPassword,
-            randomPassword: settings.hotspotRandomPassword,
-          });
-        }
-        message.success('配置已保存');
-        initialSettingsRef.current = { ...settings };
-        setHasUnsavedChanges(false);
-      } else {
-        message.error(result?.error || '保存配置失败');
-      }
-    } catch (error) {
-      console.error('保存配置失败:', error);
-      message.error('保存配置失败');
-    } finally {
-      setSaving(false);
-    }
-  }, [settings]);
-
   const handleReset = async () => {
     try {
-      await window.neilink.ipc.invoke('settings:reset');
-      setSettings(defaultSettings);
-      initialSettingsRef.current = { ...defaultSettings };
-      setHasUnsavedChanges(false);
+      await resetSettings();
       message.success('已恢复默认设置');
     } catch {
       message.error('恢复默认设置失败');
@@ -383,7 +226,6 @@ const SettingsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchSettings();
     fetchNetworkInfo();
     fetchBannedIPs();
 
@@ -397,24 +239,38 @@ const SettingsPage: React.FC = () => {
         clearInterval(timer);
       }
     };
-  }, [fetchSettings, fetchNetworkInfo, fetchBannedIPs]);
+  }, [fetchNetworkInfo, fetchBannedIPs]);
 
-  // 离开页面时自动保存
+  // 热点配置变更时，防抖地应用配置并在热点运行中时重启，使新配置立即生效。
+  // 首次挂载跳过，避免无谓的重启。
+  const hotspotInitializedRef = useRef(false);
   useEffect(() => {
-    return () => {
-      if (hasUnsavedChanges) {
-        // 使用同步方式保存，因为组件即将卸载
-        (async () => {
-          try {
-            await window.neilink.ipc.invoke('settings:save', settings);
-            console.log('设置已自动保存');
-          } catch (error) {
-            console.error('自动保存设置失败:', error);
-          }
-        })();
+    if (!hotspotInitializedRef.current) {
+      hotspotInitializedRef.current = true;
+      return;
+    }
+    const handle = setTimeout(async () => {
+      try {
+        await window.neilink.ipc.invoke('hotspot:config', {
+          ssid: settings.hotspotSsid,
+          password: settings.hotspotPassword,
+          randomPassword: settings.hotspotRandomPassword,
+        });
+        const statusResult = await window.neilink.ipc.invoke('hotspot:status') as any;
+        if (statusResult?.success && statusResult.data?.enabled) {
+          await window.neilink.ipc.invoke('hotspot:stop');
+          await window.neilink.ipc.invoke('hotspot:start', {
+            ssid: settings.hotspotSsid,
+            password: settings.hotspotRandomPassword ? undefined : settings.hotspotPassword,
+            randomPassword: settings.hotspotRandomPassword,
+          });
+        }
+      } catch (error) {
+        console.error('应用热点配置失败:', error);
       }
-    };
-  }, [hasUnsavedChanges, settings]);
+    }, 600);
+    return () => clearTimeout(handle);
+  }, [settings.hotspotSsid, settings.hotspotPassword, settings.hotspotRandomPassword]);
 
   return (
     <div>
@@ -501,7 +357,6 @@ const SettingsPage: React.FC = () => {
           <Select
             value={settings.language}
             onChange={(val) => {
-              updateSetting('language', val);
               setLanguage(val);
             }}
             style={{ width: 140 }}
@@ -517,7 +372,6 @@ const SettingsPage: React.FC = () => {
           <Select
             value={settings.theme}
             onChange={(val) => {
-              updateSetting('theme', val);
               setTheme(val);
             }}
             style={{ width: 140 }}
@@ -985,14 +839,6 @@ const SettingsPage: React.FC = () => {
           onClick={handleReset}
         >
           恢复默认设置
-        </Button>
-        <Button
-          type="primary"
-          icon={<SaveOutlined />}
-          loading={saving}
-          onClick={handleSave}
-        >
-          {locale.common.save}
         </Button>
       </div>
     </div>
