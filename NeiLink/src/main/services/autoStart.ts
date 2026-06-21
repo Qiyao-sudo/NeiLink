@@ -30,7 +30,7 @@ export function setAutoStart(enabled: boolean): boolean {
     app.setLoginItemSettings({
       openAtLogin: !!enabled,
       openAsHidden: process.platform === 'darwin' ? !!enabled : false,
-      args: [AUTO_START_HIDDEN_ARG],
+      ...(enabled ? { args: [AUTO_START_HIDDEN_ARG] } : {}),
     });
     return true;
   } catch (err) {
