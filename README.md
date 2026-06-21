@@ -13,6 +13,8 @@
   <img alt="GitHub Release" src="https://img.shields.io/github/v/release/Qiyao-sudo/NeiLink" />
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey" />
   <img alt="GitHub Stars" src="https://img.shields.io/github/stars/Qiyao-sudo/NeiLink?style=social" />
+  <img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/Qiyao-sudo/NeiLink/build-and-release.yml?branch=dev" />
+  <img alt="Node Version" src="https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen" />
 </p>
 
 ---
@@ -129,6 +131,45 @@ NeiLink（轻连）是一款面向个人用户的跨平台局域网文件分享�
 
 ---
 
+## 📁 项目结构
+
+```
+NeiLink/
+├── src/
+│   ├── main/                  # Electron 主进程
+│   │   ├── services/          #   ├── 核心服务模块
+│   │   │   ├── autoStart.ts   #   │   ├── 开机自启管理
+│   │   │   ├── encryption.ts  #   │   ├── AES 加密解密
+│   │   │   ├── hotspot.ts     #   │   ├── 热点管理
+│   │   │   ├── httpServer.ts  #   │   ├── HTTP 文件传输服务
+│   │   │   ├── logger.ts      #   │   ├── 日志系统
+│   │   │   ├── network.ts     #   │   ├── 网络适配
+│   │   │   ├── receiverPage.ts#   │   ├── 接收端页面生成
+│   │   │   ├── settings.ts    #   │   ├── 设置管理
+│   │   │   ├── shareManager.ts#   │   ├── 分享任务管理
+│   │   │   └── updater.ts     #   │   └── 自动更新
+│   │   ├── ipcHandlers.ts     #   ├── IPC 通信处理
+│   │   └── main.ts            #   └── 主进程入口
+│   ├── preload/
+│   │   └── preload.ts         # 预加载脚本（安全桥接）
+│   ├── renderer/              # 渲染进程（React 前端）
+│   │   ├── components/        #   ├── 通用组件
+│   │   ├── contexts/          #   ├── React Context
+│   │   ├── float/             #   ├── 悬浮窗
+│   │   ├── pages/             #   ├── 页面组件
+│   │   └── styles/            #   └── 样式
+│   └── shared/                # 主进程与渲染进程共享
+│       ├── i18n/              #   ├── 国际化（中 / 英）
+│       └── types.ts           #   └── 类型定义
+├── build/                     # 构建资源（图标等）
+├── installer/                 # 安装脚本（Inno Setup）
+├── package.json
+├── tsconfig.json              # TypeScript 配置
+└── webpack.renderer.config.js # Webpack 配置
+```
+
+---
+
 ## 📦 安装指南
 
 ### 从发布包安装
@@ -136,6 +177,14 @@ NeiLink（轻连）是一款面向个人用户的跨平台局域网文件分享�
 访问 [Releases](https://github.com/Qiyao-sudo/NeiLink/releases) 页面下载对应平台的安装包。
 
 ### 从源码构建
+
+#### 前置要求
+
+- **Node.js** >= 18.0.0
+- **npm** >= 9.0.0
+- **Git**
+
+#### 开发环境
 
 ```bash
 # 克隆仓库
@@ -145,12 +194,33 @@ cd NeiLink
 # 安装依赖
 npm install
 
-# 构建项目
-npm run build
-
-# 运行开发服务器
+# 启动开发服务器（同时启动 Webpack Dev Server 和 Electron）
 npm run dev
 ```
+
+#### 构建打包
+
+```bash
+# 构建生产版本
+npm run build
+
+# 打包为平台安装包（自动运行构建）
+npm run package          # 当前平台
+npm run package:win      # Windows
+npm run package:mac      # macOS
+npm run package:linux    # Linux
+```
+
+#### 可用脚本
+
+| 命令 | 说明 |
+|:---|:---|
+| `npm run dev` | 启动开发环境（热更新 + Electron 窗口） |
+| `npm run build` | 构建生产版本（Webpack + TypeScript） |
+| `npm run package` | 构建并打包为当前平台安装包 |
+| `npm run package:win` | 构建并打包为 Windows 安装包（exe） |
+| `npm run package:mac` | 构建并打包为 macOS 安装包（dmg） |
+| `npm run package:linux` | 构建并打包为 Linux 安装包（AppImage） |
 
 ---
 
